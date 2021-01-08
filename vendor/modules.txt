@@ -10,6 +10,9 @@ github.com/beego/beego/v2/server/web/context
 github.com/beego/beego/v2/server/web/context/param
 github.com/beego/beego/v2/server/web/grace
 github.com/beego/beego/v2/server/web/session
+# github.com/beevik/etree v1.1.0
+## explicit
+github.com/beevik/etree
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.1
