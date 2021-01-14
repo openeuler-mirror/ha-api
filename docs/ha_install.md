@@ -1,32 +1,34 @@
-# HA Installation
+# HA 安装
 
-see [README](../README.en.md#Installation)
+本文档描述如何安装HA高可用集群软件。
 
+## 环境要求
 
-## Environment Requirement
- - at least 2 machines with openEuler 20.03 LTS-SP1 installed
+ - 至少两台安装openEuler 2003 LTS-SP1操作系统的物理机/虚拟机
 
-## Steps
+ ## 安装步骤
 
-***note：all the machines need to operate, exampled by ha1***
+ ***注意：所有集群机器均需要执行以下操作，以ha1机器为例进行说明***
 
-### modify hostname and `/etc/hosts`
-before use HA software, you need to make sure the hostname has been modified and record all hostname in `/etc/hosts`.
+ ### 修改主机名和`/etc/hosts`
 
-```
+ 安装HA软件之前，需要确保正确配置hostname，并且在`/etc/hosts`中记录了域名解析。
+
+ ```
 [root@ha1 ~]# hostnamectl set-hostname ha1
 [root@ha1 ~]# vim /etc/hosts
 10.1.80.20 ha1
 10.1.80.21 ha2
 ```
 
-### turn off firewall
+### 关闭防火墙
 
 ```
 [root@ha1 ~]# systemctl stop firewalld
 ```
 
-modify SELINUX config to disabled:
+修改SELINUX配置为disabled:
+
 ```
 [root@ha1 ~]# vim /etc/selinux/config
 SELINUX=disabled
@@ -35,7 +37,7 @@ SELINUXTYPE=targeted
 
 ### install HA software
 
-The yum repositories is well configed by default after the OS is install, but you still need to check it. The file is `/etc/yum.repos.d/openEuler.repo` and the following repositories will be used:
+默认在OS安装之后，yum源已经正常配置，以防万一需要检查一下。文件为`/etc/yum.repos.d/openEuler.repo`，以下repo源会用到：
 
 ```
 [OS]
@@ -60,19 +62,19 @@ gpgcheck=1
 gpgkey=http://repo.openeuler.org/openEuler-20.03-LTS-SP1/OS/$basearch/RPM-GPG-KEY-openEuler
 ```
 
-Install the following HA packages:
+安装以下HA软件包：
 
 ```
 [root@ha1~]# yum install corosync pacemaker pcs fence-agents fence-virt corosync-qdevice sbd drbd drbd-utils
 ```
 
-### set hacluster user password
+### 设置hacluster用户密码
 
 ```
 [root@ha1~]# passwd hacluster
 ```
 
-### modify `/etc/corosync/corosync.conf`
+### 修改配置文件 `/etc/corosync/corosync.conf`
 
 ```
 totem {
@@ -112,9 +114,9 @@ nodelist {
         }
 ```
 
-### start services
+### 启动服务
 
-Start the following services:
+启动以下服务：
 
 ```
 [root@ha1~]# systemctl start pcsd
@@ -122,19 +124,20 @@ Start the following services:
 [root@ha1~]# systemctl start corosync
 ```
 
-### authenticate the nodes
+### 节点鉴权
 
-***note: only needed to run on one node***
+***注意：只需要在一台机器上执行***
 
 ```
 [root@ha1~]# pcs host auth ha1 ha2
 ```
 
-### check HA cluster status
+### 检查HA集群状态
 
-Check HA cluster status by command `pcs status`.
+使用`pcs status`命令检查HA集群状态。
+
 ```
 [root@ha1~]# pcs status
 ```
-![pcs status](../pictures/pcs_status.png)
 
+![pcs status](../pictures/pcs_status.png)

@@ -1,15 +1,20 @@
-# Compile
+# Build from Source
 
-## Description 
+This document describes how to build HA-api managment backend from code.
 
-This file describes how to compile HA-api managment backend from code.
-
-## Compile and install
+## Build
 
 ### Build Requirements
 
 Only golang is needed to be installed on the host.
+
  - go >= 1.13
+
+To get code from gitee, you alse neet to install `git`.
+
+```
+yum install git
+```
 
 ### Build
 
@@ -27,11 +32,11 @@ go build
 ```
 This will generate `ha-api`(or `ha-api.exe` on windows) executable file.
 
-### Usage
+## Usage
 
-Before you use the HA-api backend, you need to install HA software first. Check [install](./install_en.md) for more information.
+Before you use the HA-api backend, you need to install HA software first. Check [ha_install](./ha_install_en.md) for more information.
 
-Run the server by `./ha-api` after build:
+Run the server by `./ha-api` after build:ha_
 ```
 ./ha-api
 ```

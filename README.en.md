@@ -1,22 +1,12 @@
 # ha-api
 
-## Table of contents
- - [Description](#Description)
- - [Table of contents](#Table\ of\ contents)
- - [Description](#Description)
- - [Screenshots](#Screenshots)
- - [Features](#Features)
- - [Documents](#Documents)
- - [Install](#Install)
- - [Contribution](#Contribution)
- - [Gitee Feature](#Gitee\ Feature)
-
 ## Description
 REST API backend for HA manage platform.
 
 Another project is [HA-web](https://gitee.com/openeuler/ha-web), which is the frontend of HA manage platform. 
 
 ## Screenshots
+
 TODO: add some screenshots here
 
 ## Features
@@ -26,20 +16,22 @@ Easy to use.
 ## Documents
 
 The following documents are provide to help you understand the project:
- - [Install Document](./docs/install_en.md)
+ - [Build Document](./docs/build_en.md)
  - [Architecture Document](./docs/architecture_en.md)
  - [API Document](./docs/api_en.md)
 
 ## Install 
 
-On openEuler 20.03 LTS SP1, you can install HA management platform by yum:
+HA software is need to run ha-api manage platform backend.
+
+On openEuler 20.03 LTS SP1, you can install HA software by yum:
 
 ```
 [root@ha1~]# yum install corosync pacemaker pcs fence-agents fence-virt corosync-qdevice sbd drbd drbd-utils
 ```
 
 For another OS, you may need to compile it and then install.
-You can get more details in [install documents](./docs/install_en.md) and [compile documents](./docs/compile_en.md)
+You can get more details in [install documents](./docs/install_en.md) and [build documents](./docs/build_en.md)
 
 ## Contribution
 
