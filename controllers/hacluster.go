@@ -43,3 +43,13 @@ func (hcc *HAClustersController) Put() {
 	hcc.Data["json"] = &result
 	hcc.ServeJSON()
 }
+
+type LocalHaOperation struct {
+	web.Controller
+}
+
+func (lho *LocalHaOperation) Put() {
+	var action string
+	lho.Data["json"] = models.OperationClusterAction(action)
+	lho.ServeJSON()
+}
