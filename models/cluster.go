@@ -48,7 +48,7 @@ func UpdateClusterProperties(newProp map[string]string) map[string]interface{} {
 		cmdStr := "crm_attribute -t crm_config -n " + k + " -v " + v
 		out, err := utils.RunCommand(cmdStr)
 		if err != nil {
-			result["action"] = true
+			result["action"] = false
 			result["error"] = string(out)
 			return result
 		}
@@ -231,4 +231,27 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 	}
 
 	return prop
+}
+
+func OperationClusterAction(action string) map[string]interface{} {
+	result := map[string]interface{}{}
+	if action == "start" {
+		utils.RunCommand("pcs cluster start")
+	}
+	if action == "stop" {
+		utils.RunCommand("pcs cluster stop")
+	}
+	if action == "restart" {
+		utils.RunCommand("pcs cluster stop")
+		utils.RunCommand("pcs cluster start")
+	}
+	if action == "" {
+		result["action"] = false
+		result["error"] = "Action on node Failed"
+		return result
+	} else {
+		result["action"] = true
+		result["error"] = "Action on node Failed"
+		return result
+	}
 }
