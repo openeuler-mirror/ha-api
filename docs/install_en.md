@@ -1,19 +1,17 @@
-# ha-api
+# HA Installation
 
-#### 介绍
-API interface for HA management
-
-#### 软件架构
-软件架构说明
+see [README](../README.en.md#Installation)
 
 
-#### 安装教程
+## Environment Requirement
+ - at least 2 machines with openEuler 20.03 LTS-SP1 installed
 
-环境需求：至少两台已经安装好openEuler 20.03 LTS-SP1的物理机/虚拟机
+## Steps
 
-***注：以下操作两台主机均需要操作，现以ha1主机为例***
-1.  修改主机名称及 /etc/hosts文件
-在使用HA软件之前，需要确认修改主机名并将所有主机名写入/etc/hosts中。
+***note：all the machines need to operate, exampled by ha1***
+
+### modify hostname and `/etc/hosts`
+before use HA software, you need to make sure the hostname has been modified and record all hostname in `/etc/hosts`.
 
 ```
 [root@ha1 ~]# hostnamectl set-hostname ha1
@@ -22,19 +20,23 @@ API interface for HA management
 10.1.80.21 ha2
 ```
 
-2.  关闭防火墙
+### turn off firewall
+
 ```
 [root@ha1 ~]# systemctl stop firewalld
 ```
-修改SELINUX状态为disabled
+
+modify SELINUX config to disabled:
 ```
 [root@ha1 ~]# vim /etc/selinux/config
 SELINUX=disabled
 SELINUXTYPE=targeted
 ```
 
-3.  安装软件包
-成功安装系统后，会默认配置好yum源，文件位置存放在/etc/yum.repos.d/openEuler.repo文件中，软件包会用到以下源:
+### install HA software
+
+The yum repositories is well configed by default after the OS is install, but you still need to check it. The file is `/etc/yum.repos.d/openEuler.repo` and the following repositories will be used:
+
 ```
 [OS]
 name=OS
@@ -57,15 +59,21 @@ enabled=1
 gpgcheck=1
 gpgkey=http://repo.openeuler.org/openEuler-20.03-LTS-SP1/OS/$basearch/RPM-GPG-KEY-openEuler
 ```
-使用以下命令安装HA软件包
+
+Install the following HA packages:
+
 ```
 [root@ha1~]# yum install corosync pacemaker pcs fence-agents fence-virt corosync-qdevice sbd drbd drbd-utils
 ```
-4. 设置hacluster用户密码
+
+### set hacluster user password
+
 ```
 [root@ha1~]# passwd hacluster
 ```
-5. 修改/etc/corosync/corosync.conf文件
+
+### modify `/etc/corosync/corosync.conf`
+
 ```
 totem {
         version: 2
@@ -103,39 +111,30 @@ nodelist {
                }
         }
 ```
-6. 启动服务
-启动以下服务：
+
+### start services
+
+Start the following services:
+
 ```
 [root@ha1~]# systemctl start pcsd
 [root@ha1~]# systemctl start pacemaker
 [root@ha1~]# systemctl start corosync
 ```
-7. 节点鉴权
-***注：一个节点上执行即可***
+
+### authenticate the nodes
+
+***note: only needed to run on one node***
+
 ```
 [root@ha1~]# pcs host auth ha1 ha2
 ```
-8. 访问前端管理平台
-在浏览器中直接访问`https://IP:2224`即可。用户名为`hacluster`，密码为该用户在主机上设置的密码。
-#### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+### check HA cluster status
 
-#### 参与贡献
+Check HA cluster status by command `pcs status`.
+```
+[root@ha1~]# pcs status
+```
+![pcs status](../pictures/pcs_status.png)
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 码云特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  码云官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解码云上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是码云最有价值开源项目，是码云综合评定出的优秀开源项目
-5.  码云官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  码云封面人物是一档用来展示码云会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
