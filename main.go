@@ -12,5 +12,6 @@ func main() {
 	logs.SetLogger("console")
 	logs.SetLevel(logs.LevelDebug)
 
+	web.SetStaticPath("/4.12.13", "views/static/4.12.13")
 	web.Run()
 }

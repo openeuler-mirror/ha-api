@@ -1,5 +1,10 @@
 package models
 
+import (
+	"fmt"
+	"testing"
+)
+
 // [root@ha1 ~]# cibadmin --query --scope resources
 // <resources>
 //   <clone id="sysinfo-clone">
@@ -241,3 +246,9 @@ package models
 //     </operations>
 //   </primitive>
 // </resources>
+
+func TestSimple(t *testing.T) {
+	rscID := "resource-clone"
+	rscID = rscID[:len(rscID)-6]
+	fmt.Println(rscID)
+}
