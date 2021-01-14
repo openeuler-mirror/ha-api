@@ -1,8 +1,12 @@
 package models
 
 import (
+	"encoding/json"
+	"errors"
+	"strconv"
 	"strings"
 
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"openkylin.com/ha-api/utils"
 )
@@ -47,8 +51,9 @@ func GerResourceInfo() map[string]interface{} {
 	return constraints
 }
 
-func GetResourceCategory() {
-
+func GetResourceCategory(rscID string) string {
+	// TODO:
+	return ""
 }
 
 func GetResourceType(rscID string) string {
@@ -76,12 +81,8 @@ func GetResourceByConstraintAndId() {
 
 }
 
-func DeleteColocationByIdAndAction() {
-
-}
-
 func CreateResource(data []byte) map[string]interface{} {
-
+	// TODO:
 	return nil
 }
 
@@ -186,4 +187,178 @@ func GetTopResource() []string {
 	}
 
 	return result
+}
+
+func ResourceAction(rscID, action string, data []byte) error {
+	// in case ":" within the resource name
+	rscID = strings.Split(rscID, ":")[0]
+	// cmd := "crm_resource --resource "
+	switch action {
+	case "start":
+		cmd := "pcs resource enable " + rscID
+		_, err := utils.RunCommand(cmd)
+		return err
+	case "stop":
+		cmd := "pcs resource disable " + rscID
+		_, err := utils.RunCommand(cmd)
+		return err
+	case "delete":
+		var cmd string
+		category := GetResourceCategory(rscID)
+		if category == "clone" {
+			cmd = "pcs resource delete " + rscID[:len(rscID)-6] + " --force"
+		} else {
+			// not clone
+			cmd = "pcs resource delete " + rscID + " --force"
+		}
+		_, err := utils.RunCommand(cmd)
+		return err
+	case "cleanup":
+		cmd := "crm_resource --resource " + rscID + " --cleanup"
+		_, err := utils.RunCommand(cmd)
+		return err
+	case "migrate":
+		d := struct {
+			IsForce bool   `json:"is_force"`
+			ToNode  string `json:"to_node"`
+			Period  string `json:"period"`
+		}{}
+		if err := json.Unmarshal(data, &d); err != nil {
+			return errors.New("invalid json data")
+		}
+
+		cmd := "crm_resource --resource " + rscID + " --move -N " + d.ToNode
+		out, err := utils.RunCommand(cmd)
+		if err != nil {
+			if string(out) == "Error performing operation: Situation already as requested" {
+				return errors.New("The resource " + rscID + " is running on node " + d.ToNode + " already!")
+			}
+		}
+		return err
+	case "unmigrate":
+		cmd := "cibadmin --query --scope constraints"
+		out, err := utils.RunCommand(cmd)
+		if err != nil {
+			return err
+		}
+		doc := etree.NewDocument()
+		if err := doc.ReadFromBytes(out); err != nil {
+			return err
+		}
+		rscNames := doc.FindElements("./rsc_location")
+		for _, item := range rscNames {
+			rsc := item.SelectAttrValue("rsc", "")
+			if rscID == rsc {
+				locationID := item.SelectAttrValue("id", "")
+				cmd2 := "pcs constraint location delete " + locationID
+				if _, err := utils.RunCommand(cmd2); err != nil {
+					return err
+				}
+			}
+		}
+		logs.Info("Unmigrate resource not found")
+		return nil
+	case "location":
+		// location:
+		// {"node_level": [{"node": "ns187", "level": "Master Node"},
+		// {"node": "ns188", "level": "Slave 1"}]}
+		ids := getResourceConstraintIDs(rscID, action)
+		for _, item := range ids {
+			cmd := "pcs constraint location delete " + item
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+
+		d := map[string]interface{}{}
+		if err := json.Unmarshal(data, &d); err != nil {
+			return err
+		}
+		for _, mapItem := range d["node_level"].([]map[string]string) {
+			var score int
+			if mapItem["level"] == "Master Node" {
+				score = 20000
+			} else if mapItem["level"] == "Slave 1" {
+				score = 16000
+			}
+			node := mapItem["node"]
+			cmd := "pcs constraint location " + rscID + " prefers " + node + "=" + strconv.Itoa(score)
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+	case "colocation":
+		// 	colocation:
+		// {"same_node": ["test1234"],"diff_node": ["group_tomcat"]}
+		ids := getResourceConstraintIDs(rscID, action)
+		if err := DeleteColocationByIdAndAction(rscID, ids); err != nil {
+			return err
+		}
+
+		d := struct {
+			SameNode []string `json:"same_node"`
+			DiffNode []string `json:"diff_node"`
+		}{}
+		if err := json.Unmarshal(data, d); err != nil {
+			return err
+		}
+		for _, item := range d.SameNode {
+			cmd := "pcs constraint colocation add " + rscID + " with " + item + " INFINITY"
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+		for _, item := range d.DiffNode {
+			cmd := "pcs constraint colocation add " + rscID + " with " + item + " -INFINITY"
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+	case "order":
+		if findOrder(rscID) {
+			cmd := "pcs constraint order delete " + rscID
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+		d := struct {
+			BeforeRscs []string `json:"before_rscs"`
+			AfterRscs  []string `json:"after_rscs"`
+		}{}
+		if err := json.Unmarshal(data, d); err != nil {
+			return err
+		}
+		for _, item := range d.BeforeRscs {
+			cmd := "pcs constraint order start " + item + " then " + rscID
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+		for _, item := range d.AfterRscs {
+			cmd := "pcs constraint order start " + rscID + " then " + item
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func getResourceConstraintIDs(rscID, action string) []string {
+	return nil
+}
+
+func DeleteColocationByIdAndAction(rscID string, targetIds []string) error {
+	for _, item := range targetIds {
+		cmd := "pcs constraint colocation delete " + rscID + " " + item
+		if _, err := utils.RunCommand(cmd); err != nil {
+			return err
+		}
+	}
+}
+
+func findOrder(rscID string) bool {
+	// TODO:
+	return false
 }

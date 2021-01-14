@@ -61,7 +61,7 @@ func UpdateClusterProperties(newProp map[string]string) map[string]interface{} {
 
 // GetClusterStatus returns crm_mon running status, 0 if normal, -1 if any error
 func GetClusterStatus() int {
-	_, err := utils.RunCommand("crm_mon - 1")
+	_, err := utils.RunCommand("crm_mon -1")
 	if err != nil {
 		return -1
 	}

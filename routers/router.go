@@ -22,6 +22,9 @@ func init() {
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 
 		web.NSRouter("/haclusters/1/resources", &controllers.ResourceController{}),
+		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceController{}),
+
+		web.NSRouter("/haclusters/1/configs", &controllers.HeartBeatController{}),
 
 		web.NSRouter("/haclusters/1/nodes", &controllers.NodesController{}),
 		web.NSRouter("/haclusters/1/nodes/:nodeID", &controllers.NodeController{}),
