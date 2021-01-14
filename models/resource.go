@@ -356,6 +356,7 @@ func DeleteColocationByIdAndAction(rscID string, targetIds []string) error {
 			return err
 		}
 	}
+	return nil
 }
 
 func findOrder(rscID string) bool {
