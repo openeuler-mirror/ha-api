@@ -1,17 +1,15 @@
-# Architecture
+# 架构
 
-## Description
+该文件描述ha-api管理平台项目后端架构。
 
-This file describe HA-api management backend project architecture.
+## 项目架构
+
+TODO: 待补充图片
+
+总体来讲，ha-api后端封装了很多的HA软件管理命令行，例如pcs, crm_xxx, cibamdin等。然后通过ha-web项目提供一个易于使用的前端界面来监控和管理HA集群。
 
 
-## Project Architecture
-
-TODO: need a picture here
-
-Briefly, HA-api wraps many HA manager commands such as pcs, crm_xxx, cibamdin, and provides a easy-to-use web UI to monitor and control your HA cluster.
-
-## Code Structure
+## 代码结构
 
 ```
 --
@@ -25,11 +23,11 @@ Briefly, HA-api wraps many HA manager commands such as pcs, crm_xxx, cibamdin, a
 
 ```
 
-controllers: REST api processer needed by Beego framework.
-models: wraps HA cluster manager commands.
-routers: bind URLs and controllers.
-services: currently only session service.
-settings: application settings.
-utils: common utils.
-views: static files.
+controllers: Beego框架中的REST api处理controller。
+models: 封装HA集群管理命令。
+routers: 绑定URL和controller。
+services: 当前只有session服务.
+settings: 应用配置.
+utils: 公共工具类.
+views: 静态文件.
 
