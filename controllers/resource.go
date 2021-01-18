@@ -56,3 +56,14 @@ func (rac *ResourceActionController) PUT() {
 	rac.Data["json"] = &result
 	rac.ServeJSON()
 }
+
+type ResourceMetaAttributesController struct {
+	web.Controller
+}
+
+func (rc *ResourceMetaAttributesController) Get() {
+	catagory := rc.Ctx.Input.Param(":catagory")
+	result := models.GetResourceMetaAttributes(catagory)
+	rc.Data["json"] = &result
+	rc.ServeJSON()
+}

@@ -75,7 +75,116 @@ func GetResourceConstraints() {
 
 func GetResourceFailedMessage() {}
 
-func GetResourceMetaAttributes() {}
+func GetResourceMetaAttributes(category string) map[string]interface{} {
+	retjson := make(map[string](map[string]interface{}))
+
+	retjson["target-role"] = make(map[string]interface{})
+	retjson["target-role"]["content"] = make(map[string]interface{})
+	retjson["target-role"]["name"] = "target-role"
+	retjson["target-role"]["content"].(map[string]interface{})["values"] = []string{"Stopped", "Started"}
+	retjson["target-role"]["content"].(map[string]interface{})["default"] = "Stopped"
+	retjson["target-role"]["content"].(map[string]interface{})["type"] = "enum"
+	retjson["target-role"]["content"].(map[string]interface{})["dec"] = "What state should the cluster attempt to keep this resource in?"
+
+	retjson["priority"] = make(map[string]interface{})
+	retjson["priority"]["content"] = make(map[string]interface{})
+	retjson["priority"]["name"] = "priority"
+	retjson["priority"]["content"].(map[string]interface{})["type"] = "integer"
+	retjson["priority"]["content"].(map[string]interface{})["dec"] = "If not all resources can be active, the cluster will stop lower priority resources in order to keep higher priority ones active."
+
+	retjson["is-managed"] = make(map[string]interface{})
+	retjson["is-managed"]["content"] = make(map[string]interface{})
+	retjson["is-managed"]["name"] = "is-managed"
+	retjson["is-managed"]["content"].(map[string]interface{})["type"] = "boolean"
+	retjson["is-managed"]["content"].(map[string]interface{})["dec"] = "Is the cluster allowed to start and stop the resource?"
+
+	if category == "group" {
+		return map[string]interface{}{
+			"action": true,
+			"data":   retjson,
+		}
+	}
+
+	retjson["resource-stickiness"] = make(map[string]interface{})
+	retjson["resource-stickiness"]["content"] = make(map[string]interface{})
+	retjson["resource-stickiness"]["name"] = "resource-stickiness"
+	retjson["resource-stickiness"]["content"].(map[string]interface{})["type"] = "integer"
+	retjson["resource-stickiness"]["content"].(map[string]interface{})["dec"] = "How much does the resource prefer to stay where it is? Defaults to the value of \"default-resource-stickiness\""
+
+	retjson["migration-threshold"] = make(map[string]interface{})
+	retjson["migration-threshold"]["content"] = make(map[string]interface{})
+	retjson["migration-threshold"]["name"] = "migration-threshold"
+	retjson["migration-threshold"]["content"].(map[string]interface{})["type"] = "integer"
+	retjson["migration-threshold"]["content"].(map[string]interface{})["dec"] = "How many failures should occur for this resource on a node before making the node ineligible to host this resource. Default: \"none\""
+
+	retjson["multiple-active"] = make(map[string]interface{})
+	retjson["multiple-active"]["content"] = make(map[string]interface{})
+	retjson["multiple-active"]["name"] = "multiple-active"
+	retjson["multiple-active"]["content"].(map[string]interface{})["values"] = []string{"stop_start", "stop_only", "block"}
+	retjson["multiple-active"]["content"].(map[string]interface{})["type"] = "enum"
+	retjson["multiple-active"]["content"].(map[string]interface{})["dec"] = "What should the cluster do if it ever finds the resource active on more than one node."
+
+	retjson["failure-timeout"] = make(map[string]interface{})
+	retjson["failure-timeout"]["content"] = make(map[string]interface{})
+	retjson["failure-timeout"]["name"] = "failure-timeout"
+	retjson["failure-timeout"]["content"].(map[string]interface{})["type"] = "integer"
+	retjson["failure-timeout"]["content"].(map[string]interface{})["dec"] = "How many seconds to wait before acting as if the failure had not occurred (and potentially allowing the resource back to the node on which it failed. Default: \"never\""
+
+	retjson["allow-migrate"] = make(map[string]interface{})
+	retjson["allow-migrate"]["content"] = make(map[string]interface{})
+	retjson["allow-migrate"]["name"] = "allow-migrate"
+	retjson["allow-migrate"]["content"].(map[string]interface{})["type"] = "boolean"
+	retjson["allow-migrate"]["content"].(map[string]interface{})["dec"] = "Allow resource migration for resources which support migrate_to/migrate_from actions."
+
+	if category == "primitive" {
+		return map[string]interface{}{
+			"action": true,
+			"data":   retjson,
+		}
+	}
+
+	if category == "clone" {
+		retjson["interleave"] = make(map[string]interface{})
+		retjson["interleave"]["content"] = make(map[string]interface{})
+		retjson["interleave"]["name"] = "interleave"
+		retjson["interleave"]["content"].(map[string]interface{})["type"] = "boolean"
+		retjson["interleave"]["content"].(map[string]interface{})["dec"] = "Changes the behavior of ordering constraints (between clones/masters) so that instances can start/stop as soon as their peer instance has (rather than waiting for every instance of the other clone has)."
+
+		retjson["clone-max"] = make(map[string]interface{})
+		retjson["clone-max"]["content"] = make(map[string]interface{})
+		retjson["clone-max"]["name"] = "clone-max"
+		retjson["clone-max"]["content"].(map[string]interface{})["type"] = "integer"
+		retjson["clone-max"]["content"].(map[string]interface{})["dec"] = "How many copies of the resource to start. Defaults to the number of nodes in the cluster."
+
+		retjson["promoted-max"] = make(map[string]interface{})
+		retjson["promoted-max"]["content"] = make(map[string]interface{})
+		retjson["promoted-max"]["name"] = "promoted-max"
+		retjson["promoted-max"]["content"].(map[string]interface{})["type"] = "integer"
+		retjson["promoted-max"]["content"].(map[string]interface{})["dec"] = "If promotable is true, the number of instances that can be promoted at one time across the entire cluster"
+
+		retjson["promotable"] = make(map[string]interface{})
+		retjson["promotable"]["content"] = make(map[string]interface{})
+		retjson["promotable"]["name"] = "promotable"
+		retjson["promotable"]["content"].(map[string]interface{})["type"] = "boolean"
+		retjson["promotable"]["content"].(map[string]interface{})["desc"] = "If true, clone instances can perform a special role that Pacemaker will manage via the resource agent's promote and demote actions. The resource agent must support these actions"
+
+		retjson["notify"] = make(map[string]interface{})
+		retjson["notify"]["content"] = make(map[string]interface{})
+		retjson["notify"]["name"] = "notify"
+		retjson["notify"]["content"].(map[string]interface{})["type"] = "boolean"
+		retjson["notify"]["content"].(map[string]interface{})["desc"] = "Call the resource agent's notify action for all active instances, before and after starting or stopping any clone instance"
+
+		return map[string]interface{}{
+			"action": true,
+			"data":   retjson,
+		}
+
+	}
+	return map[string]interface{}{
+		"action": true,
+		"data":   retjson,
+	}
+}
 
 func GetResourceByConstraintAndId() {
 
