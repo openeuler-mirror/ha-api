@@ -49,7 +49,7 @@ type LocalHaOperation struct {
 }
 
 func (lho *LocalHaOperation) Put() {
-	var action string
+	action := lho.Ctx.Input.Param("action")
 	lho.Data["json"] = models.OperationClusterAction(action)
 	lho.ServeJSON()
 }
