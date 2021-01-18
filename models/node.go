@@ -1,25 +1,88 @@
 package models
 
 import (
+	"errors"
+
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"openkylin.com/ha-api/utils"
 )
 
-func GetNodesInfo() map[string]interface{} {
-	var result map[string]interface{}
+func GetNodesInfo() ([]map[string]string, error) {
+	var result []map[string]string
 
 	out, err := utils.RunCommand("crm_mon --as-xml")
 	if err != nil {
-		// get nodes info from hosts
+		nodeOffline, err2 := GetHeartBeatHosts()
+		if err2 != nil {
+			return nil, errors.New("请确定集群节点已认证")
+		}
+		for _, node := range nodeOffline {
+			infoMap := map[string]string{}
+			infoMap["id"] = node.NodeID
+			infoMap["status"] = "Not Running"
+			infoMap["is_dc"] = "false"
+			result = append(result, infoMap)
+		}
+		if len(result) > 0 {
+			return result, nil
+		}
+		return nil, errors.New("Get node failed")
 	}
 
 	doc := etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		// TODO: not finished
+		return nil, errors.New("parse xml failed")
+	}
+	nodes := doc.SelectElement("crm_mon").SelectElements("nodes")
+	for _, node := range nodes {
+		name := node.SelectAttr("name").Value
+		online := node.SelectAttr("online").Value
+		standby := node.SelectAttr("standby").Value
+		isDc := node.SelectAttr("is_dc").Value
+		var status string
+
+		if isDc == "true" {
+			if standby == "true" {
+				if online == "true" {
+					status = "Master/Standby"
+				} else {
+					status = "Not Running"
+				}
+			} else {
+				if online == "true" {
+					status = "Master"
+				} else {
+					status = "Not Running"
+				}
+			}
+		} else {
+			if standby == "true" {
+				if online == "true" {
+					status = "Standby"
+				} else {
+					status = "Not Running"
+				}
+			} else {
+				if online == "true" {
+					status = "Running"
+				} else {
+					status = "Not Running"
+				}
+			}
+		}
+
+		infoMap := map[string]string{}
+		infoMap["id"] = name
+		infoMap["status"] = status
+		infoMap["is_dc"] = isDc
+		result = append(result, infoMap)
 	}
 
-	return result
+	if len(result) > 0 {
+		return result, nil
+	}
+	return nil, errors.New("Get node failed")
 }
 
 func DoNodeAction(nodeID, action string) map[string]interface{} {
@@ -27,16 +90,12 @@ func DoNodeAction(nodeID, action string) map[string]interface{} {
 	result := map[string]interface{}{}
 
 	if action == "standby" {
-		// 备用
 		cmd = "pcs node standby " + nodeID
 	} else if action == "unstandby" {
-		// 不备用
 		cmd = "pcs node unstandby " + nodeID
 	} else if action == "start" {
-		// 启动
 		cmd = "pcs cluster start " + nodeID + " &sleep 5"
 	} else if action == "stop" {
-		// 停止
 		cmd = "pcs cluster stop " + nodeID
 	} else if action == "restart" {
 		cmd = "pcs cluster restart " + nodeID

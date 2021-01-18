@@ -10,7 +10,16 @@ type NodesController struct {
 }
 
 func (nsc *NodesController) Get() {
-	result := models.GetNodesInfo()
+	result := map[string]interface{}{}
+
+	retData, err := models.GetNodesInfo()
+	if err != nil {
+		result["action"] = false
+		result["error"] = err.Error()
+	} else {
+		result["action"] = true
+		result["error"] = retData
+	}
 
 	nsc.Data["json"] = &result
 	nsc.ServeJSON()
