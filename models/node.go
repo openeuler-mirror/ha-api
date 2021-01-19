@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
@@ -83,6 +84,24 @@ func GetNodesInfo() ([]map[string]string, error) {
 		return result, nil
 	}
 	return nil, errors.New("Get node failed")
+}
+
+func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
+	var cmd string
+	cmd = "cat /etc/hosts|grep " + nodeID + "|awk -F ' ' '{print $1}'"
+	out, err := utils.RunCommand(cmd)
+
+	var ips []string
+	ips = strings.Split(strings.TrimSpace(string(out)), "\n")
+	logs.Debug(ips)
+
+	if err != nil || len(ips) == 0 {
+		return nil, err
+	}
+
+	var nodeInfo = make(map[string][]string)
+	nodeInfo["ips"] = ips
+	return nodeInfo, nil
 }
 
 func DoNodeAction(nodeID, action string) map[string]interface{} {
