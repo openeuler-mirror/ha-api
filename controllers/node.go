@@ -30,7 +30,17 @@ type NodeController struct {
 }
 
 func (nc *NodeController) Get() {
-	result := []string{}
+	result := map[string]interface{}{}
+
+	nodeID := nc.Ctx.Input.Param(":nodeID")
+	retData, err := models.GetNodeIDInfo(nodeID)
+	if err != nil {
+		result["action"] = false
+		result["error"] = err.Error()
+	} else {
+		result["action"] = true
+		result["info"] = retData
+	}
 
 	nc.Data["json"] = &result
 	nc.ServeJSON()
