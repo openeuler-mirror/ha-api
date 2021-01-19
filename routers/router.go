@@ -33,6 +33,7 @@ func init() {
 		web.NSRouter("/haclusters/1/localnodes/:action", &controllers.LocalHaOperation{}),
 		web.NSRouter("/haclusters/1/logs", &controllers.LogController{}),
 		web.NSRouter("/haclusters/1/alarms", &controllers.AlarmConfig{}),
+		web.NSRouter("/haclusters/1/commands", &controllers.CommandsController{}),
 	)
 	web.AddNamespace(ns)
 }
