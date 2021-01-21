@@ -14,7 +14,7 @@ type ResourceController struct {
 func (rc *ResourceController) Get() {
 	logs.Debug("handle resource GET request")
 
-	rc.Data["json"] = models.GerResourceInfo()
+	rc.Data["json"] = models.GetResourceInfo()
 	rc.ServeJSON()
 }
 
@@ -66,4 +66,15 @@ func (rc *ResourceMetaAttributesController) Get() {
 	result := models.GetResourceMetaAttributes(catagory)
 	rc.Data["json"] = &result
 	rc.ServeJSON()
+}
+
+type ResourceOpsById struct {
+	web.Controller
+}
+
+func (robi *ResourceOpsById) Get() {
+	rscID := robi.Ctx.Input.Param(":rscID")
+	result := models.GetResourceInfoByrscID(rscID)
+	robi.Data["json"] = &result
+	robi.ServeJSON()
 }

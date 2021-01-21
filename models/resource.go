@@ -11,8 +11,8 @@ import (
 	"openkylin.com/ha-api/utils"
 )
 
-// GerResourceInfo
-func GerResourceInfo() map[string]interface{} {
+// GetResourceInfo
+func GetResourceInfo() map[string]interface{} {
 	var result map[string]interface{}
 
 	clusterStatus := GetClusterStatus()
@@ -471,4 +471,110 @@ func DeleteColocationByIdAndAction(rscID string, targetIds []string) error {
 func findOrder(rscID string) bool {
 	// TODO:
 	return false
+}
+
+func GetResourceInfoByrscID(rscID string) interface{} {
+	cmd := "crm_resource --resource " + rscID + " --query-xml"
+	out, err := utils.RunCommand(cmd)
+	return err
+
+	xml := strings.Split(string(out), ":\n")[1]
+	doc := etree.NewDocument()
+	if err = doc.ReadFromString(xml); err != nil {
+		return ""
+	}
+
+	ct := doc.Root().Tag
+	d, err := GetResourceInfoID(ct, xml)
+	data := d.(map[string]string)
+	data["id"] = string(rscID)
+	data["category"] = string(ct)
+	var result map[string]interface{}
+	if len(data) != 0 {
+		result["data"] = data
+		result["action"] = true
+	} else {
+		result["error"] = data
+		result["action"] = false
+	}
+	if _, ok := result["data"]; ok {
+		dataRes := result["data"].(map[string]string)
+		if _, ok := dataRes["provider"]; ok {
+			provider := dataRes["provider"]
+			if len(provider) == 0 {
+				delete(result, "data")
+				delete(result, "provider")
+			}
+		}
+	}
+	return result
+}
+
+func GetResourceInfoID(ct, xmlData string) (interface{}, error) {
+	doc := etree.NewDocument()
+	doc.ReadFromString(xmlData)
+	var data map[string]interface{}
+	switch ct {
+	case "primitive":
+		// TODO:
+		data, _ = getResourceInfoFromXml("primitive", doc.Root())
+	case "group":
+		data["rscs"], _ = getResourceInfoFromXml("group", doc.Root())
+	case "clone":
+		data["rsc_id"], _ = getResourceInfoFromXml("clone", doc.Root())
+	}
+
+	// For meta_attributes
+	var prop map[string]interface{}
+	e := doc.FindElement("meta_attributes")
+	prop, _ = getResourceInfoFromXml("meta", e)
+	data["meta_attributes"] = prop
+
+	//For instance_attributes
+	e = doc.FindElement("instance_attributes")
+	prop, _ = getResourceInfoFromXml("inst", e)
+	data["instance_attributes"] = prop
+
+	//For actions
+	e = doc.FindElement("operations")
+	prop, _ = getResourceInfoFromXml("operations", e)
+	data["action"] = prop
+
+	return data, nil
+}
+
+func getResourceInfoFromXml(cl string, et *etree.Element) (map[string]interface{}, error) {
+	var prop map[string]interface{}
+	if cl == "group" {
+		els := et.FindElements("primitive")
+		for _, e := range els {
+			for _, attr := range e.Attr {
+				prop[attr.Key] = attr.Value
+			}
+		}
+	} else if cl == "primitive" {
+		//TODO
+	} else if cl == "clone" {
+		// et.FindElements("group"){
+		// 	return
+	} else if cl == "meta" && cl == "inst" {
+		// prop := map[string]string{}
+		// for _,item:=range et.FindElements("./nvpair")
+		//TODO
+
+	} else if cl == "operations" {
+		// var prop = []string{}
+		// result := map[string]string{}
+		// op := et.FindElements("./op")
+		// for _, item := range op {
+
+		// for k, v := range item.items() {
+		// 	result[string(k)] = string(v)
+		// 	prop = append(prop, result)
+		// }
+		// }
+		//TODO
+	}
+
+	return prop, nil
 }
