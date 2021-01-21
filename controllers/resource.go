@@ -78,3 +78,27 @@ func (robi *ResourceOpsById) Get() {
 	robi.Data["json"] = &result
 	robi.ServeJSON()
 }
+
+type ResourceRelationsController struct {
+	web.Controller
+}
+
+func (rrc *ResourceRelationsController) Get() {
+	logs.Debug("handle resource relation GET request")
+	rscID := rrc.Ctx.Input.Param(":rscID")
+	relation := rrc.Ctx.Input.Param(":relation")
+
+	result := map[string]interface{}{}
+
+	retData, err := models.GetResourceConstraints(rscID, relation)
+	if err != nil {
+		result["action"] = false
+		result["error"] = err.Error()
+	} else {
+		result["action"] = true
+		result["info"] = retData
+	}
+
+	rrc.Data["json"] = &result
+	rrc.ServeJSON()
+}

@@ -69,8 +69,110 @@ func GetResourceType(rscID string) string {
 	return rscType
 }
 
-func GetResourceConstraints() {
+//TODO needs to integrate to func GetResourceByConstraintAndId
+// or func GetAllConstraints??
+func GetResourceConstraints(rscID, relation string) (map[string]interface{}, error) {
+	retData := make(map[string]interface{})
 
+	var cmd string
+	cmd = "cibadmin --query --scope constraints"
+	out, err := utils.RunCommand(cmd)
+	logs.Debug(string(out))
+
+	if err != nil {
+		return nil, err
+	}
+
+	doc := etree.NewDocument()
+	if err = doc.ReadFromBytes(out); err != nil {
+		return nil, err
+	}
+
+	root := doc.SelectElement("constraints")
+	switch relation {
+	case "location":
+		var resourceLocations []map[string]string
+		for _, resourceLocation := range root.FindElements("./rsc_location") {
+			rsc := resourceLocation.SelectAttr("rsc").Value
+			if rsc == rscID {
+				var rscConstraint map[string]string
+				score := resourceLocation.SelectAttr("score").Value
+				if score == "-INFINITY" || score == "-infinity" {
+					continue
+				}
+				if score == "INFINITY" || score == "infinity" {
+					continue
+				}
+				rscConstraint["node"] = resourceLocation.SelectAttr("id").Value
+				if score == "20000" {
+					rscConstraint["level"] = "Master Node"
+				} else if score == "16000" {
+					//TODO implements func turnScoreToLevel
+					rscConstraint["level"] = "Slave 1"
+				}
+				resourceLocations = append(resourceLocations, rscConstraint)
+			}
+
+		}
+		retData["node_level"] = resourceLocations
+		retData["rsc_id"] = rscID
+		break
+	case "colocation":
+		var sameNodes, diffNodes []string
+		for _, colocation := range root.FindElements("./rsc_colocation") {
+			rsc := colocation.SelectAttr("rsc").Value
+			rscWith := colocation.SelectAttr("with-rsc").Value
+
+			if rsc == rscID {
+				score := colocation.SelectAttr("score").Value
+				switch score {
+				case "INFINITY":
+					sameNodes = append(sameNodes, rscWith)
+					break
+				case "-INFINITY":
+					diffNodes = append(diffNodes, rscWith)
+					break
+				}
+			}
+
+			//TODO find better way to solve the rsc and with-rsc
+			if rscWith == rscID {
+				score := colocation.SelectAttr("score").Value
+				switch score {
+				case "INFINITY":
+					sameNodes = append(sameNodes, rsc)
+					break
+				case "-INFINITY":
+					diffNodes = append(diffNodes, rsc)
+					break
+				}
+			}
+		}
+		retData["same_node"] = sameNodes
+		retData["rsc_id"] = rscID
+		retData["diff_node"] = diffNodes
+		break
+	case "order":
+		var before, after []string
+
+		for _, order := range root.FindElements("rsc_order") {
+			first := order.SelectAttrValue("first", "")
+			then := order.SelectAttr("then").Value
+
+			if first == rscID {
+				after = append(after, then)
+			} else if then == rscID {
+				before = append(before, first)
+			}
+		}
+		logs.Debug(before)
+		logs.Debug(after)
+		retData["before_rscs"] = before
+		retData["rsc_id"] = rscID
+		retData["after_rscs"] = after
+		break
+	}
+	return retData, nil
 }
 
 func GetResourceFailedMessage() {}
