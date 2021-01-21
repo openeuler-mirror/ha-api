@@ -659,7 +659,7 @@ func getResourceInfoFromXml(cl string, et *etree.Element) (map[string]interface{
 	} else if cl == "clone" {
 		// et.FindElements("group"){
 		// 	return
-	} else if cl == "meta" && cl == "inst" {
+	} else if cl == "meta" || cl == "inst" {
 		// prop := map[string]string{}
 		// for _,item:=range et.FindElements("./nvpair")
 		//TODO
