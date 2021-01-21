@@ -2,8 +2,39 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/beevik/etree"
 )
+
+func TestGetResourceInfoByrscID(t *testing.T) {
+	out := `xml:
+	<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+	  <operations>
+		<op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
+		<op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
+		<op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
+		<op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
+		<op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+		<op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
+	  </operations>
+	</primitive>
+	`
+	xml := strings.Split(string(out), ":\n")[1]
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		// return ""
+	}
+
+	// fmt.Println(doc.Space)
+	// fmt.Println(doc.Tag)
+	// fmt.Println(doc.Attr)
+	// fmt.Println(doc.Child)
+	fmt.Println(doc.Root().Tag)
+	// var value map[string]interface{}
+	// var doc *etree.Document
+}
 
 // [root@ha1 ~]# cibadmin --query --scope resources
 // <resources>
@@ -41,6 +72,37 @@ import (
 //     <op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
 //   </operations>
 // </primitive>
+
+// [root@ha1 ~]# crm_resource --resource group1 --query-xml
+//  Resource Group: group1
+//      dummy2     (ocf::heartbeat:Dummy): Started ha2
+// xml:
+// <group id="group1">
+//   <primitive class="ocf" id="dummy2" provider="heartbeat" type="Dummy">
+//     <operations>
+//       <op id="dummy2-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
+//       <op id="dummy2-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
+//       <op id="dummy2-monitor-interval-10s" interval="10s" name="monitor" timeout="20s"/>
+//       <op id="dummy2-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
+//       <op id="dummy2-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+//       <op id="dummy2-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
+//     </operations>
+//   </primitive>
+// </group>
+
+// [root@ha1 ~]# crm_resource --resource sysinfo-clone --query-xml
+//  Clone Set: sysinfo-clone [sysinfo]
+//      Started: [ ha1 ha2 ]
+// xml:
+// <clone id="sysinfo-clone">
+//   <primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo">
+//     <operations>
+//       <op id="sysinfo-monitor-interval-60s" interval="60s" name="monitor" timeout="20s"/>
+//       <op id="sysinfo-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+//       <op id="sysinfo-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
+//     </operations>
+//   </primitive>
+// </clone>
 
 // [root@ha1 ~]# cibadmin -Q
 // <cib crm_feature_set="3.2.0" validate-with="pacemaker-3.2" epoch="56" num_updates="14818" admin_epoch="0" cib-last-written="Tue Dec 29 14:41:29 2020" update-origin="ha1" update-client="cibadmin" update-user="hacluster" have-quorum="1" dc-uuid="2">
@@ -246,9 +308,3 @@ import (
 //     </operations>
 //   </primitive>
 // </resources>
-
-func TestSimple(t *testing.T) {
-	rscID := "resource-clone"
-	rscID = rscID[:len(rscID)-6]
-	fmt.Println(rscID)
-}
