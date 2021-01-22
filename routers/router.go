@@ -25,6 +25,8 @@ func init() {
 		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceController{}),
 		web.NSRouter("/haclusters/1/resources/meta_attributes/:catagory", &controllers.ResourceMetaAttributesController{}),
 		web.NSRouter("/haclusters/1/resources/:rscID/relations/:relation", &controllers.ResourceRelationsController{}),
+		web.NSRouter("/haclusters/1/metas", &controllers.MetasController{}),
+		web.NSRouter("/haclusters/1/metas/:rsc_class/:rsc_type/:rsc_provider", &controllers.MetaController{}),
 
 		web.NSRouter("/haclusters/1/configs", &controllers.HeartBeatController{}),
 
