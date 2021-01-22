@@ -189,15 +189,16 @@ func GetResourceFailedMessage() map[string]map[string]string {
 	if len(failures) == 0 {
 		return failInfo
 	} else {
-		for _, failure := range failures {
-			infoFail := map[string]string{}
-			rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
-			rscIdm := strings.Split(rscIdf, "_start_")[0]
-			rscId := strings.Split(rscIdm, "_start_")[0]
-			node := failure.SelectAttr("node")
-			exitreason := failure.SelectAttr("exitreason")
+		// TODO
+		// for _, failure := range failures {
+		// 	infoFail := map[string]string{}
+		// 	rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
+		// 	rscIdm := strings.Split(rscIdf, "_start_")[0]
+		// 	rscId := strings.Split(rscIdm, "_start_")[0]
+		// 	node := failure.SelectAttr("node")
+		// 	exitreason := failure.SelectAttr("exitreason")
 
-		}
+		// }
 	}
 	return failInfo
 }
@@ -552,14 +553,15 @@ func GetAllResourceStatus() map[string]map[string]string {
 
 	if len(rscClone) != 0 {
 		if len(rscClone) != 1 {
-			for _, rsc := range rscClone {
-				subRscs := rsc.FindElement("resource")
-				index := 0
-
-				for _, subRsc := range subRscs {
-
-				}
-			}
+			// TODO
+			// for _, rsc := range rscClone {
+			// 	subRscs := rsc.FindElement("resource")
+			// 	index := 0
+			//
+			// 	for _, subRsc := range subRscs {
+			//
+			// 	}
+			// }
 		}
 	}
 	if len(rscGroup) != 0 {
@@ -573,8 +575,9 @@ func GetAllResourceStatus() map[string]map[string]string {
 }
 
 func GetSubResources(rscId string) map[string]interface{} {
-	rscStatus := GetAllResourceStatus()
-	failInfo := GetResourceFailedMessage()
+	// TODO
+	// rscStatus := GetAllResourceStatus()
+	// failInfo := GetResourceFailedMessage()
 
 	return nil
 }

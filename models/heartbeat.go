@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"openkylin.com/ha-api/utils"
 
@@ -14,7 +15,6 @@ type HostInfo struct {
 }
 
 func GetHeartBeatHosts() ([]HostInfo, error) {
-	// knownHosts := KnownHosts{}
 	knownHosts := []HostInfo{}
 
 	out, err := utils.RunCommand("cat /var/lib/pcsd/known-hosts")
@@ -39,10 +39,37 @@ func GetHeartBeatHosts() ([]HostInfo, error) {
 }
 
 func GetHeartBeatDictionary() (interface{}, error) {
-	nodeList := utils.GetNodeList()
-	// TODO:
+	nodeList, err := utils.GetNodeList()
+	if err != nil {
+		return nil, err
+	}
 
-	return nodeList, nil
+	res := map[string][]map[string]string{}
+	for _, node := range nodeList {
+		name := node["name"]
+		for k, addr := range node {
+			if k != "name" && k != "nodeid" {
+				info := map[string]string{}
+				info["nodeid"] = name
+				info["ip"] = addr
+
+				if _, ok := res[k]; !ok {
+					res[k] = []map[string]string{}
+				}
+				res[k] = append(res[k], info)
+			}
+		}
+	}
+
+	ret := map[string][]map[string]string{}
+	count := 0
+	for _, value := range res {
+		count++
+		hbStr := "hbaddrs" + strconv.Itoa(count)
+		ret[hbStr] = value
+	}
+
+	return ret, nil
 }
 
 func GetHeartBeatConfig() (interface{}, error) {
