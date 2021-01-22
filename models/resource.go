@@ -18,11 +18,11 @@ func GetResourceInfo() map[string]interface{} {
 	clusterStatus := GetClusterStatus()
 	if clusterStatus != 0 {
 		result["action"] = true
-		result["action"] = []string{}
+		result["data"] = []string{}
 		return result
 	}
 
-	constraints := GetAllConstraints()
+	constraints := GetAllConstraints() /////////////////
 	if _, ok := constraints["action"]; !ok {
 		return constraints
 	}
@@ -39,7 +39,7 @@ func GetResourceInfo() map[string]interface{} {
 		}
 
 		t := GetResourceType(rscId)
-		subRscs := GetSubResources(rscId)
+		subRscs := GetSubResources(rscId) ///////////////////
 		if t == "group" || t == "clone" {
 			constraint["subrscs"] = subRscs["subrscs"]
 		} else {
@@ -175,7 +175,32 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 	return retData, nil
 }
 
-func GetResourceFailedMessage() {}
+func GetResourceFailedMessage() map[string]map[string]string {
+	out, err := utils.RunCommand("crm_mon -1 --as-xml")
+	failInfo := map[string]map[string]string{}
+	if err != nil {
+		return failInfo
+	}
+	doc := etree.NewDocument()
+	if err = doc.ReadFromBytes(out); err != nil {
+		return failInfo
+	}
+	failures := doc.SelectElements("crm_mon/failures/failure")
+	if len(failures) == 0 {
+		return failInfo
+	} else {
+		for _, failure := range failures {
+			infoFail := map[string]string{}
+			rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
+			rscIdm := strings.Split(rscIdf, "_start_")[0]
+			rscId := strings.Split(rscIdm, "_start_")[0]
+			node := failure.SelectAttr("node")
+			exitreason := failure.SelectAttr("exitreason")
+
+		}
+	}
+	return failInfo
+}
 
 func GetResourceMetaAttributes(category string) map[string]interface{} {
 	retjson := make(map[string](map[string]interface{}))
@@ -293,12 +318,170 @@ func GetResourceByConstraintAndId() {
 }
 
 func CreateResource(data []byte) map[string]interface{} {
-	// TODO:
 	return nil
 }
 
 func GetAllConstraints() map[string]interface{} {
-	return nil
+	rscStatus := GetAllResourceStatus() ///////////////
+	var data map[string](map[string]interface{})
+
+	topRsc := GetTopResource()
+	for _, rscId := range topRsc {
+		rsc := strings.Split(rscId, ":")[0]
+		data[rsc] = map[string]interface{}{}
+		if _, ok := rscStatus[rsc]; !ok {
+			data[rsc]["status"] = "Running"
+			data[rsc]["status_message"] = ""
+			data[rsc]["running_node"] = []string{}
+		} else {
+			data[rsc]["status"] = "Running"
+			data[rsc]["status_message"] = ""
+			data[rsc]["running_node"] = rscStatus[rsc]["running_node"]
+		}
+		data[rsc]["before_rscs"] = []map[string]string{}
+		data[rsc]["after_rscs"] = []map[string]string{}
+		data[rsc]["same_node"] = []map[string]string{}
+		data[rsc]["diff_node"] = []map[string]string{}
+		data[rsc]["location"] = []map[string]string{}
+	}
+
+	out, err := utils.RunCommand("cibadmin -Q")
+	if err != nil {
+		var result map[string]interface{}
+		result["action"] = false
+		result["data"] = data
+		return result
+	}
+	doc := etree.NewDocument()
+	if err = doc.ReadFromBytes(out); err != nil {
+		var result map[string]interface{}
+		result["action"] = false
+		result["data"] = data
+		return result
+	}
+	constraints := doc.FindElement("constraints")
+
+	//location
+	for _, location := range constraints.FindElements("rsc_location") {
+		if strings.HasPrefix(location.SelectAttr("id").Value, "cli-prefer-") {
+			continue
+		}
+		node := location.SelectAttr("node").Value
+		rscId := location.SelectAttr("rsc").Value
+		score := location.SelectAttr("score").Value
+		locationSingle := make(map[string]string)
+		locationSingle["node"] = node
+		locationSingle["level"] = utils.ScoreToLevel(score) //////////
+		locationArr := []map[string]string{}
+		for key := range data {
+			if rscId == key {
+				locationArr = append(locationArr, locationSingle)
+			}
+		}
+		data[rscId]["location"] = locationArr
+	}
+
+	//order
+	for _, order := range constraints.FindElements("rsc_order") {
+		first := order.SelectAttr("first").Value
+		then := order.SelectAttr("then").Value
+
+		//try except
+		score := order.SelectAttr("score").Value
+		if score == "" || len(score) == 0 {
+			score = "infinity"
+		}
+		if score != "INFINITY" && score != "+INFINITY" && score != "infinity" && score != "+infinity" {
+			continue
+		}
+
+		afterRscsArr := []map[string]string{}
+		if _, ok := data[first]; !ok {
+			afterRscsArr = append(afterRscsArr, map[string]string{"id": then})
+		}
+		data[first]["after_rscs"] = afterRscsArr
+		beforeRscsArr := []map[string]string{}
+		if _, ok := data[then]; !ok {
+			beforeRscsArr = append(beforeRscsArr, map[string]string{"id": then})
+		}
+		data[then]["before_rscs"] = beforeRscsArr
+	}
+
+	//colocation
+	for _, colocation := range constraints.FindElements("rsc_colocation") {
+		first := colocation.SelectAttr("rsc").Value
+		with := colocation.SelectAttr("with-rsc").Value
+
+		//try except
+		score := colocation.SelectAttr("score").Value
+		if score == "INFINITY" || score == "+INFINITY" || score == "infinity" || score == "+infinity" {
+			rsc := map[string]string{}
+			rsc["rsc"] = first
+			rsc["with_rsc"] = with
+			data[first]["same_node"] = rsc
+			data[with]["same_node"] = rsc
+		} else if score == "-INFINITY" || score == "-infinity" {
+			rsc := map[string]string{}
+			rsc["rsc"] = first
+			rsc["with_rsc"] = with
+			data[first]["diff_node"] = rsc
+			data[with]["diff_node"] = rsc
+		}
+	}
+
+	failureInfo := GetResourceFailedMessage() ///////////////
+
+	constraintMaps := []map[string]interface{}{}
+	for rscId := range data {
+		var constraint map[string]interface{}
+		constraint["id"] = rscId
+		rscIDFirst := strings.Split(rscId, ":")[0]
+		if _, ok := rscStatus[rscId]; !ok {
+			if _, ok := failureInfo[rscIDFirst]; !ok {
+				constraint["status"] = "Stopped"
+				constraint["status_message"] = ""
+				constraint["running_node"] = []string{}
+			}
+		} else if strings.HasSuffix(rscId, "-clone") {
+			constraint["status"] = "Failed"
+			////////////////////
+			constraint["status_message"] = failureInfo[rscIDFirst]["exitreason"] + " on " + failureInfo[rscIDFirst]["node"]
+			constraint["running_node"] = []string{}
+		} else {
+			rscInfo := rscStatus[rscId]
+			constraint["status"] = rscInfo["status"]
+			constraint["status_message"] = ""
+			constraint["running_node"] = rscInfo["running_node"]
+		}
+
+		colocation := map[string]interface{}{}
+		colocation["same_node"] = data[rscId]["same_node"]
+		colocation["diff_node"] = data[rscId]["diff_node"]
+		if tempArray, ok := colocation["same_node"].([]map[string]string); ok {
+			colocation["same_node_num"] = len(tempArray)
+		}
+		if tempArray, ok := colocation["diff_node"].([]map[string]string); ok {
+			colocation["diff_node_num"] = len(tempArray)
+		}
+		order := map[string]interface{}{}
+		order["before_rscs"] = data[rscId]["before_rscs"]
+		order["after_rscs"] = data[rscId]["after_rscs"]
+		if tempArray, ok := colocation["before_rscs"].([]map[string]string); ok {
+			colocation["before_rscs_num"] = len(tempArray)
+		}
+		if tempArray, ok := colocation["after_rscs"].([]map[string]string); ok {
+			colocation["after_rscs_num"] = len(tempArray)
+		}
+		constraint["location"] = data[rscId]["location"]
+		constraint["colocation"] = colocation
+		constraint["order"] = order
+		constraintMaps = append(constraintMaps, constraint)
+	}
+
+	var result map[string]interface{}
+	result["action"] = true
+	result["data"] = constraints
+	return result
 }
 
 func GetAllMigrateResources() []string {
@@ -345,11 +528,54 @@ func GetAllMigrateResources() []string {
 		}
 	}
 
-	return result
+	return rscList
+}
+
+func GetAllResourceStatus() map[string]map[string]string {
+	// rscInfo:=
+	out, err := utils.RunCommand("crm_mon -1 --as-xml")
+	if err != nil {
+		return map[string]map[string]string{}
+	}
+	doc := etree.NewDocument()
+	if err = doc.ReadFromBytes(out); err != nil {
+		return map[string]map[string]string{}
+	}
+
+	if len(doc.SelectElements("crm_mon/resources")) == 0 {
+		return map[string]map[string]string{}
+	}
+	// allRscRun:=[]string{} // doesn't used
+	rscClone := doc.SelectElements("crm_mon/resources/clone")
+	rscGroup := doc.SelectElements("crm_mon/resources/group")
+	rscResource := doc.SelectElements("crm_mon/resources/resource")
+
+	if len(rscClone) != 0 {
+		if len(rscClone) != 1 {
+			for _, rsc := range rscClone {
+				subRscs := rsc.FindElement("resource")
+				index := 0
+
+				for _, subRsc := range subRscs {
+
+				}
+			}
+		}
+	}
+	if len(rscGroup) != 0 {
+
+	}
+	if len(rscResource) != 0 {
+
+	}
+
+	return map[string]map[string]string{}
 }
 
 func GetSubResources(rscId string) map[string]interface{} {
-	// TODO:
+	rscStatus := GetAllResourceStatus()
+	failInfo := GetResourceFailedMessage()
+
 	return nil
 }
 
