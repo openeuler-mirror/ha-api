@@ -13,7 +13,7 @@ import (
 
 // GetResourceInfo
 func GetResourceInfo() map[string]interface{} {
-	var result map[string]interface{}
+	result := make(map[string]interface{})
 
 	clusterStatus := GetClusterStatus()
 	if clusterStatus != 0 {
@@ -804,108 +804,229 @@ func findOrder(rscID string) bool {
 	return false
 }
 
-func GetResourceInfoByrscID(rscID string) interface{} {
+func GetResourceInfoByrscID(rscID string) (interface{}, error) {
+	var result map[string]interface{}
+
 	cmd := "crm_resource --resource " + rscID + " --query-xml"
 	out, err := utils.RunCommand(cmd)
-	return err
+	if err != nil {
+		return nil, err
+	}
 
 	xml := strings.Split(string(out), ":\n")[1]
 	doc := etree.NewDocument()
 	if err = doc.ReadFromString(xml); err != nil {
-		return ""
+		return nil, err
 	}
 
 	ct := doc.Root().Tag
-	d, err := GetResourceInfoID(ct, xml)
-	data := d.(map[string]string)
-	data["id"] = string(rscID)
-	data["category"] = string(ct)
-	var result map[string]interface{}
-	if len(data) != 0 {
-		result["data"] = data
-		result["action"] = true
-	} else {
-		result["error"] = data
-		result["action"] = false
+	result, err = GetResourceInfoID(ct, xml)
+	if err != nil {
+		return nil, err
 	}
-	if _, ok := result["data"]; ok {
-		dataRes := result["data"].(map[string]string)
-		if _, ok := dataRes["provider"]; ok {
-			provider := dataRes["provider"]
-			if len(provider) == 0 {
-				delete(result, "data")
-				delete(result, "provider")
-			}
+	result["id"] = string(rscID)
+	result["category"] = string(ct)
+
+	if _, ok := result["provider"]; ok {
+		if result["provider"] == "" {
+			delete(result, "provider")
 		}
 	}
-	return result
+
+	return result, nil
 }
 
-func GetResourceInfoID(ct, xmlData string) (interface{}, error) {
+func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	doc := etree.NewDocument()
 	doc.ReadFromString(xmlData)
 	var data map[string]interface{}
+
+	// Format data to map here
 	switch ct {
 	case "primitive":
-		// TODO:
-		data, _ = getResourceInfoFromXml("primitive", doc.Root())
+		d, err := getResourceInfoFromXml("primitive", doc.Root())
+		if err != nil {
+			return nil, err
+		}
+		info := d.(PrimitiveResource)
+		data["id"] = info.ID
+		data["class"] = info.Class
+		data["type"] = info.Type
+		data["provider"] = info.Provider
+
+		actions := []map[string]string{}
+		for _, ac := range info.Operations {
+			m := map[string]string{}
+			m["name"] = ac.Name
+			m["interval"] = ac.Interval
+			m["timeout"] = ac.Timeout
+			actions = append(actions, m)
+		}
+		data["actions"] = actions
 	case "group":
-		data["rscs"], _ = getResourceInfoFromXml("group", doc.Root())
+		d, err := getResourceInfoFromXml("group", doc.Root())
+		if err != nil {
+			return nil, err
+		}
+		info := d.(GroupResource)
+		data["id"] = info.ID
+
+		rscs := []string{}
+		for _, p := range info.Primitives {
+			rscs = append(rscs, p.ID)
+		}
+		data["rscs"] = rscs
 	case "clone":
-		data["rsc_id"], _ = getResourceInfoFromXml("clone", doc.Root())
+		d, err := getResourceInfoFromXml("clone", doc.Root())
+		if err != nil {
+			return nil, err
+		}
+		info := d.(CloneResource)
+		data["id"] = info.ID
+
+		// TODO: check if only one Primitive resource or list
+		rscs := []string{}
+		for _, p := range info.Primitives {
+			rscs = append(rscs, p.ID)
+		}
+		data["rsc_id"] = rscs
 	}
 
 	// For meta_attributes
-	var prop map[string]interface{}
+	// var prop map[string]interface{}
 	e := doc.FindElement("meta_attributes")
-	prop, _ = getResourceInfoFromXml("meta", e)
-	data["meta_attributes"] = prop
+	prop, _ := getResourceInfoFromXml("meta", e)
+	if len(prop.(map[string]string)) > 0 {
+		data["meta_attributes"] = prop
+	}
 
 	//For instance_attributes
 	e = doc.FindElement("instance_attributes")
 	prop, _ = getResourceInfoFromXml("inst", e)
-	data["instance_attributes"] = prop
+	if len(prop.(map[string]string)) > 0 {
+		data["instance_attributes"] = prop
+	}
 
 	//For actions
 	e = doc.FindElement("operations")
 	prop, _ = getResourceInfoFromXml("operations", e)
-	data["action"] = prop
+	if len(prop.([]map[string]string)) > 0 {
+		data["action"] = prop
+	}
 
 	return data, nil
 }
 
-func getResourceInfoFromXml(cl string, et *etree.Element) (map[string]interface{}, error) {
-	var prop map[string]interface{}
+type NvPair struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type Op struct {
+	ID       string `json:"id"`
+	Interval string `json:"interval"`
+	Name     string `json:"name"`
+	Timeout  string `json:"timeout"`
+}
+
+type PrimitiveResource struct {
+	Class      string `json:"class"`
+	ID         string `json:"id"`
+	Provider   string `json:"provider"`
+	Type       string `json:"type"`
+	Operations []Op   `json:"operations"`
+}
+
+type GroupResource struct {
+	ID         string `json:"id"`
+	Primitives []PrimitiveResource
+}
+
+type CloneResource struct {
+	ID         string `json:"id"`
+	Primitives []PrimitiveResource
+}
+
+// getResourceInfoFromXml returns resource information parsed from xml.
+// for meta and inst, returns a map;
+// for operations, returns a map slice.
+func getResourceInfoFromXml(cl string, et *etree.Element) (interface{}, error) {
+	// var prop map[string]interface{}
 	if cl == "group" {
+		rsc := GroupResource{}
+		rsc.ID = et.SelectAttrValue("id", "")
+
+		rsc.Primitives = []PrimitiveResource{}
 		els := et.FindElements("primitive")
 		for _, e := range els {
-			for _, attr := range e.Attr {
-				prop[attr.Key] = attr.Value
+			prsc := getPrimitiveResourceInfo(e)
+			rsc.Primitives = append(rsc.Primitives, prsc)
+		}
+		return rsc, nil
+	} else if cl == "clone" {
+		rsc := CloneResource{}
+		rsc.ID = et.SelectAttrValue("id", "")
+
+		rsc.Primitives = []PrimitiveResource{}
+		els := et.FindElements("primitive")
+		for _, e := range els {
+			prsc := getPrimitiveResourceInfo(e)
+			rsc.Primitives = append(rsc.Primitives, prsc)
+		}
+		return rsc, nil
+	} else if cl == "primitive" {
+		rsc := getPrimitiveResourceInfo(et)
+		return rsc, nil
+	} else if cl == "meta" || cl == "inst" {
+		result := map[string]string{}
+		op := et.FindElements("./nvpair")
+		for _, item := range op {
+			name := item.SelectAttr("name").Value
+			value := item.SelectAttr("value").Value
+			if value == "True" {
+				value = "true"
+			}
+			if value == "False" {
+				value = "false"
+			}
+			result[name] = value
+		}
+		return result, nil
+	} else if cl == "operations" {
+		// var prop = []map[string]string{}
+		result := []map[string]string{}
+		op := et.FindElements("./op")
+		for _, item := range op {
+			for _, v := range item.Attr {
+				i := map[string]string{}
+				i[v.Key] = v.Value
+				result = append(result, i)
 			}
 		}
-	} else if cl == "primitive" {
-		//TODO
-	} else if cl == "clone" {
-		// et.FindElements("group"){
-		// 	return
-	} else if cl == "meta" || cl == "inst" {
-		// prop := map[string]string{}
-		// for _,item:=range et.FindElements("./nvpair")
-		//TODO
-
-	} else if cl == "operations" {
-		// var prop = []string{}
-		// result := map[string]string{}
-		// op := et.FindElements("./op")
-		// for _, item := range op {
-
-		// for k, v := range item.items() {
-		// 	result[string(k)] = string(v)
-		// 	prop = append(prop, result)
-		// }
-		// }
-		//TODO
+		return result, nil
 	}
 
-	return prop, nil
+	return nil, errors.New("invalid resource type")
+}
+
+func getPrimitiveResourceInfo(ele *etree.Element) PrimitiveResource {
+	result := PrimitiveResource{}
+
+	result.Class = ele.SelectAttrValue("class", "")
+	result.ID = ele.SelectAttrValue("id", "")
+	result.Provider = ele.SelectAttrValue("provider", "")
+	result.Type = ele.SelectAttrValue("type", "")
+
+	result.Operations = []Op{}
+	for _, v := range ele.SelectElements("operations") {
+		op := Op{}
+		op.ID = v.SelectAttrValue("id", "")
+		op.Interval = v.SelectAttrValue("interval", "")
+		op.Name = v.SelectAttrValue("name", "")
+		op.Timeout = v.SelectAttrValue("timeout", "")
+		result.Operations = append(result.Operations, op)
+	}
+
+	return result
 }
