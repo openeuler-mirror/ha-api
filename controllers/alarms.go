@@ -16,6 +16,7 @@ func (ac *AlarmConfig) Get() {
 	ac.Data["json"] = models.AlarmsGet()
 	ac.ServeJSON()
 }
+
 func (ac *AlarmConfig) Post() {
 	var result map[string]interface{}
 
@@ -27,4 +28,6 @@ func (ac *AlarmConfig) Post() {
 	} else {
 		result = models.AlarmsSet(reqData)
 	}
+	ac.Data["json"] = &result
+	ac.ServeJSON()
 }
