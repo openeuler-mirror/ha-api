@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"encoding/json"
+
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 
@@ -83,6 +85,29 @@ func (robi *ResourceOpsById) Get() {
 		result["action"] = true
 		result["err"] = rst
 	}
+	robi.Data["json"] = &result
+	robi.ServeJSON()
+}
+
+func (robi *ResourceOpsById) Put() {
+	rscID := robi.Ctx.Input.Param(":rscID")
+	var result map[string]interface{}
+	reqData := make(map[string]interface{})
+	if err := json.Unmarshal(robi.Ctx.Input.RequestBody, &reqData); err != nil {
+		result = make(map[string]interface{})
+		result["action"] = false
+		result["error"] = "invalid input data"
+	} else {
+		err = models.UpdateResurceAttributes(rscID, reqData)
+		if err != nil {
+			result["action"] = false
+			result["error"] = err.Error()
+		} else {
+			result["action"] = true
+			result["info"] = "Update resource attributes Success"
+		}
+	}
+
 	robi.Data["json"] = &result
 	robi.ServeJSON()
 }
