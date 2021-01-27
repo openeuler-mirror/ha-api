@@ -324,7 +324,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		return map[string]interface{}{"action": false, "error": "No input data"}
 	}
 	var jsonData interface{}
-	err := json.Unmarshal(data, jsonData)
+	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
 		return map[string]interface{}{"action": false, "error": "Cannot convert data to json map"}
 	}
@@ -871,7 +871,7 @@ func GetAllConstraints() map[string]interface{} {
 		} else {
 			data[rsc]["status"] = "Running"
 			data[rsc]["status_message"] = ""
-			data[rsc]["running_node"] = rscStatus["running_node"]
+			data[rsc]["running_node"] = rscStatus[rsc]["running_node"]
 		}
 		data[rsc]["before_rscs"] = []map[string]string{}
 		data[rsc]["after_rscs"] = []map[string]string{}
@@ -1494,6 +1494,7 @@ func GetSubResources(rscId string) map[string]interface{} {
 			for i := 0; i < nodeNum; i++ {
 				subRsc := map[string]interface{}{}
 				subRsc["status"] = "Not Running"
+				subRsc["running_node"] = []string{}
 				subRsc["status_message"] = ""
 				subId := subRscId + ":" + strconv.Itoa(i)
 				subRsc["id"] = subId
