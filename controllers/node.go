@@ -18,7 +18,7 @@ func (nsc *NodesController) Get() {
 		result["error"] = err.Error()
 	} else {
 		result["action"] = true
-		result["error"] = retData
+		result["data"] = retData
 	}
 
 	nsc.Data["json"] = &result

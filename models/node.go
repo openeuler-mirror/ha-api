@@ -10,7 +10,7 @@ import (
 )
 
 func GetNodesInfo() ([]map[string]string, error) {
-	var result []map[string]string
+	result := []map[string]string{}
 
 	out, err := utils.RunCommand("crm_mon --as-xml")
 	if err != nil {

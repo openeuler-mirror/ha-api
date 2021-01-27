@@ -10,9 +10,8 @@ type HeartBeatController struct {
 }
 
 func (hbc *HeartBeatController) Get() {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
-	// TODO: format json data
 	data, err := models.GetHeartBeatConfig()
 	if err != nil {
 		result["action"] = false
@@ -27,7 +26,7 @@ func (hbc *HeartBeatController) Get() {
 }
 
 func (hbc *HeartBeatController) Post() {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	data := hbc.Ctx.Input.RequestBody
 	if err := models.EditHeartbeatInfo(data); err != nil {
@@ -40,4 +39,18 @@ func (hbc *HeartBeatController) Post() {
 
 	hbc.Data["json"] = &result
 	hbc.ServeJSON()
+}
+
+type HeartBeatStatusController struct {
+	web.Controller
+}
+
+func (hbsc *HeartBeatStatusController) Get() {
+	result := map[string]interface{}{}
+
+	result["action"] = true
+	result["data"] = 0
+
+	hbsc.Data["json"] = &result
+	hbsc.ServeJSON()
 }
