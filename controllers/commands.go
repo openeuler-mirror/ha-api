@@ -22,7 +22,7 @@ type CommandsRunnerController struct {
 }
 
 func (crc *CommandsRunnerController) Get() {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	t := crc.Ctx.Input.Param(":cmd_type")
 	cmdID, err := strconv.Atoi(t)
