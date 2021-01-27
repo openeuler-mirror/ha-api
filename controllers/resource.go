@@ -28,8 +28,8 @@ func (rc *ResourceController) Post() {
 	rc.ServeJSON()
 }
 
-func (rc *ResourceController) PUT() {
-	logs.Debug("handle resource PUT request")
+func (rc *ResourceController) Put() {
+	logs.Debug("handle resource Put request")
 	logs.Debug("do nothing")
 
 	rc.ServeJSON()
@@ -39,19 +39,19 @@ type ResourceActionController struct {
 	web.Controller
 }
 
-func (rac *ResourceActionController) PUT() {
-	logs.Debug("handle resource action PUT request")
+func (rac *ResourceActionController) Put() {
+	logs.Debug("handle resource action Put request")
 
 	rscID := rac.Ctx.Input.Param(":rscID")
 	action := rac.Ctx.Input.Param(":action")
 	data := rac.Ctx.Input.RequestBody
 
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 	if err := models.ResourceAction(rscID, action, data); err != nil {
 		result["action"] = false
 		result["error"] = err.Error()
 	} else {
-		result["action"] = false
+		result["action"] = true
 		result["info"] = "Action on resource success"
 	}
 
