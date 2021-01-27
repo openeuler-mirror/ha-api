@@ -35,8 +35,8 @@ func GetNodesInfo() ([]map[string]string, error) {
 	if err = doc.ReadFromBytes(out); err != nil {
 		return nil, errors.New("parse xml failed")
 	}
-	nodes := doc.SelectElement("crm_mon").SelectElements("nodes")
-	for _, node := range nodes {
+	nodes := doc.SelectElement("crm_mon").SelectElement("nodes")
+	for _, node := range nodes.SelectElements("node") {
 		name := node.SelectAttr("name").Value
 		online := node.SelectAttr("online").Value
 		standby := node.SelectAttr("standby").Value
