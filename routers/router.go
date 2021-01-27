@@ -30,6 +30,8 @@ func init() {
 		web.NSRouter("/haclusters/1/metas", &controllers.MetasController{}),
 		web.NSRouter("/haclusters/1/metas/:rsc_class/:rsc_type/:rsc_provider", &controllers.MetaController{}),
 
+		web.NSRouter("/haclusters/1/hbstatus", &controllers.HeartBeatStatusController{}),
+
 		web.NSRouter("/haclusters/1/configs", &controllers.HeartBeatController{}),
 
 		web.NSRouter("/haclusters/1/nodes", &controllers.NodesController{}),

@@ -57,7 +57,7 @@ func GetResourceCategory(rscID string) string {
 }
 
 func GetResourceType(rscID string) string {
-	cmd := "cibadmin --query --scope resources|grep 'id=\"" + rscID + "\""
+	cmd := "cibadmin --query --scope resources|grep 'id=\"" + rscID + "\"'"
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return ""
@@ -858,7 +858,7 @@ func GetMetaAndInst(rscId string) map[string][]string {
 
 func GetAllConstraints() map[string]interface{} {
 	rscStatus := GetAllResourceStatus()
-	var data map[string](map[string]interface{})
+	data := map[string](map[string]interface{}){}
 
 	topRsc := GetTopResource()
 	for _, rscId := range topRsc {
@@ -882,85 +882,93 @@ func GetAllConstraints() map[string]interface{} {
 
 	out, err := utils.RunCommand("cibadmin -Q")
 	if err != nil {
-		var result map[string]interface{}
+		result := map[string]interface{}{}
 		result["action"] = false
 		result["data"] = data
 		return result
 	}
 	doc := etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		var result map[string]interface{}
+		result := map[string]interface{}{}
 		result["action"] = false
 		result["data"] = data
 		return result
 	}
-	constraints := doc.FindElement("constraints")
 
-	//location
-	for _, location := range constraints.FindElements("rsc_location") {
-		if strings.HasPrefix(location.SelectAttr("id").Value, "cli-prefer-") {
-			continue
-		}
-		node := location.SelectAttr("node").Value
-		rscId := location.SelectAttr("rsc").Value
-		score := location.SelectAttr("score").Value
-		locationSingle := make(map[string]string)
-		locationSingle["node"] = node
-		locationSingle["level"] = ScoreToLevel(score)
-		locationArr := []map[string]string{}
-		for key := range data {
-			if rscId == key {
-				locationArr = append(locationArr, locationSingle)
+	constraints := doc.FindElement("constraints")
+	if constraints != nil {
+		//location
+		if locations := constraints.FindElements("rsc_location"); locations != nil {
+			for _, location := range locations {
+				if strings.HasPrefix(location.SelectAttr("id").Value, "cli-prefer-") {
+					continue
+				}
+				node := location.SelectAttr("node").Value
+				rscId := location.SelectAttr("rsc").Value
+				score := location.SelectAttr("score").Value
+				locationSingle := make(map[string]string)
+				locationSingle["node"] = node
+				locationSingle["level"] = ScoreToLevel(score)
+				locationArr := []map[string]string{}
+				for key := range data {
+					if rscId == key {
+						locationArr = append(locationArr, locationSingle)
+					}
+				}
+				data[rscId]["location"] = locationArr
 			}
 		}
-		data[rscId]["location"] = locationArr
-	}
 
-	//order
-	for _, order := range constraints.FindElements("rsc_order") {
-		first := order.SelectAttr("first").Value
-		then := order.SelectAttr("then").Value
+		//order
+		if orders := constraints.FindElements("rsc_order"); orders != nil {
+			for _, order := range orders {
+				first := order.SelectAttr("first").Value
+				then := order.SelectAttr("then").Value
 
-		//try except
-		score := order.SelectAttr("score").Value
-		if score == "" || len(score) == 0 {
-			score = "infinity"
+				//try except
+				score := order.SelectAttr("score").Value
+				if score == "" || len(score) == 0 {
+					score = "infinity"
+				}
+				if score != "INFINITY" && score != "+INFINITY" && score != "infinity" && score != "+infinity" {
+					continue
+				}
+
+				afterRscsArr := []map[string]string{}
+				if _, ok := data[first]; !ok {
+					afterRscsArr = append(afterRscsArr, map[string]string{"id": then})
+				}
+				data[first]["after_rscs"] = afterRscsArr
+				beforeRscsArr := []map[string]string{}
+				if _, ok := data[then]; !ok {
+					beforeRscsArr = append(beforeRscsArr, map[string]string{"id": then})
+				}
+				data[then]["before_rscs"] = beforeRscsArr
+			}
 		}
-		if score != "INFINITY" && score != "+INFINITY" && score != "infinity" && score != "+infinity" {
-			continue
-		}
 
-		afterRscsArr := []map[string]string{}
-		if _, ok := data[first]; !ok {
-			afterRscsArr = append(afterRscsArr, map[string]string{"id": then})
-		}
-		data[first]["after_rscs"] = afterRscsArr
-		beforeRscsArr := []map[string]string{}
-		if _, ok := data[then]; !ok {
-			beforeRscsArr = append(beforeRscsArr, map[string]string{"id": then})
-		}
-		data[then]["before_rscs"] = beforeRscsArr
-	}
+		//colocation
+		if colocations := constraints.FindElements("rsc_colocation"); colocations != nil {
+			for _, colocation := range colocations {
+				first := colocation.SelectAttr("rsc").Value
+				with := colocation.SelectAttr("with-rsc").Value
 
-	//colocation
-	for _, colocation := range constraints.FindElements("rsc_colocation") {
-		first := colocation.SelectAttr("rsc").Value
-		with := colocation.SelectAttr("with-rsc").Value
-
-		//try except
-		score := colocation.SelectAttr("score").Value
-		if score == "INFINITY" || score == "+INFINITY" || score == "infinity" || score == "+infinity" {
-			rsc := map[string]string{}
-			rsc["rsc"] = first
-			rsc["with_rsc"] = with
-			data[first]["same_node"] = rsc
-			data[with]["same_node"] = rsc
-		} else if score == "-INFINITY" || score == "-infinity" {
-			rsc := map[string]string{}
-			rsc["rsc"] = first
-			rsc["with_rsc"] = with
-			data[first]["diff_node"] = rsc
-			data[with]["diff_node"] = rsc
+				//try except
+				score := colocation.SelectAttr("score").Value
+				if score == "INFINITY" || score == "+INFINITY" || score == "infinity" || score == "+infinity" {
+					rsc := map[string]string{}
+					rsc["rsc"] = first
+					rsc["with_rsc"] = with
+					data[first]["same_node"] = rsc
+					data[with]["same_node"] = rsc
+				} else if score == "-INFINITY" || score == "-infinity" {
+					rsc := map[string]string{}
+					rsc["rsc"] = first
+					rsc["with_rsc"] = with
+					data[first]["diff_node"] = rsc
+					data[with]["diff_node"] = rsc
+				}
+			}
 		}
 	}
 
@@ -968,7 +976,7 @@ func GetAllConstraints() map[string]interface{} {
 
 	constraintMaps := []map[string]interface{}{}
 	for rscId := range data {
-		var constraint map[string]interface{}
+		constraint := map[string]interface{}{}
 		constraint["id"] = rscId
 		rscIDFirst := strings.Split(rscId, ":")[0]
 		if _, ok := rscStatus[rscId]; !ok {
@@ -1012,9 +1020,9 @@ func GetAllConstraints() map[string]interface{} {
 		constraintMaps = append(constraintMaps, constraint)
 	}
 
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 	result["action"] = true
-	result["data"] = constraints
+	result["data"] = constraintMaps
 	return result
 }
 
@@ -1410,7 +1418,7 @@ func GetResourceStatus(rscInfo *etree.Element) string {
 func GetSubResources(rscId string) map[string]interface{} {
 	rscStatus := GetAllResourceStatus()
 	failInfo := GetResourceFailedMessage() // failure run information
-	var rscInfo map[string]interface{}
+	rscInfo := map[string]interface{}{}
 
 	out, err := utils.RunCommand("cibadmin --query --scope resources")
 	if err != nil {
@@ -1448,7 +1456,7 @@ func GetSubResources(rscId string) map[string]interface{} {
 			subRscId := cloneGroup.SelectAttr("id").Value
 			if rscPrimitive := cloneGroup.FindElements("primitive"); len(rscPrimitive) != 0 {
 				for i := 0; i < nodeNum; i++ {
-					var subRsc map[string]interface{}
+					subRsc := map[string]interface{}{}
 					subRsc["status"] = "Not Running"
 					subRsc["running_node"] = []string{}
 					subRsc["status_message"] = ""
@@ -1484,7 +1492,7 @@ func GetSubResources(rscId string) map[string]interface{} {
 		if clonePrimitive := cloneAim.FindElement("primitive"); clonePrimitive != nil {
 			subRscId := clonePrimitive.SelectAttr("id").Value
 			for i := 0; i < nodeNum; i++ {
-				var subRsc map[string]interface{}
+				subRsc := map[string]interface{}{}
 				subRsc["status"] = "Not Running"
 				subRsc["status_message"] = ""
 				subId := subRscId + ":" + strconv.Itoa(i)
@@ -1560,7 +1568,7 @@ func GetResourceSvc(rscId string) string {
 	if err = doc.ReadFromString(xmlStr); err != nil {
 		return ""
 	}
-	rscType := doc.SelectElement("primitive").SelectAttrValue("type", "")
+	rscType := doc.FindElement("primitive").SelectAttrValue("type", "")
 
 	return rscType
 }
