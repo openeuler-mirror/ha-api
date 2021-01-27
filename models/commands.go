@@ -15,7 +15,7 @@ var commandTable = map[int]string{
 }
 
 func GetCommandsList() map[string]interface{} {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	result["action"] = true
 	result["data"] = commandTable
