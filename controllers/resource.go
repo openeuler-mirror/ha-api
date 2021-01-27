@@ -98,7 +98,7 @@ func (robi *ResourceOpsById) Put() {
 		result["action"] = false
 		result["error"] = "invalid input data"
 	} else {
-		err = models.UpdateResurceAttributes(rscID, reqData)
+		err = models.UpdateResourceAttributes(rscID, reqData)
 		if err != nil {
 			result["action"] = false
 			result["error"] = err.Error()
