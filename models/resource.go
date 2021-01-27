@@ -185,7 +185,7 @@ func GetResourceFailedMessage() map[string]map[string]string {
 	if err = doc.ReadFromBytes(out); err != nil {
 		return failInfo
 	}
-	failures := doc.SelectElements("crm_mon/failures/failure")
+	failures := doc.FindElements("/crm_mon/failures/failure")
 	if len(failures) == 0 {
 		return failInfo
 	} else {
@@ -386,7 +386,7 @@ func CreateResource(data []byte) map[string]interface{} {
 			return map[string]interface{}{"action": false, "error": out}
 		}
 		flag := 0
-		UpdateResourcAttributes(rscId, jsonMap)
+		UpdateResourceAttributes(rscId, jsonMap)
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
@@ -416,17 +416,17 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 	} else if cate == "group" {
 		/*
-					{
-			            "category": "group",
-			            "id":"tomcat_group",
-			            "rscs":[
-			                    "tomcat6",
-			                    "tomcat7"
-			            ],
-			                        "meta_attributes":{
-			                "target-role":"Stopped"
-			            }
-			        }
+			{
+				"category": "group",
+				"id":"tomcat_group",
+				"rscs":[
+						"tomcat6",
+						"tomcat7"
+				],
+							"meta_attributes":{
+					"target-role":"Stopped"
+				}
+			}
 		*/
 		rscs := jsonMap["rscs"].([]string)
 		role := "pcs resource disable "
@@ -476,7 +476,7 @@ func CreateResource(data []byte) map[string]interface{} {
 			return map[string]interface{}{"action": false, "error": out}
 		}
 		flag := 0
-		UpdateResourcAttributes(rscId, jsonMap)
+		UpdateResourceAttributes(rscId, jsonMap)
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
@@ -495,15 +495,15 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 	} else if cate == "clone" {
 		/*
-					{
-			            "category": "clone",
-			            "id":"test5",
-			            "rsc_id":"test4",
-			            "meta_attributes":{
-			                "target-role":"Stopped"
-			            }
-					}
-					id is unused
+			{
+				"category": "clone",
+				"id":"test5",
+				"rsc_id":"test4",
+				"meta_attributes":{
+					"target-role":"Stopped"
+				}
+			}
+			id is unused
 		*/
 		oriId := jsonMap["rsc_id"].(string)
 		ids := getResourceConstraintIDs(oriId, "location")
@@ -522,7 +522,7 @@ func CreateResource(data []byte) map[string]interface{} {
 			return map[string]interface{}{"action": false, "error": out}
 		}
 		flag := 0
-		UpdateResourcAttributes(rscId, jsonMap)
+		UpdateResourceAttributes(rscId, jsonMap)
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
@@ -544,8 +544,8 @@ func CreateResource(data []byte) map[string]interface{} {
 
 }
 
-// UpdateResourcAttributes updates meta_attributes and instance_attributes
-func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[string]interface{} {
+// UpdateResourceAttributes updates meta_attributes and instance_attributes
+func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 	/*
 		Example data:
 		{
@@ -573,7 +573,7 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 		}
 	*/
 	if data == nil || len(data) == 0 {
-		return map[string]interface{}{"action": false, "error": "No input data"}
+		return errors.New("No input data")
 	}
 	// delete all the attribute
 	attrib := GetMetaAndInst(rscId)
@@ -581,9 +581,9 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 		metaAttri := attrib["meta_attributes"]
 		for _, v := range metaAttri {
 			cmd := "crm_resource -r " + rscId + " -m --delete-parameter " + v
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return err
 			}
 		}
 	}
@@ -591,9 +591,9 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 		metaAttri := attrib["instance_attributes"]
 		for _, v := range metaAttri {
 			cmd := "crm_resource -r " + rscId + " -m --delete-parameter " + v
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return err
 			}
 		}
 	}
@@ -602,9 +602,9 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 			metaAttri := data["meta_attributes"].(map[string]string)
 			for k, v := range metaAttri {
 				cmd := "pcs resource meta " + rscId + " " + k + "=" + v
-				out, err := utils.RunCommand(cmd)
+				_, err := utils.RunCommand(cmd)
 				if err != nil {
-					return map[string]interface{}{"action": false, "error": out}
+					return err
 				}
 			}
 		}
@@ -613,17 +613,17 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 			metaAttri := data["meta_attributes"].(map[string]string)
 			for k, v := range metaAttri {
 				cmd := "pcs resource update " + rscId + " meta " + k + "=" + v + " --force"
-				out, err := utils.RunCommand(cmd)
+				_, err := utils.RunCommand(cmd)
 				if err != nil {
-					return map[string]interface{}{"action": false, "error": out}
+					return err
 				}
 			}
 		}
 	}
 
-	out, err := utils.RunCommand("sleep 1")
+	_, err := utils.RunCommand("sleep 1")
 	if err != nil {
-		return map[string]interface{}{"action": false, "error": out}
+		return err
 	}
 
 	instStr := ""
@@ -633,9 +633,9 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 			instStr = instStr + k + "=" + v + " "
 		}
 	}
-	out, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
+	_, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
 	if err != nil {
-		return map[string]interface{}{"action": false, "error": out}
+		return err
 	}
 
 	// change operation
@@ -646,9 +646,9 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 			cmdDelHead := "pcs resource op delete " + rscId
 			for _, op := range opList {
 				cmdDel := cmdDelHead + " " + op
-				out, err = utils.RunCommand(cmdDel)
+				_, err = utils.RunCommand(cmdDel)
 				if err != nil {
-					return map[string]interface{}{"action": false, "error": out}
+					return err
 				}
 			}
 		}
@@ -677,26 +677,66 @@ func UpdateResourcAttributes(rscId string, data map[string]interface{}) map[stri
 				cmdIn = cmdIn + " " + "on-fail=" + v
 			}
 		}
-		out, err = utils.RunCommand(cmdIn)
+		_, err = utils.RunCommand(cmdIn)
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return err
 		}
 	}
 
 	// add group resource
 	if data["category"] == "group" {
 		/*
-					{
-			            "id":"group1",
-			            "category":"group",
-			            "rscs":["iscisi", "test1" ],
-			            "meta_attributes":{
-			                "target-role":"Started"
-			            }
-			        }
+			{
+				"id":"group1",
+				"category":"group",
+				"rscs":["iscisi", "test1" ],
+				"meta_attributes":{
+					"target-role":"Started"
+				}
+			}
 		*/
+		rscs := data["rscs"].([]string)
+		rscsExist := getGroupRscs(rscId)
+		//  单独对新列表第一项进行判断操作
+		//  如果第一项已经存在
+		rsc := rscs[0]
+		isFound := false
+		for i, v := range rscsExist {
+			if v == rsc {
+				rscsExist = append(rscsExist[:i], rscsExist[i+1:]...)
+				isFound = true
+			}
+		}
+		// 在rscs_exist中移出该项
+		if isFound == false {
+			// 如果第一项不存在，则添加第一项后进行删除和添加操作
+			DeletePriAttrib(rsc)
+
+			cmd := "pcs resource group add " + rscId + " " + rsc
+			if _, err := utils.RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+		rscs = rscs[1:]
+		// 	针对rscs_exist的删除操作和rscs的添加操作
+		//   将rscs_exist中的资源全部删除
+		for _, i := range rscsExist {
+			cmdRmv := "pcs resource group remove " + rscId + " " + i
+			if _, err := utils.RunCommand(cmdRmv); err != nil {
+
+				return err
+			}
+		}
+		cmdAdd := ""
+		for _, i := range rscs {
+			DeletePriAttrib(i)
+			cmdAdd = "pcs resource group add " + rscId + " " + i
+			if _, err := utils.RunCommand(cmdAdd); err != nil {
+				return err
+			}
+		}
 	}
-	return map[string]interface{}{"action": true, "info": "Update resource attributes Success"}
+	return nil
 }
 
 func GetAllOps(rscId string) []string {
@@ -1027,18 +1067,18 @@ func GetAllMigrateResources() []string {
 
 func GetAllResourceStatus() map[string]map[string]interface{} {
 	/*
-				infos = {
-		          0:_('Running'),
-		          1:_('Not Running'),
-		          2:_('Unmanaged'),
-		          3:_('Failed'),
-		          4:_('Stop Failed'),
-		          5:_('running (Master)'),
-		          6:_('running (Slave)')}
-		          rsc_info = {
-		             "hj1": {"status": 0 , "status_message": "test", running_node: []}
-		             "hj2": {"status": 0 , "status_message": "test", running_node: []}
-				}
+		infos = {
+			0:_('Running'),
+			1:_('Not Running'),
+			2:_('Unmanaged'),
+			3:_('Failed'),
+			4:_('Stop Failed'),
+			5:_('running (Master)'),
+			6:_('running (Slave)')}
+			rsc_info = {
+				"hj1": {"status": 0 , "status_message": "test", running_node: []}
+				"hj2": {"status": 0 , "status_message": "test", running_node: []}
+		}
 	*/
 	rscInfo := map[string]map[string]interface{}{}
 	out, err := utils.RunCommand("crm_mon -1 --as-xml")
@@ -1050,14 +1090,13 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 		return map[string]map[string]interface{}{}
 	}
 
-	if len(doc.SelectElements("crm_mon/resources")) == 0 {
+	if len(doc.FindElements("/crm_mon/resources")) == 0 {
 		return map[string]map[string]interface{}{}
 	}
-	// allRscRun:=[]string{} // doesn't used
 
-	rscClone := doc.SelectElements("crm_mon/resources/clone")
-	rscGroup := doc.SelectElements("crm_mon/resources/group")
-	rscResource := doc.SelectElements("crm_mon/resources/resource")
+	rscClone := doc.FindElements("/crm_mon/resources/clone")
+	rscGroup := doc.FindElements("/crm_mon/resources/group")
+	rscResource := doc.FindElements("/crm_mon/resources/resource")
 	if len(rscClone) != 0 {
 		// several clone
 		if len(rscClone) != 1 {
@@ -1539,15 +1578,15 @@ func GetTopResource() []string {
 		return result
 	}
 
-	elements := doc.SelectElements("resources/clone")
+	elements := doc.FindElements("/resources/clone")
 	for _, element := range elements {
 		result = append(result, element.SelectAttr("id").Value)
 	}
-	elements = doc.SelectElements("resources/group")
+	elements = doc.FindElements("/resources/group")
 	for _, element := range elements {
 		result = append(result, element.SelectAttr("id").Value)
 	}
-	elements = doc.SelectElements("resources/primitive")
+	elements = doc.FindElements("/resources/primitive")
 	for _, element := range elements {
 		result = append(result, element.SelectAttr("id").Value)
 	}
@@ -2008,228 +2047,9 @@ func getPrimitiveResourceInfo(ele *etree.Element) PrimitiveResource {
 	return result
 }
 
-func UpdateResurceAttributes(rscID string, data map[string]interface{}) error {
-	if len(data) == 0 {
-		return errors.New("No input data")
-	}
-	// Delete all previous attributes
-	attrib := getMetaAndInst(rscID)
-	if _, ok := attrib["meta_attributes"]; ok {
-		ma := attrib["meta_attributes"]
-		for _, i := range ma {
-			cmd := "crm_resource -r " + string(rscID) + " -m --delete-parameter " + string(i)
-			if _, err := utils.RunCommand(cmd); err != nil {
-				return err
-			}
-		}
-	}
-	if _, ok := attrib["instance_attributes"]; ok {
-		ma2 := attrib["instance_attributes"]
-		for _, i := range ma2 {
-			cmd2 := "crm_resource -r " + string(rscID) + " --delete-parameter " + string(i)
-			if _, err := utils.RunCommand(cmd2); err != nil {
-				return err
-			}
-		}
-	}
-	if data["category"] == "group" {
-		if _, ok := attrib["meta_attributes"]; ok {
-			meta := data["meta_attributes"].(map[string]string)
-			for k, v := range meta {
-				cmd3 := "pcs resource meta " + string(rscID) + " " + string(k) + "=" + string(v)
-				if _, err := utils.RunCommand(cmd3); err != nil {
-					return err
-				}
-			}
-		}
-	} else {
-		if _, ok := attrib["meta_attributes"]; ok {
-			meta := data["instance_attributes"].(map[string]string)
-			for k, v := range meta {
-				cmd4 := "pcs resource update " + string(rscID) + " meta " + string(k) + "=" + string(v) + "--force"
-				if _, err := utils.RunCommand(cmd4); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	if _, ok := attrib["instance_attributes"]; ok {
-		inst := data["meta_attributes"].(map[string]string)
-		instStr := ""
-		for k, v := range inst {
-			instStr = instStr + string(k) + "=" + string(v) + " "
-		}
-		// fix error of resource name
-		cmd5 := "sleep 1"
-		if _, err := utils.RunCommand(cmd5); err != nil {
-			return err
-		}
-		cmd6 := "pcs resource update " + string(rscID) + " " + instStr + " --force"
-		if _, err := utils.RunCommand(cmd6); err != nil {
-			return err
-		}
-	}
-
-	// 修改operation操作属性
-	if _, ok := data["actions"]; ok {
-		// 删除之前的所有操作属性
-		opList := getAllOps(rscID)
-		if len(opList) != 0 {
-			cmdDelHead := "pcs resource op delete " + string(rscID)
-			for _, op := range opList {
-				cmdDel := cmdDelHead + " " + string(op)
-				if _, err := utils.RunCommand(cmdDel); err != nil {
-					return err
-				}
-			}
-		}
-		// var action map[string]interface{}
-		action := data["actions"].([]map[string]string) //list
-		//重写
-		cmdIn := "pcs resource update " + string(rscID) + " op"
-		for _, ops := range action {
-			name := string(ops["name"])
-			cmdIn = cmdIn + " " + name
-			if _, ok := ops["interval"]; ok {
-				cmdIn = cmdIn + " " + "interval=" + string(ops["interval"])
-			}
-			if _, ok := ops["start-delay"]; ok {
-				cmdIn = cmdIn + " " + "start-delay=" + string(ops["start-delay"])
-			}
-			if _, ok := ops["timeout"]; ok {
-				cmdIn = cmdIn + " " + "timeout=" + string(ops["timeout"])
-			}
-			if _, ok := ops["role"]; ok {
-				cmdIn = cmdIn + " " + "role=" + string(ops["role"])
-			}
-			if _, ok := ops["requires"]; ok {
-				cmdIn = cmdIn + " " + "requires=" + string(ops["requires"])
-			}
-			if _, ok := ops["on-fail"]; ok {
-				cmdIn = cmdIn + " " + "on-fail=" + string(ops["on-fail"])
-			}
-		}
-		if _, err := utils.RunCommand(cmdIn); err != nil {
-			return err
-		}
-	}
-	if data["category"] == "group" {
-		//TODO
-		rscs := data["rscs"].([]string)
-		rscsExist := getGroupRscs(rscID)
-		cmdHead := "pcs resource group add " + string(rscID)
-		//  单独对新列表第一项进行判断操作
-		//  如果第一项已经存在
-		r := rscs[0]
-		isFound := false
-		// if utils.IsInSlice(r, rscsExist) {
-		for i, v := range rscsExist {
-			if v == r {
-				rscsExist = append(rscsExist[:i], rscsExist[i+1:]...)
-				isFound = true
-			}
-		}
-		// 在rscs_exist中移出该项
-		// index := 0
-		// rscsExist = append(rscsExist[:index], rscsExist[index+1:]...)
-		if isFound == false {
-			// 如果第一项不存在，则添加第一项后进行删除和添加操作
-			delPriAttrib(r)
-
-			cmdHead2 := cmdHead + " " + string(r)
-			if _, err := utils.RunCommand(cmdHead2); err != nil {
-				return err
-			}
-		}
-		index := 0
-		rscs = append(rscs[:index], rscs[index+1:]...)
-		// 	针对rscs_exist的删除操作和rscs的添加操作
-		//   将rscs_exist中的资源全部删除
-		cmdRmv := ""
-		cmdRmvHead := "pcs resource group remove " + string(rscID)
-		for _, i := range rscsExist {
-			cmdRmv = cmdRmvHead + " " + string(i)
-			if _, err := utils.RunCommand(cmdRmv); err != nil {
-
-				return err
-			}
-		}
-		cmdAdd := ""
-		for _, i := range rscs {
-			delPriAttrib(i)
-			cmdAdd = cmdHead + " " + string(i)
-			if _, err := utils.RunCommand(cmdAdd); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func getMetaAndInst(rscID string) map[string][]string {
-	// 获取资源已有元属性和实例属性
-	// result := map[string]interface{}{}
-	// cmd := "crm_resource --resource " + string(rscID) + " --query-xml"
-	// if out, err := utils.RunCommand(cmd); err != nil {
-	// 	result["action"] = false
-	// 	result["error"] = out
-	// 	return result
-	// }
-	// xml := strings.Split(string(out), ":\n")[1]
-	// doc := etree.NewDocument()
-	// if err = doc.ReadFromString(xml); err != nil {
-	// 	return ""
-	// }
-	return nil
-	//TODO
-}
-
-func getAllOps(rcsID string) []string {
-	return nil
-	//TODO
-}
-
 func getGroupRscs(groupID string) []string {
 	return nil
 	//TODO
-}
-
-func delPriAttrib(rscID string) interface{} {
-	attrib := getMetaAndInst(rscID)
-	if len(attrib) == 0 {
-		if _, ok := attrib["meta_attributes"]; ok {
-			for _, i := range attrib["meta_attributes"] {
-				if i == "is-managed" {
-					cmdStr := "crm_resource -r " + string(rscID) + " -m --delete-parameter " + "is-managed"
-					utils.RunCommand(cmdStr)
-				}
-				if i == "priority" {
-					cmdStr := "crm_resource -r " + string(rscID) + " -m --delete-parameter " + "priority"
-					utils.RunCommand(cmdStr)
-				}
-				if i == "target-role" {
-					cmdStr := "crm_resource -r " + string(rscID) + " -m --delete-parameter " + "target-role"
-					utils.RunCommand(cmdStr)
-				}
-			}
-		}
-	}
-	targetID := getResourceConstraintIDs(rscID, "coocation")
-	DeleteColocationByIdAndAction(rscID, targetID)
-	ids := getResourceConstraintIDs(rscID, "location")
-	for _, item := range ids {
-		cmd := "pcs constraint location delete " + string(item)
-		if _, err := utils.RunCommand(cmd); err != nil {
-			return err
-		}
-	}
-	if findOrder(rscID) {
-		cmd := "pcs constraint order delete " + string(rscID)
-		if _, err := utils.RunCommand(cmd); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func levelInit() []string {
