@@ -696,7 +696,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 			}
 		*/
 		rscs := data["rscs"].([]string)
-		rscsExist := getGroupRscs(rscId)
+		rscsExist, _ := getGroupRscs(rscId)
 		//  单独对新列表第一项进行判断操作
 		//  如果第一项已经存在
 		rsc := rscs[0]
@@ -2055,9 +2055,30 @@ func getPrimitiveResourceInfo(ele *etree.Element) PrimitiveResource {
 	return result
 }
 
-func getGroupRscs(groupID string) []string {
-	return nil
-	//TODO
+func getGroupRscs(groupId string) ([]string, error) {
+	cmd := "crm_resource --resource " + groupId + " --query-xml"
+	out, err := utils.RunCommand(cmd)
+
+	if err != nil {
+		// result := map[string]interface{}{}
+		// result["action"]=
+		// return result
+		return nil, err
+	}
+	xml := strings.Split(string(out), ":\n")[1]
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		return nil, err
+	}
+	et := doc.FindElements("./primitive")
+	rscs := []string{}
+
+	for _, pri := range et {
+		rscs = append(rscs, pri.SelectAttrValue("id", ""))
+	}
+
+	return rscs, nil
+
 }
 
 func levelInit() []string {
