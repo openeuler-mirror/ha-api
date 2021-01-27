@@ -1369,21 +1369,19 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 	}
 	if len(rscResource) != 0 {
 		// several common resource
-		if len(rscGroup) != 1 {
-			for _, rsc := range rscResource {
-				resourceInfo := map[string]interface{}{}
-				resourceInfo["status"] = GetResourceStatus(rsc)
-				runningNode := []string{}
-				if nodes := rsc.SelectElements("node"); len(nodes) != 0 {
-					for _, node := range nodes {
-						runningNode = append(runningNode, node.SelectAttr("name").Value)
-					}
+		for _, rsc := range rscResource {
+			resourceInfo := map[string]interface{}{}
+			resourceInfo["status"] = GetResourceStatus(rsc)
+			runningNode := []string{}
+			if nodes := rsc.SelectElements("node"); len(nodes) != 0 {
+				for _, node := range nodes {
+					runningNode = append(runningNode, node.SelectAttr("name").Value)
 				}
-				resourceInfo["running_node"] = runningNode
-				resourceInfo["status_message"] = ""
-				id := rsc.SelectAttr("id").Value
-				rscInfo[id] = resourceInfo
 			}
+			resourceInfo["running_node"] = runningNode
+			resourceInfo["status_message"] = ""
+			id := rsc.SelectAttr("id").Value
+			rscInfo[id] = resourceInfo
 		}
 	}
 

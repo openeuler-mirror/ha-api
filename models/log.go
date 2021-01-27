@@ -5,8 +5,8 @@ import (
 )
 
 func GenerateLog() map[string]interface{} {
-	var result map[string]interface{}
-	var file map[string]string
+	result := map[string]interface{}{}
+	file := map[string]string{}
 
 	var out []byte
 	var err error
