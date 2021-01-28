@@ -1,11 +1,17 @@
 package main
 
 import (
+	"net/http"
+
 	_ "openkylin.com/ha-api/routers"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 )
+
+func pageNotFoundHandler(rw http.ResponseWriter, r *http.Request) {
+	rw.Write([]byte("page not found"))
+}
 
 func main() {
 
@@ -18,6 +24,8 @@ func main() {
 
 	// web.SetStaticPath("/4.12.13", "views/static/4.12.13")
 	// web.SetStaticPath("/static", "views/static/static")
+
+	web.ErrorHandler("404", pageNotFoundHandler)
 
 	web.Run()
 }
