@@ -120,12 +120,12 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	data["name"] = eRoot.SelectAttrValue("name", "")
 	parameter := eRoot.FindElements("./parameters/parameter")
 	for _, i := range parameter {
-		var parameters map[string]interface{}
+		parameters := map[string]interface{}{}
 		parameters["name"] = i.SelectAttrValue("name", "")
 		parameters["required"] = i.SelectAttrValue("required", "")
 		parameters["unique"] = i.SelectAttrValue("unique", "")
 		content := i.FindElement("content")
-		var cnt map[string]string
+		cnt := map[string]string{}
 		cnt["default"] = content.SelectAttrValue("default", "")
 		cnt["type"] = content.SelectAttrValue("type", "")
 		parameters["content"] = cnt
@@ -145,7 +145,7 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 		}
 		prop = append(prop, parameters)
 		if rscClass == "stonith" {
-			var pcmkHostList map[string]interface{}
+			pcmkHostList := map[string]interface{}{}
 			content := map[string]string{"default": "", "type": "string"}
 			pcmkHostList["content"] = content
 			pcmkHostList["longdesc"] = "A list of machines controlled by this device."
@@ -159,7 +159,7 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	}
 	actionElems := eRoot.FindElements("./actions/action")
 	for _, actionElem := range actionElems {
-		var act map[string]string
+		act := map[string]string{}
 		for _, attr := range actionElem.Attr {
 			act[attr.Key] = attr.Value
 		}

@@ -381,9 +381,9 @@ func CreateResource(data []byte) map[string]interface{} {
 		} else {
 			cmd = cmd + cate + rscIdStr + rscClass + rscType + ">'"
 		}
-		out, err = utils.RunCommand(cmd)
+		_, err = utils.RunCommand(cmd)
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		flag := 0
 		UpdateResourceAttributes(rscId, jsonMap)
@@ -398,9 +398,9 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		if flag == 0 {
 			cmd := role + rscId
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return map[string]interface{}{"action": false, "error": err.Error()}
 			}
 		}
 		if _, ok := jsonMap["provider"]; !ok {
@@ -408,9 +408,9 @@ func CreateResource(data []byte) map[string]interface{} {
 			class := jsonMap["class"]
 			if class == "stonith" {
 				cmdStr := instance + rscId + " --set-parameter pcmk_host_check --parameter-value static-list"
-				out, err := utils.RunCommand(cmdStr)
+				_, err := utils.RunCommand(cmdStr)
 				if err != nil {
-					return map[string]interface{}{"action": false, "error": out}
+					return map[string]interface{}{"action": false, "error": err.Error()}
 				}
 			}
 		}
@@ -476,9 +476,9 @@ func CreateResource(data []byte) map[string]interface{} {
 				return map[string]interface{}{"action": false, "error": rscId + " is exist"}
 			}
 		}
-		out, err = utils.RunCommand(cmdStr)
+		_, err = utils.RunCommand(cmdStr)
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		flag := 0
 		UpdateResourceAttributes(rscId, jsonMap)
@@ -493,9 +493,9 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		if flag == 0 {
 			cmd := role + rscId
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return map[string]interface{}{"action": false, "error": err.Error()}
 			}
 		}
 	} else if cate == "clone" {
@@ -514,17 +514,17 @@ func CreateResource(data []byte) map[string]interface{} {
 		ids := getResourceConstraintIDs(oriId, "location")
 		for _, item := range ids {
 			cmd := "pcs constraint location delete " + item
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return map[string]interface{}{"action": false, "error": err.Error()}
 			}
 		}
 		role := "pcs resource disable "
 		cmdStr := "pcs resource clone " + oriId
 		DeleteCloneAttrib(oriId)
-		out, err := utils.RunCommand(cmdStr)
+		_, err := utils.RunCommand(cmdStr)
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		flag := 0
 		UpdateResourceAttributes(rscId, jsonMap)
@@ -1923,23 +1923,29 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	// For meta_attributes
 	// var prop map[string]interface{}
 	e := doc.FindElement("meta_attributes")
-	prop, _ := getResourceInfoFromXml("meta", e)
-	if len(prop.(map[string]string)) > 0 {
-		data["meta_attributes"] = prop
+	if e != nil {
+		prop, _ := getResourceInfoFromXml("meta", e)
+		if len(prop.(map[string]string)) > 0 {
+			data["meta_attributes"] = prop
+		}
 	}
 
 	//For instance_attributes
 	e = doc.FindElement("instance_attributes")
-	prop, _ = getResourceInfoFromXml("inst", e)
-	if len(prop.(map[string]string)) > 0 {
-		data["instance_attributes"] = prop
+	if e != nil {
+		prop, _ := getResourceInfoFromXml("inst", e)
+		if len(prop.(map[string]string)) > 0 {
+			data["instance_attributes"] = prop
+		}
 	}
 
 	//For actions
 	e = doc.FindElement("operations")
-	prop, _ = getResourceInfoFromXml("operations", e)
-	if len(prop.([]map[string]string)) > 0 {
-		data["action"] = prop
+	if e != nil {
+		prop, _ := getResourceInfoFromXml("operations", e)
+		if len(prop.([]map[string]string)) > 0 {
+			data["action"] = prop
+		}
 	}
 
 	return data, nil
