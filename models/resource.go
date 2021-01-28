@@ -2058,12 +2058,14 @@ func getPrimitiveResourceInfo(ele *etree.Element) PrimitiveResource {
 
 	result.Operations = []Op{}
 	for _, v := range ele.SelectElements("operations") {
-		op := Op{}
-		op.ID = v.SelectAttrValue("id", "")
-		op.Interval = v.SelectAttrValue("interval", "")
-		op.Name = v.SelectAttrValue("name", "")
-		op.Timeout = v.SelectAttrValue("timeout", "")
-		result.Operations = append(result.Operations, op)
+		if r := v.SelectAttr("id"); r != nil {
+			op := Op{}
+			op.ID = v.SelectAttrValue("id", "")
+			op.Interval = v.SelectAttrValue("interval", "")
+			op.Name = v.SelectAttrValue("name", "")
+			op.Timeout = v.SelectAttrValue("timeout", "")
+			result.Operations = append(result.Operations, op)
+		}
 	}
 
 	return result
