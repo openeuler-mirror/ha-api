@@ -428,7 +428,6 @@ func CreateResource(data []byte) map[string]interface{} {
 				}
 			}
 		*/
-		// rscs := jsonMap["rscs"].([]string)
 		rscsArr := jsonMap["rscs"].([]interface{})
 		rscs := make([]string, len(rscsArr))
 		for ix, v := range rscsArr {
@@ -539,9 +538,9 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		if flag == 0 {
 			cmd := role + rscId
-			out, err := utils.RunCommand(cmd)
+			_, err := utils.RunCommand(cmd)
 			if err != nil {
-				return map[string]interface{}{"action": false, "error": out}
+				return map[string]interface{}{"action": false, "error": err.Error()}
 			}
 		}
 	}
@@ -604,9 +603,9 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 	}
 	if data["category"] == "group" {
 		if _, ok := data["meta_attributes"]; ok {
-			metaAttri := data["meta_attributes"].(map[string]string)
+			metaAttri := data["meta_attributes"].(map[string]interface{})
 			for k, v := range metaAttri {
-				cmd := "pcs resource meta " + rscId + " " + k + "=" + v
+				cmd := "pcs resource meta " + rscId + " " + k + "=" + v.(string)
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -615,9 +614,9 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		}
 	} else {
 		if _, ok := data["meta_attributes"]; ok {
-			metaAttri := data["meta_attributes"].(map[string]string)
+			metaAttri := data["meta_attributes"].(map[string]interface{})
 			for k, v := range metaAttri {
-				cmd := "pcs resource update " + rscId + " meta " + k + "=" + v + " --force"
+				cmd := "pcs resource update " + rscId + " meta " + k + "=" + v.(string) + " --force"
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -633,9 +632,9 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 
 	instStr := ""
 	if _, ok := data["instance_attributes"]; ok {
-		instAttri := data["instance_attributes"].(map[string]string)
+		instAttri := data["instance_attributes"].(map[string]interface{})
 		for k, v := range instAttri {
-			instStr = instStr + k + "=" + v + " "
+			instStr = instStr + k + "=" + v.(string) + " "
 		}
 	}
 	_, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
@@ -657,29 +656,29 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				}
 			}
 		}
-		action := data["actions"].([]map[string]string)
+		action := data["actions"].([]map[string]interface{})
 		// overwrite
 		cmdIn := "pcs resource update " + rscId + " op"
 		for _, ops := range action {
-			name := ops["name"]
+			name := ops["name"].(string)
 			cmdIn = cmdIn + " " + name
 			if v, ok := ops["interval"]; ok {
-				cmdIn = cmdIn + " " + "interval=" + v
+				cmdIn = cmdIn + " " + "interval=" + v.(string)
 			}
 			if v, ok := ops["start-delay"]; ok {
-				cmdIn = cmdIn + " " + "start-delay=" + v
+				cmdIn = cmdIn + " " + "start-delay=" + v.(string)
 			}
 			if v, ok := ops["timeout"]; ok {
-				cmdIn = cmdIn + " " + "timeout=" + v
+				cmdIn = cmdIn + " " + "timeout=" + v.(string)
 			}
 			if v, ok := ops["role"]; ok {
-				cmdIn = cmdIn + " " + "role=" + v
+				cmdIn = cmdIn + " " + "role=" + v.(string)
 			}
 			if v, ok := ops["requires"]; ok {
-				cmdIn = cmdIn + " " + "requires=" + v
+				cmdIn = cmdIn + " " + "requires=" + v.(string)
 			}
 			if v, ok := ops["on-fail"]; ok {
-				cmdIn = cmdIn + " " + "on-fail=" + v
+				cmdIn = cmdIn + " " + "on-fail=" + v.(string)
 			}
 		}
 		_, err = utils.RunCommand(cmdIn)
