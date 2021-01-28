@@ -75,7 +75,7 @@ type ResourceOpsById struct {
 }
 
 func (robi *ResourceOpsById) Get() {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 	rscID := robi.Ctx.Input.Param(":rscID")
 	rst, err := models.GetResourceInfoByrscID(rscID)
 	if err != nil {
@@ -83,7 +83,7 @@ func (robi *ResourceOpsById) Get() {
 		result["err"] = err.Error()
 	} else {
 		result["action"] = true
-		result["err"] = rst
+		result["data"] = rst
 	}
 	robi.Data["json"] = &result
 	robi.ServeJSON()
@@ -91,7 +91,7 @@ func (robi *ResourceOpsById) Get() {
 
 func (robi *ResourceOpsById) Put() {
 	rscID := robi.Ctx.Input.Param(":rscID")
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 	reqData := make(map[string]interface{})
 	if err := json.Unmarshal(robi.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
