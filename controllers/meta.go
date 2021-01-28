@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/beego/beego/v2/server/web"
+	"openkylin.com/ha-api/models"
 )
 
 type MetaController struct {
@@ -9,8 +10,10 @@ type MetaController struct {
 }
 
 func (mc *MetaController) Get() {
-	// TODO
-	// mc.Data["json"] = models.GetResourceMetas()
+	rscClass := mc.Ctx.Input.Param(":rsc_class")
+	rscType := mc.Ctx.Input.Param(":rsc_type")
+	rscProvider := mc.Ctx.Input.Param(":rsc_provider")
+	mc.Data["json"] = models.GetResourceMetas(rscClass, rscType, rscProvider)
 	mc.ServeJSON()
 }
 
@@ -19,10 +22,6 @@ type MetasController struct {
 }
 
 func (mc *MetasController) Get() {
-	// TODO
-	// rscClass := mc.Ctx.Input.Param(":rsc_class")
-	// rscType := mc.Ctx.Input.Param(":rsc_type")
-	// rscProvider := mc.Ctx.Input.Param(":rsc_provider")
-	// mc.Data["json"] = models.GetAllResourceMetas(rscClass, rscType, rscProvider)
+	mc.Data["json"] = models.GetAllResourceMetas()
 	mc.ServeJSON()
 }
