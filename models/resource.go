@@ -95,7 +95,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		for _, resourceLocation := range root.FindElements("./rsc_location") {
 			rsc := resourceLocation.SelectAttr("rsc").Value
 			if rsc == rscID {
-				var rscConstraint map[string]string
+				rscConstraint := map[string]string{}
 				score := resourceLocation.SelectAttr("score").Value
 				if score == "-INFINITY" || score == "-infinity" {
 					continue
@@ -118,7 +118,8 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		retData["rsc_id"] = rscID
 		break
 	case "colocation":
-		var sameNodes, diffNodes []string
+		sameNodes := []string{}
+		diffNodes := []string{}
 		for _, colocation := range root.FindElements("./rsc_colocation") {
 			rsc := colocation.SelectAttr("rsc").Value
 			rscWith := colocation.SelectAttr("with-rsc").Value
@@ -153,7 +154,8 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		retData["diff_node"] = diffNodes
 		break
 	case "order":
-		var before, after []string
+		before := []string{}
+		after := []string{}
 
 		for _, order := range root.FindElements("rsc_order") {
 			first := order.SelectAttrValue("first", "")
@@ -323,12 +325,12 @@ func CreateResource(data []byte) map[string]interface{} {
 	if data == nil || len(data) == 0 {
 		return map[string]interface{}{"action": false, "error": "No input data"}
 	}
-	var jsonData interface{}
+	jsonData := map[string]interface{}{}
 	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
 		return map[string]interface{}{"action": false, "error": "Cannot convert data to json map"}
 	}
-	jsonMap := jsonData.(map[string]interface{})
+	jsonMap := jsonData
 
 	var rscId string
 	if v, ok := jsonMap["id"].(string); ok {
@@ -656,34 +658,37 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				}
 			}
 		}
-		action := data["actions"].([]map[string]interface{})
+		action := data["actions"].([]interface{})
 		// overwrite
-		cmdIn := "pcs resource update " + rscId + " op"
-		for _, ops := range action {
-			name := ops["name"].(string)
-			cmdIn = cmdIn + " " + name
-			if v, ok := ops["interval"]; ok {
-				cmdIn = cmdIn + " " + "interval=" + v.(string)
+		if len(action) > 0 {
+			cmdIn := "pcs resource update " + rscId + " op"
+			for _, b := range action {
+				ops := b.(map[string]interface{})
+				name := ops["name"].(string)
+				cmdIn = cmdIn + " " + name
+				if v, ok := ops["interval"]; ok {
+					cmdIn = cmdIn + " " + "interval=" + v.(string)
+				}
+				if v, ok := ops["start-delay"]; ok {
+					cmdIn = cmdIn + " " + "start-delay=" + v.(string)
+				}
+				if v, ok := ops["timeout"]; ok {
+					cmdIn = cmdIn + " " + "timeout=" + v.(string)
+				}
+				if v, ok := ops["role"]; ok {
+					cmdIn = cmdIn + " " + "role=" + v.(string)
+				}
+				if v, ok := ops["requires"]; ok {
+					cmdIn = cmdIn + " " + "requires=" + v.(string)
+				}
+				if v, ok := ops["on-fail"]; ok {
+					cmdIn = cmdIn + " " + "on-fail=" + v.(string)
+				}
 			}
-			if v, ok := ops["start-delay"]; ok {
-				cmdIn = cmdIn + " " + "start-delay=" + v.(string)
+			_, err = utils.RunCommand(cmdIn)
+			if err != nil {
+				return err
 			}
-			if v, ok := ops["timeout"]; ok {
-				cmdIn = cmdIn + " " + "timeout=" + v.(string)
-			}
-			if v, ok := ops["role"]; ok {
-				cmdIn = cmdIn + " " + "role=" + v.(string)
-			}
-			if v, ok := ops["requires"]; ok {
-				cmdIn = cmdIn + " " + "requires=" + v.(string)
-			}
-			if v, ok := ops["on-fail"]; ok {
-				cmdIn = cmdIn + " " + "on-fail=" + v.(string)
-			}
-		}
-		_, err = utils.RunCommand(cmdIn)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -1866,7 +1871,7 @@ func GetResourceInfoByrscID(rscID string) (interface{}, error) {
 func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	doc := etree.NewDocument()
 	doc.ReadFromString(xmlData)
-	var data map[string]interface{}
+	data := map[string]interface{}{}
 
 	// Format data to map here
 	switch ct {
