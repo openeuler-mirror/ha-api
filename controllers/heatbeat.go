@@ -54,3 +54,17 @@ func (hbsc *HeartBeatStatusController) Get() {
 	hbsc.Data["json"] = &result
 	hbsc.ServeJSON()
 }
+
+type DiskHeartBeatController struct {
+	web.Controller
+}
+
+func (dhbc *DiskHeartBeatController) Get() {
+	result := map[string]interface{}{}
+
+	result["action"] = true
+	result["data"] = []string{}
+
+	dhbc.Data["json"] = &result
+	dhbc.ServeJSON()
+}
