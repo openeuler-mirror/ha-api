@@ -14,9 +14,9 @@ func main() {
 
 	web.BConfig.CopyRequestBody = true
 	web.BConfig.Listen.HTTPAddr = "172.30.30.94"
-	web.SetStaticPath("/4.12.13", "views/static/4.12.13")
+	web.SetStaticPath("/static", "views/static")
 
-	// web.SetStaticPath("/static", "views/static")
+	// web.SetStaticPath("/4.12.13", "views/static/4.12.13")
 	// web.SetStaticPath("/static", "views/static/static")
 
 	web.Run()
