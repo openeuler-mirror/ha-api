@@ -345,7 +345,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		role := "pcs resource disable "
 		out, err := utils.RunCommand("cibadmin -Q")
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		doc := etree.NewDocument()
 		if err = doc.ReadFromBytes(out); err != nil {
@@ -428,7 +428,12 @@ func CreateResource(data []byte) map[string]interface{} {
 				}
 			}
 		*/
-		rscs := jsonMap["rscs"].([]string)
+		// rscs := jsonMap["rscs"].([]string)
+		rscsArr := jsonMap["rscs"].([]interface{})
+		rscs := make([]string, len(rscsArr))
+		for ix, v := range rscsArr {
+			rscs[ix] = v.(string)
+		}
 		role := "pcs resource disable "
 		for _, rsc := range rscs {
 			DeletePriAttrib(rsc)
@@ -441,7 +446,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		out, err := utils.RunCommand("cibadmin -Q")
 		if err != nil {
-			return map[string]interface{}{"action": false, "error": out}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		doc := etree.NewDocument()
 		if err = doc.ReadFromBytes(out); err != nil {

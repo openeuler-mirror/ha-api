@@ -9,12 +9,12 @@ import (
 )
 
 func GetAllResourceMetas() map[string]interface{} {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	out, err := utils.RunCommand("crm_resource --list-standards")
 	if err != nil {
 		result["action"] = false
-		result["error"] = out
+		result["error"] = err.Error()
 		return result
 	}
 	standards := strings.Split(string(out), "\n")
@@ -22,19 +22,25 @@ func GetAllResourceMetas() map[string]interface{} {
 	res := make(map[string][]string)
 
 	for _, st := range standards {
+		if st == "" {
+			continue
+		}
 		if st == "ocf" {
 			out, err := utils.RunCommand("crm_resource --list-ocf-providers")
 			if err != nil {
 				result["action"] = false
-				result["error"] = out
+				result["error"] = err.Error()
 				return result
 			}
 			pvds := strings.Split(string(out), "\n")
 			for _, p := range pvds {
+				if p == "" {
+					continue
+				}
 				out, err := utils.RunCommand("crm_resource --list-agents ocf:" + p)
 				if err != nil {
 					result["action"] = false
-					result["error"] = out
+					result["error"] = err.Error()
 					return result
 				}
 				ag := strings.Split(string(out), "\n")
@@ -56,14 +62,16 @@ func GetAllResourceMetas() map[string]interface{} {
 			out, err := utils.RunCommand("crm_resource --list-agents " + st)
 			if err != nil {
 				result["action"] = false
-				result["error"] = out
+				result["error"] = err.Error()
 				return result
 			}
 			la := strings.Split(string(out), "\n")
 			// Eliminate Duplicates
 			laMap := map[string]bool{}
 			for _, laStr := range la {
-				laMap[laStr] = true
+				if laStr != "" {
+					laMap[laStr] = true
+				}
 			}
 			la = []string{}
 			for k, _ := range laMap {
@@ -102,11 +110,11 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	}
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
-		return map[string]interface{}{"action": false, "data": data}
+		return map[string]interface{}{"action": false, "data": err.Error()}
 	}
 	doc := etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		return map[string]interface{}{"action": false, "data": data}
+		return map[string]interface{}{"action": false, "data": err.Error()}
 	}
 	eRoot := doc.Root()
 	data["name"] = eRoot.SelectAttrValue("name", "")
