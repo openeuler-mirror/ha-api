@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
@@ -14,8 +15,20 @@ func init() {
 	web.InsertFilter("/*", web.BeforeRouter, loginFilter)
 }
 
+var apiPreffix = "/api"
+var versionPreffix = "/v1"
+
 var loginFilter = func(ctx *context.Context) {
-	// TODO: implement login check
+	// implement login check
+	username := ctx.Input.Session("username")
+	if username == nil {
+		if !strings.Contains(ctx.Request.RequestURI, "/login") {
+			if strings.HasPrefix(ctx.Request.RequestURI, apiPreffix) {
+				url := apiPreffix + versionPreffix + "/login"
+				ctx.Redirect(302, url)
+			}
+		}
+	}
 }
 
 type LoginController struct {
@@ -52,7 +65,10 @@ func (lc *LoginController) Post() {
 
 	// check password
 	if utils.CheckAuth(d.Username, d.Password) {
-		// TODO: update session
+		// update session
+		lc.SetSession("username", d.Username)
+		lc.SetSession("password", d.Password)
+
 		result.Action = true
 		result.Error = ""
 	} else {
@@ -70,7 +86,9 @@ type LogoutController struct {
 }
 
 func (lc *LogoutController) Post() {
-	// TODO: delete session
+	// delete session
+	lc.DelSession("username")
+	lc.DelSession("password")
 
 	result := struct {
 		Action bool   `json:"action"`

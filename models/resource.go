@@ -351,7 +351,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		doc := etree.NewDocument()
 		if err = doc.ReadFromBytes(out); err != nil {
-			return map[string]interface{}{"action": false, "error": "xml parse failed"}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		primitives := doc.FindElements("primitive")
 		for _, primitive := range primitives {
@@ -451,7 +451,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		}
 		doc := etree.NewDocument()
 		if err = doc.ReadFromBytes(out); err != nil {
-			return map[string]interface{}{"action": false, "error": "xml parse failed"}
+			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
 		primitives := doc.FindElements("primitive")
 		for _, primitive := range primitives {
@@ -834,7 +834,7 @@ func GetMetaAndInst(rscId string) map[string][]string {
 	cmdStr := "crm_resource --resource " + rscId + " --query-xml"
 	out, err := utils.RunCommand(cmdStr)
 	if err != nil {
-		// return map[string]interface{}{"action": false, "error": out}
+		// return map[string]interface{}{"action": false, "error": err}
 		return map[string][]string{}
 	}
 	xml := strings.Split(string(out), ":\n")[1]
