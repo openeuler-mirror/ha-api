@@ -91,7 +91,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 	root := doc.SelectElement("constraints")
 	switch relation {
 	case "location":
-		var resourceLocations []map[string]string
+		resourceLocations := []map[string]string{}
 		for _, resourceLocation := range root.FindElements("./rsc_location") {
 			rsc := resourceLocation.SelectAttr("rsc").Value
 			if rsc == rscID {
@@ -1837,7 +1837,7 @@ func findOrder(rscID string) bool {
 }
 
 func GetResourceInfoByrscID(rscID string) (interface{}, error) {
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	cmd := "crm_resource --resource " + rscID + " --query-xml"
 	out, err := utils.RunCommand(cmd)

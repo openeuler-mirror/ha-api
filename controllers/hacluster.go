@@ -29,7 +29,7 @@ func (hcc *HAClustersController) Post() {
 
 func (hcc *HAClustersController) Put() {
 	logs.Debug("handle put request in HAClustersController.")
-	var result map[string]interface{}
+	result := map[string]interface{}{}
 
 	reqData := make(map[string]string)
 	if err := json.Unmarshal(hcc.Ctx.Input.RequestBody, &reqData); err != nil {

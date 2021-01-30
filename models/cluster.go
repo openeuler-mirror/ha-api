@@ -163,7 +163,7 @@ ret:
 }
 
 func getClusterProperties() (map[string]interface{}, error) {
-	var clusterProperties map[string]interface{}
+	clusterProperties := map[string]interface{}{}
 	var doc *etree.Document
 	var nvParis []*etree.Element
 
@@ -211,7 +211,7 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 	}
 
 	if prop["type"] == "enum" {
-		var propEnums []string
+		propEnums := []string{}
 		if prop["longdesc"] != "" {
 			values := strings.Split(prop["longdesc"].(string), "Allowed values:")
 			if len(values) == 2 {
