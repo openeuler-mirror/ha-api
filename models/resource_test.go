@@ -36,6 +36,48 @@ func TestGetResourceInfoByrscID(t *testing.T) {
 	// var doc *etree.Document
 }
 
+func TestGetGroupRscs(t *testing.T) {
+	out := `Resource Group: group1
+	dummy2     (ocf::heartbeat:Dummy): Started ha1
+	dummy6     (ocf::heartbeat:Dummy): Started ha1
+	dummy7     (ocf::heartbeat:Dummy): Started ha1
+xml:
+<group id="group1">
+ <primitive class="ocf" id="dummy2" provider="heartbeat" type="Dummy">
+   <meta_attributes id="dummy2-meta_attributes"/>
+   <operations>
+	 <op id="dummy2-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
+	 <op id="dummy2-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
+	 <op id="dummy2-monitor-interval-10s" interval="10s" name="monitor" timeout="20s"/>
+	 <op id="dummy2-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
+	 <op id="dummy2-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+	 <op id="dummy2-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
+   </operations>
+ </primitive>
+ <primitive class="ocf" id="dummy6" provider="heartbeat" type="Dummy">
+   <meta_attributes id="dummy6-meta_attributes"/>
+ </primitive>
+ <primitive class="ocf" id="dummy7" provider="heartbeat" type="Dummy">
+   <meta_attributes id="dummy7-meta_attributes"/>
+ </primitive>
+</group>
+	`
+
+	xml := strings.Split(string(out), ":\n")[1]
+	fmt.Println(xml)
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		fmt.Println(err)
+	}
+	et := doc.FindElements("//primitive")
+	rscs := []string{}
+
+	for _, pri := range et {
+		rscs = append(rscs, pri.SelectAttrValue("id", ""))
+	}
+	fmt.Println(rscs)
+}
+
 // [root@ha1 ~]# cibadmin --query --scope resources
 // <resources>
 //   <clone id="sysinfo-clone">

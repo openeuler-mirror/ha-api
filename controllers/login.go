@@ -15,8 +15,10 @@ func init() {
 	web.InsertFilter("/*", web.BeforeRouter, loginFilter)
 }
 
-var apiPreffix = "/api"
-var versionPreffix = "/v1"
+const (
+	apiPreffix     = "/api"
+	versionPreffix = "/v1"
+)
 
 var loginFilter = func(ctx *context.Context) {
 	// implement login check
@@ -24,8 +26,7 @@ var loginFilter = func(ctx *context.Context) {
 	if username == nil {
 		if !strings.Contains(ctx.Request.RequestURI, "/login") {
 			if strings.HasPrefix(ctx.Request.RequestURI, apiPreffix) {
-				url := apiPreffix + versionPreffix + "/login"
-				ctx.Redirect(302, url)
+				ctx.Redirect(403, "session timeout")
 			}
 		}
 	}

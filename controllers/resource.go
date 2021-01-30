@@ -129,7 +129,7 @@ func (rrc *ResourceRelationsController) Get() {
 		result["error"] = err.Error()
 	} else {
 		result["action"] = true
-		result["info"] = retData
+		result["data"] = retData
 	}
 
 	rrc.Data["json"] = &result

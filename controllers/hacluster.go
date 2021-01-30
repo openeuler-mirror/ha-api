@@ -31,7 +31,7 @@ func (hcc *HAClustersController) Put() {
 	logs.Debug("handle put request in HAClustersController.")
 	result := map[string]interface{}{}
 
-	reqData := make(map[string]string)
+	reqData := make(map[string]interface{})
 	if err := json.Unmarshal(hcc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false

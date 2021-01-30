@@ -10,5 +10,9 @@ import (
 func RunCommand(c string) ([]byte, error) {
 	logs.Debug("Running command: %s", c)
 	command := exec.Command("bash", "-c", c)
-	return command.CombinedOutput()
+	out, err := command.CombinedOutput()
+	if err != nil {
+		logs.Error("Run command failed!, command: " + c + " out: " + string(out) + " err: " + err.Error())
+	}
+	return out, err
 }

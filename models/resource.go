@@ -33,9 +33,9 @@ func GetResourceInfo() map[string]interface{} {
 		rscId := constraint["id"].(string)
 		migrateResources := GetAllMigrateResources()
 		if utils.IsInSlice(rscId, migrateResources) {
-			constraint["allow_unmigrat"] = true
+			constraint["allow_unmigrate"] = true
 		} else {
-			constraint["allow_unmigrat"] = false
+			constraint["allow_unmigrate"] = false
 		}
 
 		t := GetResourceType(rscId)
@@ -77,7 +77,6 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 	var cmd string
 	cmd = "cibadmin --query --scope constraints"
 	out, err := utils.RunCommand(cmd)
-	logs.Debug(string(out))
 
 	if err != nil {
 		return nil, err
@@ -103,7 +102,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 				if score == "INFINITY" || score == "infinity" {
 					continue
 				}
-				rscConstraint["node"] = resourceLocation.SelectAttr("id").Value
+				rscConstraint["node"] = resourceLocation.SelectAttr("node").Value
 				if score == "20000" {
 					rscConstraint["level"] = "Master Node"
 				} else if score == "16000" {
@@ -618,7 +617,17 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		if _, ok := data["meta_attributes"]; ok {
 			metaAttri := data["meta_attributes"].(map[string]interface{})
 			for k, v := range metaAttri {
-				cmd := "pcs resource update " + rscId + " meta " + k + "=" + v.(string) + " --force"
+				var value string
+				if t, ok := v.(string); ok {
+					value = t
+				} else if t, ok := v.(bool); ok {
+					if t == true {
+						value = "true"
+					} else {
+						value = "false"
+					}
+				}
+				cmd := "pcs resource update " + rscId + " meta " + k + "=" + value + " --force"
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -638,10 +647,13 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		for k, v := range instAttri {
 			instStr = instStr + k + "=" + v.(string) + " "
 		}
-	}
-	_, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
-	if err != nil {
-		return err
+
+		if instStr != "" {
+			_, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// change operation
@@ -704,44 +716,33 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				}
 			}
 		*/
-		rscs := data["rscs"].([]string)
+		t := data["rscs"].([]interface{})
+		rscs := []string{}
+		for _, item := range t {
+			rscs = append(rscs, item.(string))
+		}
 		rscsExist, _ := getGroupRscs(rscId)
-		//  单独对新列表第一项进行判断操作
-		//  如果第一项已经存在
-		rsc := rscs[0]
-		isFound := false
-		for i, v := range rscsExist {
-			if v == rsc {
-				rscsExist = append(rscsExist[:i], rscsExist[i+1:]...)
-				isFound = true
-			}
-		}
-		// 在rscs_exist中移出该项
-		if isFound == false {
-			// 如果第一项不存在，则添加第一项后进行删除和添加操作
-			DeletePriAttrib(rsc)
 
-			cmd := "pcs resource group add " + rscId + " " + rsc
-			if _, err := utils.RunCommand(cmd); err != nil {
-				return err
-			}
-		}
-		rscs = rscs[1:]
-		// 	针对rscs_exist的删除操作和rscs的添加操作
-		//   将rscs_exist中的资源全部删除
-		for _, i := range rscsExist {
-			cmdRmv := "pcs resource group remove " + rscId + " " + i
-			if _, err := utils.RunCommand(cmdRmv); err != nil {
+		allRscs := append(rscs, rscsExist...)
+		for _, v := range allRscs {
+			if utils.IsInSlice(v, rscs) {
+				if !utils.IsInSlice(v, rscsExist) {
+					// 在新配置中但是不在原配置中，需要新增
+					DeletePriAttrib(v)
+					cmdAdd := "pcs resource group add " + rscId + " " + v
+					if _, err := utils.RunCommand(cmdAdd); err != nil {
+						return err
+					}
+				}
+			} else {
+				if utils.IsInSlice(v, rscsExist) {
+					// 不在新配置中但是在原配置中，需要删除
+					cmdRmv := "pcs resource group remove " + rscId + " " + v
+					if _, err := utils.RunCommand(cmdRmv); err != nil {
 
-				return err
-			}
-		}
-		cmdAdd := ""
-		for _, i := range rscs {
-			DeletePriAttrib(i)
-			cmdAdd = "pcs resource group add " + rscId + " " + i
-			if _, err := utils.RunCommand(cmdAdd); err != nil {
-				return err
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -904,7 +905,7 @@ func GetAllConstraints() map[string]interface{} {
 		return result
 	}
 
-	constraints := doc.FindElement("constraints")
+	constraints := doc.FindElement("/cib/configuration/constraints")
 	if constraints != nil {
 		//location
 		if locations := constraints.FindElements("rsc_location"); locations != nil {
@@ -918,13 +919,7 @@ func GetAllConstraints() map[string]interface{} {
 				locationSingle := make(map[string]string)
 				locationSingle["node"] = node
 				locationSingle["level"] = ScoreToLevel(score)
-				locationArr := []map[string]string{}
-				for key := range data {
-					if rscId == key {
-						locationArr = append(locationArr, locationSingle)
-					}
-				}
-				data[rscId]["location"] = locationArr
+				data[rscId]["location"] = append(data[rscId]["location"].([]map[string]string), locationSingle)
 			}
 		}
 
@@ -935,7 +930,7 @@ func GetAllConstraints() map[string]interface{} {
 				then := order.SelectAttr("then").Value
 
 				//try except
-				score := order.SelectAttr("score").Value
+				score := order.SelectAttrValue("score", "")
 				if score == "" || len(score) == 0 {
 					score = "infinity"
 				}
@@ -1051,7 +1046,7 @@ func GetAllMigrateResources() []string {
 
 	resourceLocations := make(map[string]interface{})
 	// TODO: check real xml document here
-	for _, resourceLocation := range doc.FindElements("rsc_location") {
+	for _, resourceLocation := range doc.FindElements("/cib/configuration/constraints/rsc_location") {
 		id := resourceLocation.SelectAttr("id").Value
 		resourceLocations[id] = resourceLocation
 	}
@@ -1116,137 +1111,9 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 	rscResource := doc.FindElements("/crm_mon/resources/resource")
 	if len(rscClone) != 0 {
 		// several clone
-		if len(rscClone) != 1 {
-			for _, rsc := range rscClone {
-				// subResources is common resources
-				if subRscs := rsc.SelectElements("resource"); len(subRscs) != 0 {
-					index := 0
-					cloneRunNodes := []string{}
-					cloneInfo := map[string]interface{}{}
-					for _, subRsc := range subRscs {
-						info := map[string]interface{}{}
-						info["status"] = GetResourceStatus(subRsc)
-						info["status_message"] = ""
-						nodename := ""
-						if node := subRsc.FindElement("node"); node != nil {
-							nodename = node.SelectAttr("name").Value
-						}
-						id := subRsc.SelectAttr("id").Value + ":" + string(index)
-						index++
-						info["running_node"] = []string{nodename}
-						rscInfo[id] = info
-						cloneRunNodes = append(cloneRunNodes, nodename)
-					}
-					cloneInfo["status"] = GetResourceStatus(rsc)
-					cloneInfo["status_message"] = ""
-					cloneInfo["running_node"] = cloneRunNodes
-					cloneId := rsc.SelectAttr("id").Value
-					rscInfo[cloneId] = cloneInfo
-				}
-				// subResources is gourp resources
-				if subRscs := rsc.SelectElements("group"); len(subRscs) != 0 {
-					cloneRunNodes := []string{}
-					cloneInfo := map[string]interface{}{}
-					for _, subRsc := range subRscs {
-						subRscId := subRsc.SelectAttr("id").Value
-						groupInfo := map[string]interface{}{}
-						groupRunNodes := []string{}
-						if innerRscs := subRsc.SelectElements("resource"); len(innerRscs) != 0 {
-							groupInfo["status"] = "Not Running"
-							if len(innerRscs) == 1 {
-								innerRsc := innerRscs[0]
-								innerRscId := innerRsc.SelectAttr("id").Value
-								info := map[string]interface{}{}
-								info["status"] = GetResourceStatus(subRsc)
-								info["status_message"] = ""
-								if node := innerRsc.FindElement("node"); node != nil {
-									nodename := ""
-									if node := subRsc.FindElement("node"); node != nil {
-										nodename = node.SelectAttr("name").Value
-									}
-									info["running_node"] = []string{nodename}
-									groupRunNodes = append(groupRunNodes, nodename)
-									cloneRunNodes = append(cloneRunNodes, nodename)
-									groupInfo["status"] = "Running"
-								}
-								fatherId := strings.Split(subRscId, ":")[1]
-								id := innerRscId + ":" + fatherId
-								rscInfo[id] = info
-							} else {
-								for _, innerRsc := range innerRscs {
-									innerRscId := innerRsc.SelectAttr("id").Value
-									info := map[string]interface{}{}
-									groupInfo["status"] = "Stopped"
-									info["status"] = GetResourceStatus(subRsc)
-									if info["status"] == "Running" {
-										groupInfo["status"] = "Running"
-									}
-									info["status_message"] = ""
-									if node := innerRsc.FindElement("node"); node != nil {
-										nodename := node.SelectAttr("name").Value
-										info["running_node"] = []string{nodename}
-										cloneRunNodes = append(cloneRunNodes, nodename)
-										groupRunNodes = append(groupRunNodes, nodename)
-									}
-									fatherId := strings.Split(subRscId, ":")[1]
-									id := innerRscId + ":" + fatherId
-									rscInfo[id] = info
-								}
-							}
-						}
-						groupInfo["running_node"] = utils.RemoveDupl(groupRunNodes)
-						groupInfo["status_message"] = ""
-						groupId := subRscId
-						rscInfo[groupId] = groupInfo
-					}
-					cloneInfo["status"] = GetResourceStatus(rsc)
-					cloneInfo["status_message"] = ""
-					cloneInfo["running_node"] = utils.RemoveDupl(cloneRunNodes)
-					cloneId := rsc.SelectAttr("id").Value
-					rscInfo[cloneId] = cloneInfo
-				}
-			}
-		} else { // single clone
-			// clone is group resource
-			if rscCloneGroups := rscClone[0].SelectElements("group"); len(rscCloneGroups) != 0 {
-				cloneRunNodes := []string{}
-				cloneInfo := map[string]interface{}{}
-				cloneInfo["status"] = "Not Running"
-				for _, rscCloneGroup := range rscCloneGroups {
-					cloneGroupRunNodes := []string{}
-					cloneGroupInfo := map[string]interface{}{}
-					subGroupId := rscCloneGroup.SelectAttr("id").Value
-					index := strings.Split(subGroupId, ":")[1]
-					if subRscs := rscCloneGroup.SelectElements("resource"); len(subRscs) != 0 {
-						cloneGroupInfo["status"] = "Not Running"
-
-						for _, subRsc := range subRscs {
-							info := map[string]interface{}{}
-							info["status"] = GetResourceStatus(subRsc)
-							info["status_message"] = ""
-							id := subRsc.SelectAttr("id").Value + ":" + index
-							if node := subRsc.FindElement("node"); node != nil {
-								nodename := node.SelectAttr("name").Value
-								info["running_node"] = []string{nodename}
-								cloneGroupInfo["status"] = "Running"
-								cloneInfo["status"] = "Running"
-								cloneGroupRunNodes = append(cloneGroupRunNodes, nodename)
-								cloneRunNodes = append(cloneRunNodes, nodename)
-							}
-							rscInfo[id] = info
-						}
-					}
-					cloneGroupInfo["running_node"] = utils.RemoveDupl(cloneGroupRunNodes)
-					cloneGroupInfo["status_message"] = ""
-					rscInfo[subGroupId] = cloneGroupInfo
-				}
-				cloneInfo["status_message"] = ""
-				cloneInfo["running_node"] = utils.RemoveDupl(cloneRunNodes)
-				id := rscClone[0].SelectAttr("id").Value
-				rscInfo[id] = cloneInfo
-			}
-			// clone is common resource
-			if subRscs := rscClone[0].SelectElements("resource"); len(subRscs) != 0 {
+		for _, rsc := range rscClone {
+			// subResources is common resources
+			if subRscs := rsc.SelectElements("resource"); len(subRscs) != 0 {
 				index := 0
 				cloneRunNodes := []string{}
 				cloneInfo := map[string]interface{}{}
@@ -1254,18 +1121,83 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 					info := map[string]interface{}{}
 					info["status"] = GetResourceStatus(subRsc)
 					info["status_message"] = ""
-					nodename := subRsc.FindElement("node").SelectAttr("name").Value
-					id := string(subRsc.SelectAttr("id").Value) + ":" + string(index)
+					nodename := ""
+					if node := subRsc.FindElement("node"); node != nil {
+						nodename = node.SelectAttr("name").Value
+					}
+					id := subRsc.SelectAttr("id").Value + ":" + string(index)
 					index++
 					info["running_node"] = []string{nodename}
 					rscInfo[id] = info
 					cloneRunNodes = append(cloneRunNodes, nodename)
 				}
-				cloneInfo["status"] = GetResourceStatus(rscClone[0])
+				cloneInfo["status"] = GetResourceStatus(rsc)
 				cloneInfo["status_message"] = ""
 				cloneInfo["running_node"] = cloneRunNodes
-				id := rscClone[0].SelectAttr("id").Value
-				rscInfo[id] = cloneInfo
+				cloneId := rsc.SelectAttr("id").Value
+				rscInfo[cloneId] = cloneInfo
+			}
+			// subResources is gourp resources
+			if subRscs := rsc.SelectElements("group"); len(subRscs) != 0 {
+				cloneRunNodes := []string{}
+				cloneInfo := map[string]interface{}{}
+				for _, subRsc := range subRscs {
+					subRscId := subRsc.SelectAttr("id").Value
+					groupInfo := map[string]interface{}{}
+					groupRunNodes := []string{}
+					if innerRscs := subRsc.SelectElements("resource"); len(innerRscs) != 0 {
+						groupInfo["status"] = "Not Running"
+						if len(innerRscs) == 1 {
+							innerRsc := innerRscs[0]
+							innerRscId := innerRsc.SelectAttr("id").Value
+							info := map[string]interface{}{}
+							info["status"] = GetResourceStatus(subRsc)
+							info["status_message"] = ""
+							if node := innerRsc.FindElement("node"); node != nil {
+								nodename := ""
+								if node := subRsc.FindElement("node"); node != nil {
+									nodename = node.SelectAttr("name").Value
+								}
+								info["running_node"] = []string{nodename}
+								groupRunNodes = append(groupRunNodes, nodename)
+								cloneRunNodes = append(cloneRunNodes, nodename)
+								groupInfo["status"] = "Running"
+							}
+							fatherId := strings.Split(subRscId, ":")[1]
+							id := innerRscId + ":" + fatherId
+							rscInfo[id] = info
+						} else {
+							for _, innerRsc := range innerRscs {
+								innerRscId := innerRsc.SelectAttr("id").Value
+								info := map[string]interface{}{}
+								groupInfo["status"] = "Stopped"
+								info["status"] = GetResourceStatus(subRsc)
+								if info["status"] == "Running" {
+									groupInfo["status"] = "Running"
+								}
+								info["status_message"] = ""
+								if node := innerRsc.FindElement("node"); node != nil {
+									nodename := node.SelectAttr("name").Value
+									info["running_node"] = []string{nodename}
+									cloneRunNodes = append(cloneRunNodes, nodename)
+									groupRunNodes = append(groupRunNodes, nodename)
+								}
+								fatherId := strings.Split(subRscId, ":")[1]
+								id := innerRscId + ":" + fatherId
+								rscInfo[id] = info
+							}
+						}
+					}
+					groupInfo["running_node"] = utils.RemoveDupl(groupRunNodes)
+					groupInfo["status_message"] = ""
+					groupId := subRscId
+					rscInfo[groupId] = groupInfo
+				}
+				cloneInfo["status"] = GetResourceStatus(rsc)
+				cloneInfo["status_message"] = ""
+				cloneInfo["running_node"] = utils.RemoveDupl(cloneRunNodes)
+				cloneId := rsc.SelectAttr("id").Value
+				rscInfo[cloneId] = cloneInfo
 			}
 		}
 	}
@@ -1538,7 +1470,15 @@ func GetSubResources(rscId string) map[string]interface{} {
 					primitiveInfo["id"] = primitiveId
 					if priRscStatus, ok := rscStatus[primitiveId]; ok {
 						primitiveInfo["status"] = priRscStatus["status"]
-						primitiveInfo["running_node"] = priRscStatus["running_node"]
+						if _, ok := priRscStatus["running_node"]; ok {
+							if _, ok := priRscStatus["running_node"]; ok {
+								primitiveInfo["running_node"] = priRscStatus["running_node"]
+							} else {
+								primitiveInfo["running_node"] = []string{}
+							}
+						} else {
+							primitiveInfo["running_node"] = []string{}
+						}
 					} else {
 						primitiveInfo["status"] = ""
 						primitiveInfo["running_node"] = []string{}
@@ -1548,7 +1488,11 @@ func GetSubResources(rscId string) map[string]interface{} {
 						primitiveInfo["status_message"] = priFail["exitreason"] + " on " + priFail["node"]
 						primitiveInfo["status"] = "Failed"
 						if priRscStatus, ok := rscStatus[primitiveId]; ok {
-							primitiveInfo["running_node"] = priRscStatus["running_node"]
+							if _, ok := priRscStatus["running_node"]; ok {
+								primitiveInfo["running_node"] = priRscStatus["running_node"]
+							} else {
+								primitiveInfo["running_node"] = []string{}
+							}
 						} else {
 							primitiveInfo["running_node"] = []string{}
 						}
@@ -1666,7 +1610,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 		if err := doc.ReadFromBytes(out); err != nil {
 			return err
 		}
-		rscNames := doc.FindElements("./rsc_location")
+		rscNames := doc.FindElements("/constraints/rsc_location")
 		for _, item := range rscNames {
 			rsc := item.SelectAttrValue("rsc", "")
 			if rscID == rsc {
@@ -1695,14 +1639,15 @@ func ResourceAction(rscID, action string, data []byte) error {
 		if err := json.Unmarshal(data, &d); err != nil {
 			return err
 		}
-		for _, mapItem := range d["node_level"].([]map[string]string) {
+		for _, item := range d["node_level"].([]interface{}) {
 			var score int
+			mapItem := item.(map[string]interface{})
 			if mapItem["level"] == "Master Node" {
 				score = 20000
 			} else if mapItem["level"] == "Slave 1" {
 				score = 16000
 			}
-			node := mapItem["node"]
+			node := mapItem["node"].(string)
 			cmd := "pcs constraint location " + rscID + " prefers " + node + "=" + strconv.Itoa(score)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
@@ -1720,7 +1665,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 			SameNode []string `json:"same_node"`
 			DiffNode []string `json:"diff_node"`
 		}{}
-		if err := json.Unmarshal(data, d); err != nil {
+		if err := json.Unmarshal(data, &d); err != nil {
 			return err
 		}
 		for _, item := range d.SameNode {
@@ -1746,7 +1691,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 			BeforeRscs []string `json:"before_rscs"`
 			AfterRscs  []string `json:"after_rscs"`
 		}{}
-		if err := json.Unmarshal(data, d); err != nil {
+		if err := json.Unmarshal(data, &d); err != nil {
 			return err
 		}
 		for _, item := range d.BeforeRscs {
@@ -1778,7 +1723,7 @@ func getResourceConstraintIDs(rscID, action string) []string {
 	}
 
 	if action == "colocation" {
-		et := doc.SelectElements("./rsc_colocation")
+		et := doc.FindElements("/constraints/rsc_colocation")
 		for _, item := range et {
 			rsc := item.SelectAttrValue("rsc", "")
 			rscWith := item.SelectAttrValue("with-rsc", "")
@@ -1788,10 +1733,10 @@ func getResourceConstraintIDs(rscID, action string) []string {
 			if rscWith == rscID {
 				ids = append(ids, rsc)
 			}
-			return ids
 		}
+		return ids
 	} else if action == "location" {
-		et := doc.SelectElements("./rsc_location")
+		et := doc.SelectElements("/constraints/rsc_location")
 		for _, item := range et {
 			rsc := item.SelectAttrValue("rsc", "")
 			if rsc == rscID {
@@ -1800,8 +1745,8 @@ func getResourceConstraintIDs(rscID, action string) []string {
 				}
 				ids = append(ids, item.SelectAttrValue("id", ""))
 			}
-			return ids
 		}
+		return ids
 	}
 	return ids
 }
@@ -1825,7 +1770,7 @@ func findOrder(rscID string) bool {
 	if err = doc.ReadFromBytes(out); err != nil {
 		return false
 	}
-	et := doc.SelectElements("./rsc_order")
+	et := doc.SelectElements("/constraints/rsc_order")
 	for _, item := range et {
 		first := item.SelectAttrValue("first", "")
 		then := item.SelectAttrValue("then", "")
@@ -1925,8 +1870,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	// For meta_attributes
-	// var prop map[string]interface{}
-	e := doc.FindElement("meta_attributes")
+	e := doc.FindElement("//meta_attributes")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("meta", e)
 		if len(prop.(map[string]string)) > 0 {
@@ -1935,7 +1879,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	//For instance_attributes
-	e = doc.FindElement("instance_attributes")
+	e = doc.FindElement("//instance_attributes")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("inst", e)
 		if len(prop.(map[string]string)) > 0 {
@@ -1944,11 +1888,11 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	//For actions
-	e = doc.FindElement("operations")
+	e = doc.FindElement("//operations")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("operations", e)
 		if len(prop.([]map[string]string)) > 0 {
-			data["action"] = prop
+			data["actions"] = prop
 		}
 	}
 
@@ -2036,11 +1980,12 @@ func getResourceInfoFromXml(cl string, et *etree.Element) (interface{}, error) {
 		result := []map[string]string{}
 		op := et.FindElements("./op")
 		for _, item := range op {
+			i := map[string]string{}
 			for _, v := range item.Attr {
 				i := map[string]string{}
 				i[v.Key] = v.Value
-				result = append(result, i)
 			}
+			result = append(result, i)
 		}
 		return result, nil
 	}
@@ -2086,7 +2031,7 @@ func getGroupRscs(groupId string) ([]string, error) {
 	if err := doc.ReadFromString(xml); err != nil {
 		return nil, err
 	}
-	et := doc.FindElements("./primitive")
+	et := doc.FindElements("//primitive")
 	rscs := []string{}
 
 	for _, pri := range et {
