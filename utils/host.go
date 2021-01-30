@@ -47,7 +47,7 @@ func getCorosyncConfig() (CorosyncConfig, error) {
 	)
 	var state = StateRoot
 	bf := bufio.NewReader(f)
-	var currentNode map[string]string
+	currentNode := map[string]string{}
 	for {
 		l, _, err := bf.ReadLine()
 		line := strings.Trim(string(l), " ")

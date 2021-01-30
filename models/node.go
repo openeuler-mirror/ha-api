@@ -91,7 +91,7 @@ func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
 	cmd = "cat /etc/hosts|grep " + nodeID + "|awk -F ' ' '{print $1}'"
 	out, err := utils.RunCommand(cmd)
 
-	var ips []string
+	ips := []string{}
 	ips = strings.Split(strings.TrimSpace(string(out)), "\n")
 	logs.Debug(ips)
 
@@ -99,7 +99,7 @@ func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
 		return nil, err
 	}
 
-	var nodeInfo = make(map[string][]string)
+	nodeInfo := make(map[string][]string)
 	nodeInfo["ips"] = ips
 	return nodeInfo, nil
 }
