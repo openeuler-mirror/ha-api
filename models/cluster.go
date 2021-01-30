@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/beego/beego/v2/core/logs"
@@ -34,7 +35,7 @@ func GetClusterPropertiesInfo() map[string]interface{} {
 	return result
 }
 
-func UpdateClusterProperties(newProp map[string]string) map[string]interface{} {
+func UpdateClusterProperties(newProp map[string]interface{}) map[string]interface{} {
 	result := map[string]interface{}{}
 
 	logs.Debug(newProp)
@@ -45,7 +46,19 @@ func UpdateClusterProperties(newProp map[string]string) map[string]interface{} {
 	}
 
 	for k, v := range newProp {
-		cmdStr := "crm_attribute -t crm_config -n " + k + " -v " + v
+		var value string
+		if t, ok := v.(string); ok {
+			value = t
+		} else if t, ok := v.(bool); ok {
+			if t == true {
+				value = "true"
+			} else {
+				value = "false"
+			}
+		} else if t, ok := v.(int); ok {
+			value = strconv.FormatInt(int64(t), 10)
+		}
+		cmdStr := "crm_attribute -t crm_config -n " + k + " -v " + value
 		out, err := utils.RunCommand(cmdStr)
 		if err != nil {
 			result["action"] = false
@@ -106,7 +119,7 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 			goto ret
 		}
 
-		for _, e := range doc.FindElements("./parameters/parameter") {
+		for _, e := range doc.FindElements("//parameters/parameter") {
 			prop := getClusterPropertyFromXml(e)
 			logs.Debug(prop)
 			name := prop["name"].(string)
@@ -168,7 +181,7 @@ func getClusterProperties() (map[string]interface{}, error) {
 	var nvParis []*etree.Element
 
 	out, err := utils.RunCommand("cibadmin --query --scope crm_config")
-	if err == nil {
+	if err != nil {
 		logs.Error("get cluster properties failed", err)
 		goto ret
 	}
