@@ -4,6 +4,7 @@ import (
 	"errors"
 	"runtime"
 
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/msteinert/pam"
 )
 
