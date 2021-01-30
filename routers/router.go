@@ -13,8 +13,8 @@ func init() {
 	// the same logic as /resource
 	web.Router("/login", &controllers.IndexController{})
 
-	// web.Router("/api/haclusters/1/nodes", &controllers.HAClustersController{})
-	// web.Router("/api/haclusters/1/nodes/:nodeid", &controllers.HAClustersController{})
+	// http://172.30.30.94:8080/kylinha-log-ha2-20210130175130.tar
+	web.Router("/kylinha-log-:filetail(.*\\.tar$)", &controllers.LogDownloadController{})
 
 	ns := web.NewNamespace("/api/v1",
 		web.NSRouter("/haclusters/1", &controllers.HAClustersController{}),
