@@ -25,6 +25,9 @@ func main() {
 	// web.SetStaticPath("/4.12.13", "views/static/4.12.13")
 	// web.SetStaticPath("/static", "views/static/static")
 
+	web.BConfig.WebConfig.Session.SessionOn = true
+	web.BConfig.WebConfig.Session.SessionGCMaxLifetime = 300
+
 	web.ErrorHandler("404", pageNotFoundHandler)
 
 	web.Run()
