@@ -1125,7 +1125,7 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 					if node := subRsc.FindElement("node"); node != nil {
 						nodename = node.SelectAttr("name").Value
 					}
-					id := subRsc.SelectAttr("id").Value + ":" + string(index)
+					id := subRsc.SelectAttr("id").Value + ":" + strconv.Itoa(index)
 					index++
 					info["running_node"] = []string{nodename}
 					rscInfo[id] = info
