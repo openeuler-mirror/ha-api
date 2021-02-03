@@ -595,7 +595,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 	if _, ok := attrib["instance_attributes"]; ok {
 		metaAttri := attrib["instance_attributes"]
 		for _, v := range metaAttri {
-			cmd := "crm_resource -r " + rscId + " -m --delete-parameter " + v
+			cmd := "crm_resource -r " + rscId + " --delete-parameter " + v
 			_, err := utils.RunCommand(cmd)
 			if err != nil {
 				return err
@@ -606,7 +606,22 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		if _, ok := data["meta_attributes"]; ok {
 			metaAttri := data["meta_attributes"].(map[string]interface{})
 			for k, v := range metaAttri {
-				cmd := "pcs resource meta " + rscId + " " + k + "=" + v.(string)
+				value := ""
+				if t, ok := v.(string); ok {
+					value = t
+				} else if t, ok := v.(bool); ok {
+					if t == true {
+						value = "true"
+					} else {
+						value = "false"
+					}
+				} else if t, ok := v.(float64); ok {
+					m := int(t)
+					value = strconv.Itoa(m)
+				} else {
+					logs.Error("unparsed value: ", v)
+				}
+				cmd := "pcs resource meta " + rscId + " " + k + "=" + value
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -617,7 +632,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		if _, ok := data["meta_attributes"]; ok {
 			metaAttri := data["meta_attributes"].(map[string]interface{})
 			for k, v := range metaAttri {
-				var value string
+				value := ""
 				if t, ok := v.(string); ok {
 					value = t
 				} else if t, ok := v.(bool); ok {
@@ -626,6 +641,11 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 					} else {
 						value = "false"
 					}
+				} else if t, ok := v.(float64); ok {
+					m := int(t)
+					value = strconv.Itoa(m)
+				} else {
+					logs.Error("unparsed value: ", v)
 				}
 				cmd := "pcs resource update " + rscId + " meta " + k + "=" + value + " --force"
 				_, err := utils.RunCommand(cmd)
@@ -761,9 +781,9 @@ func GetAllOps(rscId string) []string {
 	if err := doc.ReadFromString(xml); err != nil {
 		return opList
 	}
-	e := doc.FindElement("operations")
+	e := doc.FindElement("//operations")
 	if e != nil {
-		op := e.SelectElements("./op")
+		op := e.SelectElements("op")
 		for _, item := range op {
 			opList = append(opList, item.SelectAttrValue("name", ""))
 		}
@@ -845,19 +865,19 @@ func GetMetaAndInst(rscId string) map[string][]string {
 		return map[string][]string{}
 	}
 	data := map[string][]string{}
-	eMeta := doc.FindElement("meta_attributes")
+	eMeta := doc.FindElement("//meta_attributes")
 	if eMeta != nil {
 		prop := []string{}
-		items := eMeta.SelectElements("./nvpair")
+		items := eMeta.SelectElements("nvpair")
 		for _, item := range items {
 			prop = append(prop, item.SelectAttr("name").Value)
 		}
 		data["meta_attributes"] = prop
 	}
-	eInst := doc.FindElement("instance_attributes")
+	eInst := doc.FindElement("//instance_attributes")
 	if eInst != nil {
 		prop := []string{}
-		items := eInst.SelectElements("./nvpair")
+		items := eInst.SelectElements("nvpair")
 		for _, item := range items {
 			prop = append(prop, item.SelectAttr("name").Value)
 		}
@@ -919,7 +939,10 @@ func GetAllConstraints() map[string]interface{} {
 				locationSingle := make(map[string]string)
 				locationSingle["node"] = node
 				locationSingle["level"] = ScoreToLevel(score)
-				data[rscId]["location"] = append(data[rscId]["location"].([]map[string]string), locationSingle)
+				if data[rscId]["location"] != nil {
+					// may resource is not in top resource but constraint rules remains
+					data[rscId]["location"] = append(data[rscId]["location"].([]map[string]string), locationSingle)
+				}
 			}
 		}
 
@@ -1147,15 +1170,15 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 					groupRunNodes := []string{}
 					if innerRscs := subRsc.SelectElements("resource"); len(innerRscs) != 0 {
 						groupInfo["status"] = "Not Running"
-						if len(innerRscs) == 1 {
+						if false {
 							innerRsc := innerRscs[0]
 							innerRscId := innerRsc.SelectAttr("id").Value
 							info := map[string]interface{}{}
-							info["status"] = GetResourceStatus(subRsc)
+							info["status"] = GetResourceStatus(innerRsc)
 							info["status_message"] = ""
 							if node := innerRsc.FindElement("node"); node != nil {
 								nodename := ""
-								if node := subRsc.FindElement("node"); node != nil {
+								if node := innerRsc.FindElement("node"); node != nil {
 									nodename = node.SelectAttr("name").Value
 								}
 								info["running_node"] = []string{nodename}
@@ -1171,7 +1194,7 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 								innerRscId := innerRsc.SelectAttr("id").Value
 								info := map[string]interface{}{}
 								groupInfo["status"] = "Stopped"
-								info["status"] = GetResourceStatus(subRsc)
+								info["status"] = GetResourceStatus(innerRsc)
 								if info["status"] == "Running" {
 									groupInfo["status"] = "Running"
 								}
@@ -1736,7 +1759,7 @@ func getResourceConstraintIDs(rscID, action string) []string {
 		}
 		return ids
 	} else if action == "location" {
-		et := doc.SelectElements("/constraints/rsc_location")
+		et := doc.FindElements("/constraints/rsc_location")
 		for _, item := range et {
 			rsc := item.SelectAttrValue("rsc", "")
 			if rsc == rscID {
@@ -1770,7 +1793,7 @@ func findOrder(rscID string) bool {
 	if err = doc.ReadFromBytes(out); err != nil {
 		return false
 	}
-	et := doc.SelectElements("/constraints/rsc_order")
+	et := doc.FindElements("/constraints/rsc_order")
 	for _, item := range et {
 		first := item.SelectAttrValue("first", "")
 		then := item.SelectAttrValue("then", "")
@@ -1870,7 +1893,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	// For meta_attributes
-	e := doc.FindElement("//meta_attributes")
+	e := doc.FindElement("/" + ct + " /meta_attributes")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("meta", e)
 		if len(prop.(map[string]string)) > 0 {
@@ -1879,7 +1902,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	//For instance_attributes
-	e = doc.FindElement("//instance_attributes")
+	e = doc.FindElement("/" + ct + "/instance_attributes")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("inst", e)
 		if len(prop.(map[string]string)) > 0 {
@@ -1888,7 +1911,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	//For actions
-	e = doc.FindElement("//operations")
+	e = doc.FindElement("/" + ct + "/operations")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("operations", e)
 		if len(prop.([]map[string]string)) > 0 {
@@ -1982,7 +2005,6 @@ func getResourceInfoFromXml(cl string, et *etree.Element) (interface{}, error) {
 		for _, item := range op {
 			i := map[string]string{}
 			for _, v := range item.Attr {
-				i := map[string]string{}
 				i[v.Key] = v.Value
 			}
 			result = append(result, i)
