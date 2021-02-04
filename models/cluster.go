@@ -55,7 +55,7 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 			} else {
 				value = "false"
 			}
-		} else if t, ok := v.(int); ok {
+		} else if t, ok := v.(float64); ok {
 			value = strconv.FormatInt(int64(t), 10)
 		}
 		cmdStr := "crm_attribute -t crm_config -n " + k + " -v " + value

@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -26,7 +25,7 @@ type CorosyncConfig struct {
 	Totem    map[string]string
 	NodeList []map[string]string
 	Quorum   map[string]string
-	Logging  map[string]string
+	Logging  map[string]interface{}
 }
 
 func getCorosyncConfig() (CorosyncConfig, error) {
@@ -38,25 +37,31 @@ func getCorosyncConfig() (CorosyncConfig, error) {
 	defer f.Close()
 
 	const (
-		StateRoot       = 0
-		StateInTotem    = 1
-		StateInNodeList = 2
-		StateInNode     = 3
-		StateInQuorum   = 4
-		StateInLogging  = 5
+		StateRoot           = 0
+		StateInTotem        = 1
+		StateInNodeList     = 2
+		StateInNode         = 3
+		StateInQuorum       = 4
+		StateInLogging      = 5
+		StateInLoggerSubsys = 6
 	)
 	var state = StateRoot
 	bf := bufio.NewReader(f)
 	currentNode := map[string]string{}
+	currentLoggerSubsys := map[string]string{}
 	for {
 		l, _, err := bf.ReadLine()
 		line := strings.Trim(string(l), " ")
+		line = strings.Trim(line, "\t")
 		if err != nil {
 			if err == io.EOF {
 				break
 			} else {
 				return result, err
 			}
+		}
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
 		}
 
 		// parse line here
@@ -85,7 +90,6 @@ func getCorosyncConfig() (CorosyncConfig, error) {
 			}
 		case StateInNodeList:
 			if strings.HasPrefix(line, "node {") {
-				fmt.Println("found node index")
 				currentNode = make(map[string]string)
 				state = StateInNode
 			} else if line == "}" {
@@ -117,16 +121,34 @@ func getCorosyncConfig() (CorosyncConfig, error) {
 				state = StateRoot
 			}
 		case StateInLogging:
-			if line != "}" {
+			if strings.HasSuffix(line, "{") {
+				currentLoggerSubsys = make(map[string]string)
+				words := strings.Split(line, " ")
+				key := strings.Trim(words[0], " ")
+				if result.Logging == nil {
+					result.Logging = make(map[string]interface{})
+				}
+				result.Logging[key] = currentLoggerSubsys
+				state = StateInLoggerSubsys
+			} else if line != "}" {
 				words := strings.Split(line, ":")
 				key := strings.Trim(words[0], " ")
 				value := strings.Trim(words[1], " ")
 				if result.Logging == nil {
-					result.Logging = make(map[string]string)
+					result.Logging = make(map[string]interface{})
 				}
 				result.Logging[key] = value
 			} else {
 				state = StateRoot
+			}
+		case StateInLoggerSubsys:
+			if line != "}" {
+				words := strings.Split(line, ":")
+				key := strings.Trim(words[0], " ")
+				value := strings.Trim(words[1], " ")
+				currentLoggerSubsys[key] = value
+			} else {
+				state = StateInLogging
 			}
 		default:
 			return result, errors.New("parse corosync.conf failed, invalid state")

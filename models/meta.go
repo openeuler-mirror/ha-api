@@ -103,7 +103,7 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 
 	cmd := ""
 	resourceType := "crm_resource  --show-metadata "
-	if rscProvider == "None" {
+	if rscProvider == "" {
 		cmd = resourceType + rscClass + ":" + rscType
 	} else {
 		cmd = resourceType + rscClass + ":" + rscProvider + ":" + rscType
