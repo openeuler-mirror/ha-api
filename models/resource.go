@@ -1893,7 +1893,7 @@ func GetResourceInfoID(ct, xmlData string) (map[string]interface{}, error) {
 	}
 
 	// For meta_attributes
-	e := doc.FindElement("/" + ct + " /meta_attributes")
+	e := doc.FindElement("/" + ct + "/meta_attributes")
 	if e != nil {
 		prop, _ := getResourceInfoFromXml("meta", e)
 		if len(prop.(map[string]string)) > 0 {
