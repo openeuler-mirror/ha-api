@@ -87,10 +87,14 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	enableList := []string{"node-health-green", "stonith-enabled", "symmetric-cluster",
-		"maintenance-mode", "node-health-yellow", "node-health-yellow",
+	enableList := []string{"node-health-green", "stonith-enabled",
+		"symmetric-cluster", "maintenance-mode", "node-health-yellow",
 		"no-quorum-policy", "node-health-red", "node-health-strategy",
-		"default-resource-stickiness", "start-failure-is-fatal"}
+		"default-resource-stickiness", "start-failure-is-fatal",
+		"stonith-action", "placement-strategy", "dc-version", // new properties
+		"cluster-name", "cluster-recheck-interval", "load-threshold",
+		"node-action-limit", "transition-delay", "stonith-max-attempts",
+		"enable-acl", "cluster-ipc-limit"}
 	sources := []map[string]string{
 		{
 			"name": "pacemaker-schedulerd",
@@ -127,6 +131,7 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 				if _, ok := clusterProperties[name]; ok {
 					prop["value"] = clusterProperties[name]
 				} else {
+					// pacemaker-schedulerd
 					if name == "node-health-green" {
 						prop["value"] = 0
 					}
@@ -154,8 +159,46 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 					if name == "start-failure-is-fatal" {
 						prop["value"] = "true"
 					}
-					if name == "default-resource-stickiness" {
+					if name == "default-resource-stickiness" { // not required in the current version
 						prop["value"] = 0
+					}
+					if name == "stonith-action" {
+						prop["value"] = "reboot"
+					}
+					if name == "placement-strategy" {
+						prop["value"] = "default"
+					}
+					// pacemaker-controld
+					if name == "dc-version" {
+						prop["value"] = "none"
+					}
+					if name == "cluster-name" {
+						prop["value"] = "(null)"
+					}
+					if name == "cluster-recheck-interval" {
+						prop["value"] = "15min"
+					}
+					if name == "load-threshold" {
+						prop["value"] = "80%"
+					}
+					if name == "node-action-limit" {
+						prop["value"] = "0"
+					}
+					if name == "transition-delay" {
+						prop["value"] = "0s"
+					}
+					// if name == "stonith-watchdog-timeout" {
+					// 	prop["value"] = "(null)"
+					// }
+					if name == "stonith-max-attempts" {
+						prop["value"] = "10"
+					}
+					// pacemaker-based
+					if name == "enable-acl" {
+						prop["value"] = "false"
+					}
+					if name == "cluster-ipc-limit" {
+						prop["value"] = "500"
 					}
 				}
 				propContent := make(map[string]interface{})
@@ -163,6 +206,12 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 				propContent["type"] = prop["type"]
 				if prop["type"] == "enum" {
 					propContent["values"] = prop["enum"]
+				}
+				typeToSplit := []string{"time", "percentage"}
+				propType := prop["type"].(string)
+				if utils.IsInSlice(propType, typeToSplit) { // split value like 15min, 80%
+					propValue := prop["value"].(string)
+					_, prop["unit"] = utils.GetNumAndUnitFromStr(propValue)
 				}
 				prop["content"] = propContent
 				prop["enabled"] = 1

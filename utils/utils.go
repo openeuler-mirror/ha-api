@@ -1,5 +1,7 @@
 package utils
 
+import "regexp"
+
 func IsInSlice(str string, sli []string) bool {
 	//TODO
 
@@ -22,4 +24,15 @@ func RemoveDupl(strs []string) []string {
 		strsDupl = append(strsDupl, k)
 	}
 	return strsDupl
+}
+
+// GetNumAndUnitFromStr gets the first number and the unit after this number
+// like "20.5min" ==> ["20.5", "min"]
+func GetNumAndUnitFromStr(s string) (string, string) {
+	r := regexp.MustCompile("[0-9](.*)[0-9]")
+	index := r.FindStringIndex(s)
+	if len(index) == 0 {
+		return s[:1], s[1:]
+	}
+	return s[:index[1]], s[index[1]:]
 }
