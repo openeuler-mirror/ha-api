@@ -11,6 +11,9 @@ import (
 	"openkylin.com/ha-api/utils"
 )
 
+// TypeToSplit used in cluster global parameters that has a unit
+var TypeToSplit = []string{"time", "percentage"}
+
 func GetClusterPropertiesInfo() map[string]interface{} {
 	result := make(map[string]interface{})
 
@@ -58,7 +61,15 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 		} else if t, ok := v.(float64); ok {
 			value = strconv.FormatInt(int64(t), 10)
 		}
-		cmdStr := "crm_attribute -t crm_config -n " + k + " -v " + value
+
+		var cmdStr string
+		// special for getting resource-stickiness property
+		if k == "resource-stickiness" {
+			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + value
+		} else {
+			cmdStr = "crm_attribute -t crm_config -n " + k + " -v " + value
+		}
+
 		out, err := utils.RunCommand(cmdStr)
 		if err != nil {
 			result["action"] = false
@@ -91,8 +102,8 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		"symmetric-cluster", "maintenance-mode", "node-health-yellow",
 		"no-quorum-policy", "node-health-red", "node-health-strategy",
 		"default-resource-stickiness", "start-failure-is-fatal",
-		"stonith-action", "placement-strategy", "dc-version", // new properties
-		"cluster-name", "cluster-recheck-interval", "load-threshold",
+		"stonith-action", "placement-strategy", // new properties
+		"cluster-recheck-interval", "load-threshold",
 		"node-action-limit", "transition-delay", "stonith-max-attempts",
 		"enable-acl", "cluster-ipc-limit"}
 	sources := []map[string]string{
@@ -204,20 +215,39 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 				propContent := make(map[string]interface{})
 				propContent["default"] = prop["default"]
 				propContent["type"] = prop["type"]
+
 				if prop["type"] == "enum" {
 					propContent["values"] = prop["enum"]
+					delete(prop, "enum")
 				}
-				typeToSplit := []string{"time", "percentage"}
-				propType := prop["type"].(string)
-				if utils.IsInSlice(propType, typeToSplit) { // split value like 15min, 80%
-					propValue := prop["value"].(string)
-					_, prop["unit"] = utils.GetNumAndUnitFromStr(propValue)
+				delete(prop, "default")
+				delete(prop, "type")
+
+				propContent["unit"] = ""
+				propType := propContent["type"].(string)
+				if utils.IsInSlice(propType, TypeToSplit) { // split value like 15min, 80%
+					prop["value"], _ = utils.GetNumAndUnitFromStr(prop["value"].(string))
+					propContent["default"], propContent["unit"] = utils.GetNumAndUnitFromStr(propContent["default"].(string))
 				}
 				prop["content"] = propContent
 				prop["enabled"] = 1
 				result[name] = prop
 			}
 		}
+	}
+
+	// special for getting resource-stickiness property
+	result["resource-stickiness"] = map[string]interface{}{
+		"name":    "resource-stickiness",
+		"enabled": 1,
+		"value":   strconv.Itoa(getResourceStickiness()),
+		"content": map[string]string{
+			"default": "0",
+			"type":    "integer",
+			"unit":    "",
+		},
+		"shortdesc": "",
+		"longdesc":  "",
 	}
 
 ret:
@@ -316,4 +346,20 @@ func OperationClusterAction(action string) map[string]interface{} {
 		result["error"] = "Action on node Failed"
 		return result
 	}
+}
+
+func getResourceStickiness() int {
+	cmdStr := "pcs resource defaults | grep resource-stickiness --color=never"
+	out, err := utils.RunCommand(cmdStr)
+	if err != nil {
+		logs.Error("get resource-stickiness failed: ", err.Error())
+		return 0
+	}
+
+	// resource-stickiness=100
+	outStr := strings.Split(string(out), "\n")[0]
+	valueStr := strings.Split(outStr, "=")[1]
+	value, _ := strconv.Atoi(valueStr)
+
+	return value
 }
