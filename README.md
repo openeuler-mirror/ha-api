@@ -1,33 +1,45 @@
 # ha-api
 
 #### 介绍
-API interface for HA management
 
-#### 软件架构
-软件架构说明
+HA管理平台后端REST API服务。
+另外一个相关项目为[HA-web](https://gitee.com/openeuler/ha-web)，提供HA管理平台前端UI。
+
+## 界面截图
+
+TODO: 待添加截图
+
+## 特性
+
+易于使用.
+
+## 文档
+
+以下文档可帮助你了解该项目：
+ - [构建文档](./docs/build.md)
+ - [架构文档](./docs/architecture.md)
+ - [API文档](./docs/api.md)
+
+# 安装
+
+该HA管理平台后端运行需要安装HA软件。
+
+openEuler 20.03 LTS SP1系统中，你可以直接通过yum安装HA软件。
+
+```
+[root@ha1~]# yum install corosync pacemaker pcs fence-agents fence-virt corosync-qdevice sbd drbd drbd-utils
+```
+
+其他操作系统中，你可能需要自行编译HA软件并安装。
+
+你可以在[HA安装文档](./docs/ha_install.md)和[ha-api构建文档](./docs/build.md)中了解到更多信息
+
+## 贡献
+
+ha-api使用golang开发。我们使用[Beego框架](https://beego.me/)来构建高性能、可靠的管理平台。欢迎任何人进行贡献。如果你在使用或者开发当中有任何问题，你也可以通过提交issue的方式联系我们。
 
 
-#### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 码云特技
+## 码云特性
 
 1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
 2.  码云官方博客 [blog.gitee.com](https://blog.gitee.com)
