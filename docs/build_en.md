@@ -20,7 +20,7 @@ Get the code first:
 ```
 git clone https://gitee.com/openeuler/ha-api.git
 cd ha-api/
-git checkout -b go-api origin/go-api
+git checkout -b release-v1.0 origin/release-v1.0
 ```
 
 Simplely run `go build` to build the project.

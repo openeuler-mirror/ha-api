@@ -20,7 +20,7 @@ Ha-api项目后端服务编译需要在主机上安装以下包：
 ```
 git clone https://gitee.com/openeuler/ha-api.git
 cd ha-api/
-git checkout -b go-api origin/go-api
+git checkout -b release-v1.0 origin/release-v1.0
 ```
 
 运行`go build`来构建项目
