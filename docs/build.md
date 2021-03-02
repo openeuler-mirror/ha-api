@@ -6,15 +6,12 @@
 
 ### 构建需求
 
-Ha-api项目后端服务编译只需要主机上安装golang即可。
+Ha-api项目后端服务编译需要在主机上安装以下包：
 
  - go >= 1.13
-
-你也需要安装`git`来从gitee获取代码。
-
-```
-yum install git
-```
+ - git
+ - pam-devel
+ - tar
 
 ### 构建
 
@@ -23,7 +20,7 @@ yum install git
 ```
 git clone https://gitee.com/openeuler/ha-api.git
 cd ha-api/
-git checkout -b go-api origin/go-api
+git checkout -b release-v1.0 origin/release-v1.0
 ```
 
 运行`go build`来构建项目
@@ -34,15 +31,15 @@ go build
 
 该命令会生成`ha-api`(windows系统为`ha-api.exe`)可执行文件。
 
-### 使用
+### 安装及使用
 
 在使用ha-api后端服务之前，你需要安装HA软件。
 查看[ha_install](./ha_install_en.md)文档获取更多信息。
 
-构建后通过`./ha-api`命令运行服务:
+在`tools`目录下，提供了安装脚本，用于构建ha-api可执行文件并将其与相关脚本安装到系统当中。安装完成后，通过systemd启动服务：
 
 ```
-./ha-api
+systemctl start ha-api
 ```
 
 ![run_ha-api](../pictures/run_ha-api.png)
