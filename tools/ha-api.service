@@ -1,0 +1,12 @@
+[Unit]
+Description=ha-api
+Documentation=http://openkylin.com
+[Service]
+Type=simple
+KillMode=process
+NotifyAccess=main
+SuccessExitStatus=100
+ExecStart=sh -c "cd /usr/share/heartbeat-gui/ha-api/; ./ha-api"
+ExecStop=sh -c "ps -ef | grep ./ha-api | grep -v -E 'grep|tail' | awk '{print $2}' | xargs kill"
+[Install]
+WantedBy=multi-user.target
