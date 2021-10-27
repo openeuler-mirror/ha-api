@@ -1,7 +1,7 @@
 # ha-api
 
 ## Description
-Back-end REST API for the HA management platform.
+ha-api is the back-end REST API for the HA management platform.
 
 Another project is [HA-web](https://gitee.com/openeuler/ha-web), which is the front-end UI of the HA management platform. 
 
@@ -35,7 +35,7 @@ For more details, see [install documents](./docs/install_en.md) and [build docum
 
 ## Contribution
 
-ha-api is developed with Golang. We use [Beego framework](https://beego.me/) to develop a management platform featuring high performance and solid reliability. All contributions are welcomed. If you have any problems in using or developing, please contact us by opening an issue.
+ha-api is developed with Golang. We use the [Beego framework](https://beego.me/) to develop a management platform featuring high performance and solid reliability. All contributions are welcomed. If you have any problems in using or developing, please contact us by opening an issue.
 
 
 ## Gitee Features
