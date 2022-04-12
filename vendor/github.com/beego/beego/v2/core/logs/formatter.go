@@ -60,7 +60,7 @@ func GetFormatter(name string) (LogFormatter, bool) {
 	return res, ok
 }
 
-// 'w' when, 'm' msg,'f' filename，'F' full path，'n' line number
+// ToString 'w' when, 'm' msg,'f' filename，'F' full path，'n' line number
 // 'l' level number, 't' prefix of level type, 'T' full name of level type
 func (p *PatternLogFormatter) ToString(lm *LogMsg) string {
 	s := []rune(p.Pattern)
@@ -69,8 +69,8 @@ func (p *PatternLogFormatter) ToString(lm *LogMsg) string {
 		'm': lm.Msg,
 		'n': strconv.Itoa(lm.LineNumber),
 		'l': strconv.Itoa(lm.Level),
-		't': levelPrefix[lm.Level-1],
-		'T': levelNames[lm.Level-1],
+		't': levelPrefix[lm.Level],
+		'T': levelNames[lm.Level],
 		'F': lm.FilePath,
 	}
 	_, m['f'] = path.Split(lm.FilePath)

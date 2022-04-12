@@ -61,6 +61,8 @@ func registerSession() error {
 			conf.EnableSidInHTTPHeader = BConfig.WebConfig.Session.SessionEnableSidInHTTPHeader
 			conf.SessionNameInHTTPHeader = BConfig.WebConfig.Session.SessionNameInHTTPHeader
 			conf.EnableSidInURLQuery = BConfig.WebConfig.Session.SessionEnableSidInURLQuery
+			conf.CookieSameSite = BConfig.WebConfig.Session.SessionCookieSameSite
+			conf.SessionIDPrefix = BConfig.WebConfig.Session.SessionIDPrefix
 		} else {
 			if err = json.Unmarshal([]byte(sessionConfig), conf); err != nil {
 				return err
@@ -93,15 +95,5 @@ func registerGzip() error {
 			AppConfig.DefaultStrings("includedMethods", []string{"GET"}),
 		)
 	}
-	return nil
-}
-
-func registerCommentRouter() error {
-	if BConfig.RunMode == DEV {
-		if err := parserPkg(filepath.Join(WorkPath, BConfig.WebConfig.CommentRouterPath)); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
