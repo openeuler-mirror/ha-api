@@ -15,7 +15,7 @@
 // Package logs provide a general log interface
 // Usage:
 //
-// import "github.com/beego/beego/v2/logs"
+// import "github.com/beego/beego/v2/core/logs"
 //
 //	log := NewLogger(10000)
 //	log.SetLogger("console", "")
@@ -30,7 +30,7 @@
 //	log.Debug("debug")
 //	log.Critical("critical")
 //
-//  more docs http://beego.me/docs/module/logs.md
+//  more docs http://beego.vip/docs/module/logs.md
 package logs
 
 import (
@@ -92,8 +92,10 @@ type Logger interface {
 	SetFormatter(f LogFormatter)
 }
 
-var adapters = make(map[string]newLoggerFunc)
-var levelPrefix = [LevelDebug + 1]string{"[M]", "[A]", "[C]", "[E]", "[W]", "[N]", "[I]", "[D]"}
+var (
+	adapters    = make(map[string]newLoggerFunc)
+	levelPrefix = [LevelDebug + 1]string{"[M]", "[A]", "[C]", "[E]", "[W]", "[N]", "[I]", "[D]"}
+)
 
 // Register makes a log provide available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -112,17 +114,17 @@ func Register(name string, log newLoggerFunc) {
 // Can contain several providers and log message into all providers.
 type BeeLogger struct {
 	lock                sync.Mutex
-	level               int
 	init                bool
 	enableFuncCallDepth bool
-	loggerFuncCallDepth int
 	enableFullFilePath  bool
 	asynchronous        bool
+	wg                  sync.WaitGroup
+	level               int
+	loggerFuncCallDepth int
 	prefix              string
 	msgChanLen          int64
 	msgChan             chan *LogMsg
 	signalChan          chan string
-	wg                  sync.WaitGroup
 	outputs             []*nameLogger
 	globalFormatter     string
 }
@@ -201,7 +203,6 @@ func (bl *BeeLogger) setLogger(adapterName string, configs ...string) error {
 	}
 
 	err := lg.Init(config)
-
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "logs.BeeLogger.SetLogger: "+err.Error())
 		return err
@@ -261,12 +262,13 @@ func (bl *BeeLogger) Write(p []byte) (n int, err error) {
 	lm := &LogMsg{
 		Msg:   string(p),
 		Level: levelLoggerImpl,
+		When:  time.Now(),
 	}
 
 	// set levelLoggerImpl to ensure all log message will be write out
 	err = bl.writeMsg(lm)
 	if err == nil {
-		return len(p), err
+		return len(p), nil
 	}
 	return 0, err
 }
@@ -291,6 +293,7 @@ func (bl *BeeLogger) writeMsg(lm *LogMsg) error {
 	}
 	lm.FilePath = file
 	lm.LineNumber = line
+	lm.Prefix = bl.prefix
 
 	lm.enableFullFilePath = bl.enableFullFilePath
 	lm.enableFuncCallDepth = bl.enableFuncCallDepth
@@ -702,61 +705,61 @@ func SetLogger(adapter string, config ...string) error {
 
 // Emergency logs a message at emergency level.
 func Emergency(f interface{}, v ...interface{}) {
-	beeLogger.Emergency(formatLog(f, v...))
+	beeLogger.Emergency(formatPattern(f, v...), v...)
 }
 
 // Alert logs a message at alert level.
 func Alert(f interface{}, v ...interface{}) {
-	beeLogger.Alert(formatLog(f, v...))
+	beeLogger.Alert(formatPattern(f, v...), v...)
 }
 
 // Critical logs a message at critical level.
 func Critical(f interface{}, v ...interface{}) {
-	beeLogger.Critical(formatLog(f, v...))
+	beeLogger.Critical(formatPattern(f, v...), v...)
 }
 
 // Error logs a message at error level.
 func Error(f interface{}, v ...interface{}) {
-	beeLogger.Error(formatLog(f, v...))
+	beeLogger.Error(formatPattern(f, v...), v...)
 }
 
 // Warning logs a message at warning level.
 func Warning(f interface{}, v ...interface{}) {
-	beeLogger.Warn(formatLog(f, v...))
+	beeLogger.Warn(formatPattern(f, v...), v...)
 }
 
 // Warn compatibility alias for Warning()
 func Warn(f interface{}, v ...interface{}) {
-	beeLogger.Warn(formatLog(f, v...))
+	beeLogger.Warn(formatPattern(f, v...), v...)
 }
 
 // Notice logs a message at notice level.
 func Notice(f interface{}, v ...interface{}) {
-	beeLogger.Notice(formatLog(f, v...))
+	beeLogger.Notice(formatPattern(f, v...), v...)
 }
 
 // Informational logs a message at info level.
 func Informational(f interface{}, v ...interface{}) {
-	beeLogger.Info(formatLog(f, v...))
+	beeLogger.Info(formatPattern(f, v...), v...)
 }
 
 // Info compatibility alias for Warning()
 func Info(f interface{}, v ...interface{}) {
-	beeLogger.Info(formatLog(f, v...))
+	beeLogger.Info(formatPattern(f, v...), v...)
 }
 
 // Debug logs a message at debug level.
 func Debug(f interface{}, v ...interface{}) {
-	beeLogger.Debug(formatLog(f, v...))
+	beeLogger.Debug(formatPattern(f, v...), v...)
 }
 
 // Trace logs a message at trace level.
 // compatibility alias for Warning()
 func Trace(f interface{}, v ...interface{}) {
-	beeLogger.Trace(formatLog(f, v...))
+	beeLogger.Trace(formatPattern(f, v...), v...)
 }
 
-func formatLog(f interface{}, v ...interface{}) string {
+func formatPattern(f interface{}, v ...interface{}) string {
 	var msg string
 	switch f.(type) {
 	case string:
@@ -775,5 +778,5 @@ func formatLog(f interface{}, v ...interface{}) string {
 		}
 		msg += strings.Repeat(" %v", len(v))
 	}
-	return fmt.Sprintf(msg, v...)
+	return msg
 }
