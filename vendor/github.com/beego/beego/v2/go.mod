@@ -1,59 +1,77 @@
-//module github.com/beego/beego/v2
 module github.com/beego/beego/v2
 
+go 1.18
+
 require (
-	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
-	github.com/beego/goyaml2 v0.0.0-20130207012346-5545475820dd
 	github.com/beego/x2j v0.0.0-20131220205130-a0352aadc542
-	github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737
-	github.com/casbin/casbin v1.7.0
+	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
+	github.com/casbin/casbin v1.9.1
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58
-	github.com/coreos/etcd v3.3.25+incompatible
-	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
-	github.com/couchbase/go-couchbase v0.0.0-20200519150804-63f3cdb75e0d
-	github.com/couchbase/gomemcached v0.0.0-20200526233749-ec430f949808 // indirect
-	github.com/couchbase/goutils v0.0.0-20180530154633-e865a1461c8a // indirect
-	github.com/elastic/go-elasticsearch/v6 v6.8.5
-	github.com/elazarl/go-bindata-assetfs v1.0.0
-	github.com/go-kit/kit v0.9.0
-	github.com/go-redis/redis v6.14.2+incompatible
+	github.com/couchbase/go-couchbase v0.1.0
+	github.com/elastic/go-elasticsearch/v6 v6.8.10
+	github.com/elazarl/go-bindata-assetfs v1.0.1
+	github.com/go-kit/kit v0.10.0
 	github.com/go-redis/redis/v7 v7.4.0
-	github.com/go-sql-driver/mysql v1.5.0
-	github.com/gogo/protobuf v1.3.1
-	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
+	github.com/go-sql-driver/mysql v1.6.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/gomodule/redigo v2.0.0+incompatible
-	github.com/google/go-cmp v0.5.0 // indirect
-	github.com/google/uuid v1.1.1 // indirect
+	github.com/google/uuid v1.2.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ledisdb/ledisdb v0.0.0-20200510135210-d35789ec47e6
-	github.com/lib/pq v1.0.0
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/mitchellh/mapstructure v1.3.3
+	github.com/lib/pq v1.10.5
+	github.com/mattn/go-sqlite3 v1.14.7
+	github.com/mitchellh/mapstructure v1.4.3
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/pelletier/go-toml v1.8.1
+	github.com/pelletier/go-toml v1.9.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.0
-	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644
+	github.com/prometheus/client_golang v1.12.1
+	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/ssdb/gossdb v0.0.0-20180723034631-88f6b59b84ec
-	github.com/stretchr/testify v1.4.0
-	github.com/syndtr/goleveldb v0.0.0-20181127023241-353a9fca669c // indirect
-	github.com/wendal/errors v0.0.0-20130201093226-f66c77a7882b // indirect
-	go.etcd.io/etcd v3.3.25+incompatible // indirect
-	go.uber.org/zap v1.15.0 // indirect
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
-	golang.org/x/text v0.3.3 // indirect
-	golang.org/x/tools v0.0.0-20201211185031-d93e913c1a58
-	google.golang.org/grpc v1.26.0
-	gopkg.in/yaml.v2 v2.2.8
-	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
+	github.com/stretchr/testify v1.7.1
+	go.etcd.io/etcd/client/v3 v3.5.4
+	go.opentelemetry.io/otel v1.7.0
+	go.opentelemetry.io/otel/trace v1.7.0
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	google.golang.org/grpc v1.38.0
+	google.golang.org/protobuf v1.26.0
+	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
-replace golang.org/x/crypto v0.0.0-20181127143415-eb0de9b17e85 => github.com/golang/crypto v0.0.0-20181127143415-eb0de9b17e85
+require (
+	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/coreos/go-semver v0.3.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
+	github.com/couchbase/gomemcached v0.1.3 // indirect
+	github.com/couchbase/goutils v0.1.0 // indirect
+	github.com/cupcake/rdb v0.0.0-20161107195141-43ba34106c76 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
+	github.com/go-logfmt/logfmt v0.5.0 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/siddontang/go v0.0.0-20170517070808-cb568a3e5cc0 // indirect
+	github.com/siddontang/rdb v0.0.0-20150307021120-fc89ed2e418d // indirect
+	github.com/syndtr/goleveldb v0.0.0-20160425020131-cfa635847112 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.4 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.4 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.17.0 // indirect
+	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/text v0.3.6 // indirect
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
+)
 
-replace gopkg.in/yaml.v2 v2.2.1 => github.com/go-yaml/yaml v0.0.0-20180328195020-5420a8b6744d
-
-go 1.14
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.8
