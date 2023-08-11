@@ -28,7 +28,6 @@ type HAClustersController struct {
 }
 
 func (hcc *HAClustersController) Get() {
-	// TODO: handle get here
 	logs.Debug("handle get request in HAClustersController.")
 	result := models.GetClusterPropertiesInfo()
 	hcc.Data["json"] = &result
