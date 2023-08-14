@@ -23,29 +23,29 @@ import (
 	"openkylin.com/ha-api/models"
 )
 
-type HAClustersController struct {
+type ClustersController struct {
 	web.Controller
 }
 
-func (hcc *HAClustersController) Get() {
+func (cc *ClustersController) Get() {
 	logs.Debug("handle get request in HAClustersController.")
 	result := models.GetClusterPropertiesInfo()
-	hcc.Data["json"] = &result
-	hcc.ServeJSON()
+	cc.Data["json"] = &result
+	cc.ServeJSON()
 }
 
-func (hcc *HAClustersController) Post() {
+func (cc *ClustersController) Post() {
 	logs.Debug("handle post request in HAClustersController.")
 	// do nothing here
-	hcc.ServeJSON()
+	cc.ServeJSON()
 }
 
-func (hcc *HAClustersController) Put() {
+func (cc *ClustersController) Put() {
 	logs.Debug("handle put request in HAClustersController.")
 	result := map[string]interface{}{}
 
 	reqData := make(map[string]interface{})
-	if err := json.Unmarshal(hcc.Ctx.Input.RequestBody, &reqData); err != nil {
+	if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = "invalid input data"
@@ -53,8 +53,8 @@ func (hcc *HAClustersController) Put() {
 		result = models.UpdateClusterProperties(reqData)
 	}
 
-	hcc.Data["json"] = &result
-	hcc.ServeJSON()
+	cc.Data["json"] = &result
+	cc.ServeJSON()
 }
 
 type LocalHaOperation struct {
