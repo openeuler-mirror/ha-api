@@ -31,9 +31,13 @@ func init() {
 	web.Router("/kylinha-log-:filetail(.*\\.tar$)", &controllers.LogDownloadController{})
 
 	ns := web.NewNamespace("/api/v1",
-		web.NSRouter("/haclusters/1", &controllers.HAClustersController{}),
+		web.NSRouter("/haclusters/1", &controllers.ClustersController{}),
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
+		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
+		web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
+		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),
+		web.NSRouter("/managec/cluster_destroy", &controllers.ClusterDestroyController{}),
 
 		web.NSRouter("/haclusters/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
@@ -62,5 +66,6 @@ func init() {
 		web.NSRouter("/haclusters/1/commands", &controllers.CommandsController{}),
 		web.NSRouter("/haclusters/1/commands/:cmd_type", &controllers.CommandsRunnerController{}),
 	)
+
 	web.AddNamespace(ns)
 }

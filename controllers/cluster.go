@@ -16,34 +16,110 @@ package controllers
 
 import (
 	"encoding/json"
+	"openkylin.com/ha-api/models"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
-
-	"openkylin.com/ha-api/models"
 )
 
 type ClustersController struct {
 	web.Controller
 }
 
+type MultipleClustersController struct {
+	web.Controller
+}
+
+type Sync_configController struct {
+	web.Controller
+}
+
+type ClusterSetupController struct {
+	web.Controller
+}
+
+type ClusterDestroyController struct {
+	web.Controller
+}
+
+func (mcc *MultipleClustersController) Post() {
+	logs.Debug("Handle post request in MultipleClustersController.")
+	result := map[string]interface{}{}
+	reqData := make(map[string]interface{})
+	//need to check whether we want to add or remove cluster
+	if err := json.Unmarshal(mcc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result = make(map[string]interface{})
+		result["action"] = false
+		result["error"] = "invalid input data"
+	} else {
+		result = models.ClusterAdd(reqData)
+	}
+
+	mcc.Data["json"] = &result
+	mcc.ServeJSON()
+
+}
+
+func (sc *Sync_configController) Post() {
+	logs.Debug("handle post request in ClustersController.")
+	result := map[string]interface{}{}
+	reqData := make(map[string]interface{})
+	if err := json.Unmarshal(sc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result = make(map[string]interface{})
+		result["action"] = false
+		result["error"] = "invalid input data"
+	} else {
+		result = models.SyncConfig(reqData)
+	}
+	sc.Data["json"] = &result
+	sc.ServeJSON()
+}
+
+func (csc *ClusterSetupController) Post() {
+	logs.Debug("handle post request in ClustersController.")
+	result := map[string]interface{}{}
+	reqData := make(map[string]interface{})
+	if err := json.Unmarshal(csc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result = make(map[string]interface{})
+		result["action"] = false
+		result["error"] = "invalid input data"
+	} else {
+		result = models.ClusterSetup(reqData)
+	}
+
+	csc.Data["json"] = &result
+	csc.ServeJSON()
+}
+
+//
+//func (mcc *MultipleClustersController) Get() {
+//	logs.Debug("Handle get request in MultipleClustersController.")
+//	//need to return cluster data through res.
+//
+//}
+
 func (cc *ClustersController) Get() {
-	logs.Debug("handle get request in HAClustersController.")
+	logs.Debug("handle get request in ClustersController.")
 	result := models.GetClusterPropertiesInfo()
 	cc.Data["json"] = &result
 	cc.ServeJSON()
 }
 
 func (cc *ClustersController) Post() {
-	logs.Debug("handle post request in HAClustersController.")
-	result := models.DestroyAllClusters()
-	cc.Data["json"] = &result
-	// do nothing here
+	logs.Debug("handle post request in ClustersController.")
 	cc.ServeJSON()
 }
 
+func (cd *ClusterDestroyController) Post() {
+	logs.Debug("handle post request in ClustersController.")
+	result := models.ClustersDestroy()
+	cd.Data["json"] = &result
+	// return result of destroying cluster back to user.
+	cd.ServeJSON()
+}
+
 func (cc *ClustersController) Put() {
-	logs.Debug("handle put request in HAClustersController.")
+	logs.Debug("handle put request in ClustersController.")
 	result := map[string]interface{}{}
 
 	reqData := make(map[string]interface{})

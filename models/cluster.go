@@ -52,6 +52,30 @@ func GetClusterPropertiesInfo() map[string]interface{} {
 	return result
 }
 
+//
+//func CreateCluster(clusterInfo map[string]interface{}) map[string]interface{} {
+//	result := map[string]interface{}{}
+//	logs.Debug(clusterInfo)
+//	if len(clusterInfo) == 0 {
+//		result["action"] = false
+//		result["error"] = "No input data"
+//		return result
+//	}
+//	authRes := hostAuth(clusterInfo)
+//	if !authRes["action"] {
+//		return authRes
+//	} else {
+//		nodeName := clusterInfo["node_name"]
+//		url := "https://" + fmt.Sprint(nodeName) + ":" + strconv.Itoa(8080) + "/api/v1/managec/local_cluster_info"
+//		resp, err := http.Get(url)
+//		if resp.StatusCode == 200 {
+//
+//		}
+//	}
+//	return result
+//
+//}
+
 func UpdateClusterProperties(newProp map[string]interface{}) map[string]interface{} {
 	result := map[string]interface{}{}
 
@@ -62,26 +86,26 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 		return result
 	}
 
-	for k, v := range newProp {
-		var value string
-		if t, ok := v.(string); ok {
-			value = t
-		} else if t, ok := v.(bool); ok {
+	for key, value := range newProp {
+		var strValue string
+		if t, ok := value.(string); ok {
+			strValue = t
+		} else if t, ok := value.(bool); ok {
 			if t == true {
-				value = "true"
+				strValue = "true"
 			} else {
-				value = "false"
+				strValue = "false"
 			}
-		} else if t, ok := v.(float64); ok {
-			value = strconv.FormatInt(int64(t), 10)
+		} else if t, ok := value.(float64); ok {
+			strValue = strconv.FormatInt(int64(t), 10)
 		}
 
 		var cmdStr string
 		// special for getting resource-stickiness property
-		if k == "resource-stickiness" {
-			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + value
+		if key == "resource-stickiness" {
+			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + strValue
 		} else {
-			cmdStr = "crm_attribute -t crm_config -n " + k + " -v " + value
+			cmdStr = "crm_attribute -t crm_config -n " + key + " -v " + strValue
 		}
 
 		out, err := utils.RunCommand(cmdStr)
@@ -104,20 +128,6 @@ func GetClusterStatus() int {
 		return -1
 	}
 	return 0
-}
-
-func DestroyAllClusters() map[string]interface{} {
-	res := map[string]interface{}{}
-	cmd := "pcs cluster destroy --all"
-	out, err := utils.RunCommand(cmd)
-	if err != nil {
-		res["action"] = false
-		res["error"] = string(out)
-		return res
-	}
-	res["action"] = true
-	res["message"] = string(out)
-	return res
 }
 
 func getClusterPropertiesDefinition() (map[string]interface{}, error) {
