@@ -62,26 +62,26 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 		return result
 	}
 
-	for k, v := range newProp {
-		var value string
-		if t, ok := v.(string); ok {
-			value = t
-		} else if t, ok := v.(bool); ok {
+	for key, value := range newProp {
+		var strValue string
+		if t, ok := value.(string); ok {
+			strValue = t
+		} else if t, ok := value.(bool); ok {
 			if t == true {
-				value = "true"
+				strValue = "true"
 			} else {
-				value = "false"
+				strValue = "false"
 			}
-		} else if t, ok := v.(float64); ok {
-			value = strconv.FormatInt(int64(t), 10)
+		} else if t, ok := value.(float64); ok {
+			strValue = strconv.FormatInt(int64(t), 10)
 		}
 
 		var cmdStr string
 		// special for getting resource-stickiness property
-		if k == "resource-stickiness" {
-			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + value
+		if key == "resource-stickiness" {
+			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + strValue
 		} else {
-			cmdStr = "crm_attribute -t crm_config -n " + k + " -v " + value
+			cmdStr = "crm_attribute -t crm_config -n " + key + " -v " + strValue
 		}
 
 		out, err := utils.RunCommand(cmdStr)
