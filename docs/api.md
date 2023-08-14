@@ -483,9 +483,17 @@ Method：PUT
 
 请求参数：
 
-| 参数名称                | 是否必填          | 传入方式            | 参数类型           | 参数说明                 |
-| :---------------------- | ---------------- | :----------------- | :----------------- | ----------------------- |
-| no-quorum-policy(示例)  | 是               | json               | string             | 集群属性名及新的配置      |
+| 参数名称                   | 是否必填(其中一项必改） | 传入方式 | 参数类型    | 参数说明       |
+|:-----------------------|--------------|:-----|:--------|------------|
+| no-quorum-policy       | 是            | json | string  | 集群属性名及新的配置 |
+| symmetric-cluster      | 是            | json | boolean | none       |
+| maintenance-mode       | 是            | json | boolean | none       |
+| start-failure-is-fatal | 是            | json | boolean | none       |
+| stonith-enabled        | 是            | json | boolean | none       |
+| node-health-strategy   | 是            | json | string  | none       |
+| node-health-green      | 是            | json | string  | none       |
+| node-health-yellow     | 是            | json | string  | none       |
+| node-health-red        | 是            | json | string  | none       |
 
 请求示例：
 
@@ -503,6 +511,7 @@ Method：PUT
 | :---------------------------- | :--------------------------------- | ------------------------------------ |
 | action                        | bool                               | 返回结果状态                          |
 | info                         | string                             | 执行结果提示信息                       |
+
 
 响应示例:
 
@@ -1215,9 +1224,14 @@ Method：POST
 
 请求参数：
 
-| 参数名称          | 是否必填       | 传入方式        | 参数类型      | 参数说明                   |
-| :--------------- | -------------- | :------------- | :------------ | -------------------------- |
-| category         | 是             | json           | string        | 资源类型                    |
+| 参数名称                | 是否必填 | 传入方式 | 参数类型   | 参数说明   |
+|:--------------------|------|:-----|:-------|--------|
+| category            | 是    | json | string | 资源类型   |
+| id                  | 是    | json | string | 资源名    |
+| instance_attributes | 是    | json | object | none   |
+| class               | 是    | json | string | 资源种类   |
+| type                | 是    | json | string | 资源脚本名称 |
+| provider            | 是    | json | string | 资源提供者  |
 
 请求示例：
 
