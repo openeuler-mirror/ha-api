@@ -31,7 +31,7 @@ func init() {
 	web.Router("/kylinha-log-:filetail(.*\\.tar$)", &controllers.LogDownloadController{})
 
 	ns := web.NewNamespace("/api/v1",
-		web.NSRouter("/haclusters/1", &controllers.HAClustersController{}),
+		web.NSRouter("/haclusters/1", &controllers.ClustersController{}),
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 
