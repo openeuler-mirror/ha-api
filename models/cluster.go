@@ -106,6 +106,20 @@ func GetClusterStatus() int {
 	return 0
 }
 
+func DestroyAllClusters() map[string]interface{} {
+	res := map[string]interface{}{}
+	cmd := "pcs cluster destroy --all"
+	out, err := utils.RunCommand(cmd)
+	if err != nil {
+		res["action"] = false
+		res["error"] = string(out)
+		return res
+	}
+	res["action"] = true
+	res["message"] = string(out)
+	return res
+}
+
 func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 	clusterProperties, err := getClusterProperties()
 	if err != nil {

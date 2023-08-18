@@ -36,6 +36,8 @@ func (cc *ClustersController) Get() {
 
 func (cc *ClustersController) Post() {
 	logs.Debug("handle post request in HAClustersController.")
+	result := models.DestroyAllClusters()
+	cc.Data["json"] = &result
 	// do nothing here
 	cc.ServeJSON()
 }
