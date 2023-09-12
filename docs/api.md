@@ -576,6 +576,8 @@ Method：PUT
 }
 ```
 
+##### 
+
 ### 2.2 节点
 
 #### 2.2.1 获取节点列表
@@ -3281,3 +3283,100 @@ Method：PUT
     info": "Action on node success"
 }
 ```
+
+### 2.13 集群管理
+
+#### 2.13.1 创建集群
+
+URI：/api/v1/managec/cluster_setup
+
+Method：POST
+
+##### 请求参数
+
+| 参数名称        | 位置 | 类型     | 是否必选 | 说明                  |
+| --------------- | ---- | -------- | -------- | --------------------- |
+| body            | body | object   | 否       | none                  |
+| >>cluster_name  | body | string   | 是       | 集群名称              |
+| >>data          | body | [object] | 是       | 创建集群的节点数据    |
+| >>>>nodeid      | body | integer  | 是       | 节点id                |
+| >>>>name        | body | string   | 是       | 节点名称              |
+| >>>>password    | body | string   | 是       | 节点hacluster用户密码 |
+| >>>>ring0_adddr | body | string   | 是       | 节点心跳ip            |
+
+##### 返回示例：成功
+
+```
+{
+    "action": true,
+    "message": "集群创建成功"
+}
+```
+
+##### 返回结果
+
+| 状态码 | 状态码含义 | 说明 | 数据模型 |
+| ------ | ---------- | ---- | -------- |
+| 200    | OK         | 成功 | Inline   |
+
+##### 返回数据结构
+
+状态码 **200**
+
+| 参数名称  | 类型    | 是否必选 | 约束 | 说明                 |
+| --------- | ------- | -------- | ---- | -------------------- |
+| >>action  | boolean | true     | none | 创建集群操作是否成功 |
+| >>message | string  | true     | none | 提示信息             |
+
+
+
+#### 2.13.2 摧毁集群
+
+URI：/api/v1/managec/cluster_destroy
+
+Method：POST
+
+##### Body请求参数
+
+```
+{
+  "cluster_name": [
+    "hacluster"
+  ]
+}
+```
+
+| 参数名称       | 位置 | 类型   | 是否必选 | 说明     |
+| -------------- | ---- | ------ | -------- | -------- |
+| body           | body | object | 否       |          |
+| >>cluster_name | body | string | 是       | 集群名称 |
+
+##### 返回示例：成功
+
+```
+{
+  "action": true,
+  "data": [
+    true
+  ],
+  "clusters": [],
+  "detailInfo": []
+}
+```
+
+##### 返回结果
+
+| 状态码 | 状态码含义 | 说明 | 数据模型 |
+| ------ | ---------- | ---- | -------- |
+| 200    | OK         | 成功 | Inline   |
+
+##### 返回数据结构
+
+状态码**200**
+
+| 名称         | 类型      | 必选 | 约束 | 说明                       |
+| ------------ | --------- | ---- | ---- | -------------------------- |
+| >>action     | boolean   | true | none | 摧毁操作是否成功           |
+| >>data       | [boolean] | true | none | 每个集群摧毁操作的结果汇总 |
+| >>cluster    | [string]  | true | none | 摧毁失败的集群列表         |
+| >>detailInfo | [string]  | true | none | 摧毁失败集群的详细信息     |

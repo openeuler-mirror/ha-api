@@ -52,6 +52,30 @@ func GetClusterPropertiesInfo() map[string]interface{} {
 	return result
 }
 
+//
+//func CreateCluster(clusterInfo map[string]interface{}) map[string]interface{} {
+//	result := map[string]interface{}{}
+//	logs.Debug(clusterInfo)
+//	if len(clusterInfo) == 0 {
+//		result["action"] = false
+//		result["error"] = "No input data"
+//		return result
+//	}
+//	authRes := hostAuth(clusterInfo)
+//	if !authRes["action"] {
+//		return authRes
+//	} else {
+//		nodeName := clusterInfo["node_name"]
+//		url := "https://" + fmt.Sprint(nodeName) + ":" + strconv.Itoa(8080) + "/api/v1/managec/local_cluster_info"
+//		resp, err := http.Get(url)
+//		if resp.StatusCode == 200 {
+//
+//		}
+//	}
+//	return result
+//
+//}
+
 func UpdateClusterProperties(newProp map[string]interface{}) map[string]interface{} {
 	result := map[string]interface{}{}
 
