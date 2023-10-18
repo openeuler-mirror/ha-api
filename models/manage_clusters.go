@@ -21,6 +21,17 @@ type ClusterInfo struct {
 	Clusters []interface{}
 }
 
+type RemoveData struct {
+	Cluster_name []string
+}
+
+type RemoveRet struct {
+	Action        bool     `json:"action,omitempty"`
+	Error         string   `json:"error,omitempty"`
+	Faild_cluster []string `json:"faild_cluster,omitempty"`
+	Data          []bool   `json:"data,omitempty"`
+}
+
 // NewClustersInfo creates a new ClusterInfo instance using the provided text data.
 // If the text data is nil or empty, default values are initialized.
 func NewClustersInfo(text map[string]interface{}) *ClusterInfo {
@@ -96,10 +107,22 @@ func (ci *ClusterInfo) SetVersion(version int) {
 	ci.Version = version
 }
 
+// DeleteCluster delete the Cluster from ClusterInfo.
+func (ci *ClusterInfo) DeleteCluster(clusterNameJson string) bool {
+	for i, c := range ci.Clusters {
+		cV := c.(map[string]interface{})
+		if cV["cluster_name"] == clusterNameJson {
+			ci.Clusters = append(ci.Clusters[:i], ci.Clusters[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 // localClusterInfo retrieves the cluster information locally and returns it as a map.
 // If no cluster exists, an empty map is returned.
 func localClusterInfo() map[string]interface{} {
-	allInfo := getClusterInfo()
+	allInfo := GetClusterInfo()
 	if allInfo["cluster_exist"] == true {
 		clusterInfo := clusterInfoParse(allInfo)
 		return clusterInfo
@@ -172,6 +195,7 @@ func readFile(filename string) map[string]interface{} {
 	return newDict
 }
 
+// comment out due to type error as localconf could not be {}, it should be of type *ClusterInfo
 // SyncConfig synchronizes the local configuration with remote configuration.
 // Returns appropriate results indicating the synchronization status.
 func SyncConfig(remoteConf map[string]interface{}) map[string]interface{} {
@@ -341,16 +365,23 @@ func ClusterSetup(clusterInfo map[string]interface{}) map[string]interface{} {
 	}
 }
 
-func ClustersDestroy() map[string]interface{} {
-	res := map[string]interface{}{}
-	cmd := "pcs cluster destroy --all"
-	out, err := utils.RunCommand(cmd)
-	if err != nil {
-		res["action"] = false
-		res["error"] = string(out)
-		return res
+func ClusterRemove(RemoveInfo RemoveData) *RemoveRet {
+	clusters := RemoveInfo.Cluster_name
+	localConf := getLocalConf()
+	removeRes := make([]bool, 0)
+	faildCluster := make([]string, 0)
+	for _, cluster := range clusters {
+		res := localConf.DeleteCluster(cluster)
+		removeRes = append(removeRes, res)
+		if res == false {
+			faildCluster = append(faildCluster, cluster)
+		}
+		localConf.Save()
+		syncClusterConfFile(localConf)
 	}
-	res["action"] = true
-	res["message"] = string(out)
-	return res
+	var RetData RemoveRet
+	RetData.Action = true
+	RetData.Faild_cluster = faildCluster
+	RetData.Data = removeRes
+	return &RetData
 }

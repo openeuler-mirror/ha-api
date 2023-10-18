@@ -49,7 +49,7 @@ func getClusterName() map[string]interface{} {
 
 // getClusterInfo retrieves cluster information, including cluster nodes and their properties.
 // Returns the cluster information in a structured map.
-func getClusterInfo() map[string]interface{} {
+func GetClusterInfo() map[string]interface{} {
 	_, currentNode := utils.RunCommand("cat /etc/hostname")
 	currentNodeStr := strings.ReplaceAll(fmt.Sprintf("%s", currentNode), "\n", "")
 
@@ -166,6 +166,20 @@ func generateNodeCmdStr(nodesInfo []interface{}) string {
 	}
 
 	return cmd.String()
+}
+
+func ClustersDestroy() map[string]interface{} {
+	res := map[string]interface{}{}
+	cmd := "pcs cluster destroy --all"
+	out, err := utils.RunCommand(cmd)
+	if err != nil {
+		res["action"] = false
+		res["error"] = string(out)
+		return res
+	}
+	res["action"] = true
+	res["message"] = string(out)
+	return res
 }
 
 // isIPv4 checks if the provided string is a valid IPv4 address.
