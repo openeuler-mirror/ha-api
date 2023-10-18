@@ -32,12 +32,14 @@ func init() {
 
 	ns := web.NewNamespace("/api/v1",
 		web.NSRouter("/haclusters/1", &controllers.ClustersController{}),
+		web.NSRouter("/haclusters/1/cluster_status", &controllers.ClustersStatusController{}),
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
 		web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),
 		web.NSRouter("/managec/cluster_destroy", &controllers.ClusterDestroyController{}),
+		web.NSRouter("/managec/cluster_remove", &controllers.ClusterRemoveController{}),
 
 		web.NSRouter("/haclusters/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceActionController{}),

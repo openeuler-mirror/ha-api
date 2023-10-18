@@ -42,6 +42,14 @@ type ClusterDestroyController struct {
 	web.Controller
 }
 
+type ClustersStatusController struct {
+	web.Controller
+}
+
+type ClusterRemoveController struct {
+	web.Controller
+}
+
 func (mcc *MultipleClustersController) Post() {
 	logs.Debug("Handle post request in MultipleClustersController.")
 	result := map[string]interface{}{}
@@ -105,6 +113,13 @@ func (cc *ClustersController) Get() {
 	cc.ServeJSON()
 }
 
+func (csc *ClustersStatusController) Get() {
+	logs.Debug("handle get request in ClustersController.")
+	result := models.GetClusterInfo()
+	csc.Data["json"] = &result
+	csc.ServeJSON()
+}
+
 func (cc *ClustersController) Post() {
 	logs.Debug("handle post request in ClustersController.")
 	cc.ServeJSON()
@@ -116,6 +131,24 @@ func (cd *ClusterDestroyController) Post() {
 	cd.Data["json"] = &result
 	// return result of destroying cluster back to user.
 	cd.ServeJSON()
+}
+
+func (crc *ClusterRemoveController) Post() {
+	logs.Debug("handle post request in ClustersController.")
+	var Result models.RemoveRet
+	var ReqData models.RemoveData
+	body := crc.Ctx.Input.RequestBody
+	err := json.Unmarshal(body, &ReqData)
+	if err != nil {
+		Result.Action = false
+		Result.Error = "invalid input data"
+		crc.Data["json"] = &Result
+		crc.ServeJSON()
+	} else {
+		Result2 := models.ClusterRemove(ReqData)
+		crc.Data["json"] = Result2
+		crc.ServeJSON()
+	}
 }
 
 func (cc *ClustersController) Put() {
