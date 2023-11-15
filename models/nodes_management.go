@@ -9,9 +9,14 @@ import (
 	"strings"
 )
 
-//nodes_info格式
-//{"nodeid": "1", "name": "HA1", "ring0_addr": "192.168.11.1", "ring1_addr": "192.168.11.4"},
-//{"nodeid": "2", "name": "HA2", "ring0_addr": "192.168.11.2", "ring1_addr": "192.168.11.5"}
+// nodes_info格式
+// {"nodeid": "1", "name": "HA1", "ring0_addr": "192.168.11.1", "ring1_addr": "192.168.11.4"},
+// {"nodeid": "2", "name": "HA2", "ring0_addr": "192.168.11.2", "ring1_addr": "192.168.11.5"}
+type AuthInfo struct {
+	nodeList []string
+	passWord []string
+	ip       []string
+}
 
 // getClusterName reads the cluster name from the corosync configuration file.
 // Returns a map indicating the result and the extracted cluster name, if available.
@@ -55,17 +60,18 @@ func GetClusterInfo() map[string]interface{} {
 
 	if isClusterExist() {
 		nodeList := getNodeList()
-		nodes := make([]map[string]string, 0)
+		nodes := make([]map[string]interface{}, 0)
 
 		index := 0
 		for index < len(nodeList) {
 			if nodeList[index] == "node {" {
 				index++
-				nodeInfo := make(map[string]string)
-				nodeInfoRet := make(map[string]string)
+				nodeInfo := make(map[string]interface{})
+				nodeInfo["ring_addr"] = make([]map[string]string, 0)
 
 				for index < len(nodeList) && nodeList[index] != "node {" {
-					d := make(map[string]string)
+					//d := make(map[string]string)
+					d := make(map[string]interface{})
 					n := strings.Split(nodeList[index], ":")
 					d[n[0]] = strings.TrimSpace(n[1])
 					for k, v := range d {
@@ -77,29 +83,42 @@ func GetClusterInfo() map[string]interface{} {
 				count := 0
 				for count < 2 {
 					for k, v := range nodeInfo {
-						item := map[string]string{k: v}
-						for key, value := range item {
-							nodeInfoRet[key] = value
-						}
-						count++
-						delete(nodeInfo, k)
-					}
-				}
-
-				for k, v := range nodeInfo {
-					if k != "nodeid" && k != "name" {
-						if isIPv4(v) {
-							nodeInfoRet[k] = v
-						} else {
-							nodeInfoRet[k] = ""
+						if k != "nodeid" && k != "name" && k != "ring_addr" {
+							if isIPv4(v.(string)) {
+								ringAddr := map[string]string{
+									"ring": k,
+									"ip":   v.(string),
+								}
+								nodeInfo["ring_addr"] = append(nodeInfo["ring_addr"].([]map[string]string), ringAddr)
+							} else {
+								nodeInfo["ring_addr"] = append(nodeInfo["ring_addr"].([]map[string]string), map[string]string{})
+							}
+							delete(nodeInfo, k)
 						}
 					}
+					count++
 				}
 
-				nodes = append(nodes, nodeInfoRet)
+				nodes = append(nodes, nodeInfo)
+			} else {
+				index++
 			}
 		}
+		for _, node := range nodes {
+			nodeID, ok := node["nodeid"].(string)
+			if !ok {
+				fmt.Println("Invalid nodeid format")
+				continue
+			}
 
+			convertedID, err := strconv.Atoi(nodeID)
+			if err != nil {
+				fmt.Println("Failed to convert nodeid:", err)
+				continue
+			}
+
+			node["nodeid"] = convertedID
+		}
 		data := map[string]interface{}{
 			"action":        true,
 			"cluster_exist": true,
@@ -122,18 +141,13 @@ func GetClusterInfo() map[string]interface{} {
 
 // clusterSetup sets up a cluster with the provided node information.
 // Returns results indicating the success or failure of the cluster setup.
-func clusterSetup(addNodes map[string]interface{}) map[string]interface{} {
-	clusterName := ""
-	for k, v := range addNodes {
-		if k == "cluster_name" {
-			clusterName = v.(string)
-		}
-	}
+func clusterSetup(addNodes ClusterSetData) map[string]interface{} {
+	clusterName := addNodes.Cluster_name
 	if clusterName == "" {
 		clusterName = "hacluster"
 	}
 
-	nodeCmdStr := generateNodeCmdStr(addNodes["data"].([]interface{}))
+	nodeCmdStr := generateNodeCmdStr(addNodes.Data)
 	cmd := "pcs cluster setup " + clusterName + nodeCmdStr + " totem token=8000 --start"
 	output, err := utils.RunCommand(cmd)
 	outputStr := string(output[:])
@@ -149,22 +163,19 @@ func clusterSetup(addNodes map[string]interface{}) map[string]interface{} {
 
 // generateNodeCmdStr generates the command string for adding nodes to the cluster.
 // Returns the generated command string.
-func generateNodeCmdStr(nodesInfo []interface{}) string {
+func generateNodeCmdStr(nodesInfo []NodeData) string {
 	hbIPPrefix := "addr="
 	var cmd strings.Builder
 	hbIPCmd := ""
 	for _, nodeInfo := range nodesInfo {
-		nodeInfoV := nodeInfo.(map[string]interface{})
-		nodeStr := fmt.Sprintf("%v", nodeInfoV["name"])
-		for k, v := range nodeInfoV {
-			if k != "nodeid" && k != "name" && k != "port" && k != "password" {
-				hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v)
-				nodeStr += hbIPCmd
-			}
+		//nodeInfoV := nodeInfo.(map[string]interface{})
+		nodeStr := fmt.Sprintf("%v", nodeInfo.Name)
+		for _, v := range nodeInfo.RingAddr {
+			hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v.Ip)
+			nodeStr += hbIPCmd
 		}
 		cmd.WriteString(" " + nodeStr)
 	}
-
 	return cmd.String()
 }
 
@@ -201,4 +212,84 @@ func isIPv4(ip string) bool {
 	}
 
 	return true
+}
+
+func LocalAddNodes(addNodes AddNodesData) interface{} {
+	addNodesInfo := addNodes.Data
+	nodeList := make([]string, 0)
+	password := make([]string, 0)
+	ip := make([]string, 0)
+	var authInfo AuthInfo
+	for _, node := range addNodesInfo {
+		nodeList = append(nodeList, node.Name)
+		password = append(password, node.Password)
+		for _, v := range node.RingAddr {
+			ip = append(ip, v.Ip)
+		}
+	}
+	authInfo.nodeList = nodeList
+	authInfo.passWord = password
+	authInfo.ip = ip
+	authres := hostAuthWithAddr(authInfo)
+	if authres.Action == false {
+		return authres
+	}
+
+	if isClusterExist() {
+		hbIPPrefix := "addr="
+		cmdPrefix := "pcs cluster node add "
+		addNodeCmd := ""
+
+		currentNodeData, _ := utils.RunCommand("cat /etc/hostname")
+		currentNode := string(currentNodeData)
+		currentNode = strings.Replace(currentNode, "\n", "", -1)
+
+		cmd := fmt.Sprintf("echo \"`pcs stonith sbd status`\"| grep %s:", currentNode)
+		out, _ := utils.RunCommand(cmd)
+		curNodeSbdStat := strings.Split(string(out), ":")[1]
+		curNodeRunSbd := strings.Split(curNodeSbdStat, "|")
+		if curNodeRunSbd[1] == " YES " {
+			out, _ := utils.RunCommand("pcs stonith sbd status --full")
+			sbdHeader := strings.Split(string(out), "SBD header on device")
+			deviceInfo := strings.Split(sbdHeader[1], ":")
+			sbdDevice := strings.TrimSpace(deviceInfo[0])
+			for _, nodeInfo := range addNodesInfo {
+				nodeStr := nodeInfo.Name
+				for _, v := range nodeInfo.RingAddr {
+					hbIPCmd := ""
+					hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v.Ip)
+					nodeStr += hbIPCmd
+				}
+				addNodeCmd += cmdPrefix + nodeStr + " " + "device=" + sbdDevice + " --start ; "
+			}
+		} else {
+			for _, nodeInfo := range addNodesInfo {
+				nodeStr := nodeInfo.Name
+				for _, v := range nodeInfo.RingAddr {
+					hbIPCmd := ""
+					hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v.Ip)
+					nodeStr += hbIPCmd
+				}
+				addNodeCmd += cmdPrefix + nodeStr + " --start ; "
+			}
+		}
+		out, err := utils.RunCommand(addNodeCmd)
+		if err != nil {
+			return map[string]interface{}{
+				"action":     false,
+				"error":      "添加节点失败",
+				"detailInfo": string(out),
+			}
+		}
+
+	} else {
+		var clusterInfo ClusterSetData
+		clusterInfo.Cluster_name = addNodes.Cluster_name
+		clusterInfo.Data = addNodesInfo
+		return clusterSetup(clusterInfo)
+	}
+	return map[string]interface{}{
+		"action":  true,
+		"message": "Add node success",
+	}
 }

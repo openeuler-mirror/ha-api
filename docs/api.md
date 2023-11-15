@@ -3302,7 +3302,47 @@ Method：POST
 | >>>>nodeid      | body | integer  | 是       | 节点id                |
 | >>>>name        | body | string   | 是       | 节点名称              |
 | >>>>password    | body | string   | 是       | 节点hacluster用户密码 |
-| >>>>ring0_adddr | body | string   | 是       | 节点心跳ip            |
+| >>>>ring0_adddr | body | [object] | 是       | 节点心跳ip            |
+
+```
+{
+  "cluster_name": "hacluster",
+  "data": [
+    {
+      "nodeid": 1,
+      "name": "sp3-2",
+      "password": "kylinha10!)",
+      "ring_addr":[
+          {
+              "ring":"ring0_addr",
+              "ip":"192.168.174.133"
+          },
+          {
+              "ring":"ring1_addr",
+              "ip":"172.30.30.93"
+          }
+      ]
+    },
+    {
+      "nodeid": 2,
+      "name": "sp3-4",
+      "password": "kylinha10!)",
+      "ring_addr":[
+          {
+              "ring":"ring0_addr",
+              "ip":"192.168.174.133"
+          },
+          {
+              "ring":"ring1_addr",
+              "ip":"172.30.30.93"
+          }
+      ]
+    }
+  ]
+}
+```
+
+
 
 ##### 返回示例：成功
 
@@ -3380,3 +3420,127 @@ Method：POST
 | >>data       | [boolean] | true | none | 每个集群摧毁操作的结果汇总 |
 | >>cluster    | [string]  | true | none | 摧毁失败的集群列表         |
 | >>detailInfo | [string]  | true | none | 摧毁失败集群的详细信息     |
+
+#### 2.13.3 移除集群
+
+URL: /api/v1/managec/cluster_remove
+
+Method：POST
+
+##### Body请求参数
+
+```
+{
+  "cluster_name": [
+    "hacluster"
+  ]
+}
+```
+
+| 名称           | 位置 | 类型     | 必选 | 说明     |
+| -------------- | ---- | -------- | ---- | -------- |
+| body           | body | object   | 否   | none     |
+| >>cluster_name | body | [string] | 是   | 集群名称 |
+
+##### 返回示例
+
+```
+{
+  "action": true,
+  "faild_cluster": [],
+  "data": [
+    true
+  ]
+}
+```
+
+##### 返回结果
+
+| 状态码 | 状态码含义 | 说明 | 数据模型 |
+| ------ | ---------- | ---- | -------- |
+| 200    | OK         | 成功 | Inline   |
+
+##### 返回数据结构
+
+状态码 **200**
+
+| 名称            | 类型      | 必选 | 约束 | 说明               |
+| --------------- | --------- | ---- | ---- | ------------------ |
+| >>action        | boolean   | true | none | 移除操作是否成功   |
+| >>faild cluster | [string]  | true | none | 移除失败的集群名称 |
+| >>data          | [boolean] | true | none | 移除集群结果汇总   |
+
+### 2.14 节点管理
+
+### 2.14.1 添加节点
+
+URL: /api/v1/managec/add_nodes
+
+Method：POST
+
+##### Body请求参数
+
+```
+{
+  "cluster_name": "hacluster",
+  "data": [
+    {
+      "name": "sp3-3",
+      "password": "kylinha10!)",
+      "ring_addr":[
+          {
+              "ring":"ring0_addr",
+              "ip":"192.168.174.133"
+          },
+          {
+              "ring":"ring1_addr",
+              "ip":"172.30.30.93"
+          }
+      ]
+    }
+  ]
+}
+```
+
+##### 请求参数
+
+| 名称            | 位置 | 类型     | 必选 | 说明                  |
+| --------------- | ---- | -------- | ---- | --------------------- |
+| body            | body | object   | 否   | none                  |
+| >> cluster_name | body | string   | 是   | 集群名称              |
+| >>data          | body | [object] | 是   | none                  |
+| >>name          | body | string   | 否   | 节点名称              |
+| >>password      | body | string   | 否   | 节点hacluster用户密码 |
+| >>ring_addr     | body | [object] | 否   | 节点心跳ip            |
+
+##### 返回示例
+
+```
+成功
+{
+  "action": true,
+  "message": "添加节点成功"
+}
+失败
+{
+  "action": false,
+  "error": "添加节点失败",
+  "detailInfo": "Error: Node name 'sp3-3' is already used by existing nodes; please, use other name\nError: Node address '172.30.230.105' is already used by existing nodes; please, use other address\nError: sp3-3: Running cluster services: 'corosync', 'pacemaker', the host seems to be in a cluster already, use --force to override\nError: sp3-3: Cluster configuration files found, the host seems to be in a cluster already, use --force to override\nError: Some nodes are already in a cluster. Enforcing this will destroy existing cluster on those nodes. You should remove the nodes from their clusters instead to keep the clusters working properly, use --force to override\nError: Errors have occurred, therefore pcs is unable to continue"
+}
+```
+
+##### 返回结果
+
+| 状态码 | 状态码含义 | 说明 | 数据模型 |
+| ------ | ---------- | ---- | -------- |
+| 200    | OK         | 成功 | Inline   |
+
+##### 返回数据结构
+
+状态码 **200**
+
+| 名称      | 类型    | 必选 | 约束 | 说明                 |
+| --------- | ------- | ---- | ---- | -------------------- |
+| >>action  | boolean | true | none | 添加节点操作是否成功 |
+| >>message | string  | true | none | 提示信息             |
+
