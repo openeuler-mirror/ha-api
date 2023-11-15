@@ -2,6 +2,7 @@ package models
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,23 @@ type ClusterInfo struct {
 	Clusters []interface{}
 }
 
+type ClusterSetData struct {
+	Cluster_name string
+	Data         []NodeData
+}
+
+type NodeData struct {
+	NodeID   int            `json:"nodeid"`
+	Name     string         `json:"name"`
+	Password string         `json:"password"`
+	RingAddr []RingAddrData `json:"ring_addr"`
+}
+
+type RingAddrData struct {
+	Ring string `json:"ring"`
+	Ip   string `json:"ip"`
+}
+
 type RemoveData struct {
 	Cluster_name []string
 }
@@ -30,6 +48,23 @@ type RemoveRet struct {
 	Error         string   `json:"error,omitempty"`
 	Faild_cluster []string `json:"faild_cluster,omitempty"`
 	Data          []bool   `json:"data,omitempty"`
+}
+
+type AddNodesData struct {
+	Cluster_name string
+	Data         []NodeData
+}
+
+type AddNodesRet struct {
+	Action bool   `json:"action,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type AuthRetA struct {
+	Action     bool   `json:"action"`
+	Error      string `json:"error,omitempty"`
+	DetailInfo string `json:"detailInfo,omitempty"`
+	Message    string `json:"message,omitempty"`
 }
 
 // NewClustersInfo creates a new ClusterInfo instance using the provided text data.
@@ -107,7 +142,7 @@ func (ci *ClusterInfo) SetVersion(version int) {
 	ci.Version = version
 }
 
-// DeleteCluster delete the Cluster from ClusterInfo.
+// DeleteCluster deletes the Cluster from ClusterInfo.
 func (ci *ClusterInfo) DeleteCluster(clusterNameJson string) bool {
 	for i, c := range ci.Clusters {
 		cV := c.(map[string]interface{})
@@ -119,9 +154,35 @@ func (ci *ClusterInfo) DeleteCluster(clusterNameJson string) bool {
 	return false
 }
 
+func (ci *ClusterInfo) UpdateCluster(clusterNameJson string, clusterInfo map[string]interface{}) {
+	for _, c := range ci.Clusters {
+		if c.(map[string]interface{})["name"] == clusterNameJson {
+			c.(map[string]interface{})["nodes"] = clusterInfo["nodes"]
+			c.(map[string]interface{})["nodeid"] = clusterInfo["nodeid"]
+			c.(map[string]interface{})["ip"] = clusterInfo["ip"]
+		}
+	}
+}
+
+// GetNodes  gets nodes information
+func (ci *ClusterInfo) GetNodes(clusterNameJson string) []interface{} {
+	for _, c := range ci.Clusters {
+		cV := c.(map[string]interface{})
+		if cV["cluster_name"] == clusterNameJson {
+			nodes, ok := cV["nodes"].([]interface{})
+			if ok {
+				return nodes
+			} else {
+				return []interface{}{}
+			}
+		}
+	}
+	return []interface{}{}
+}
+
 // localClusterInfo retrieves the cluster information locally and returns it as a map.
 // If no cluster exists, an empty map is returned.
-func localClusterInfo() map[string]interface{} {
+func LocalClusterInfo() map[string]interface{} {
 	allInfo := GetClusterInfo()
 	if allInfo["cluster_exist"] == true {
 		clusterInfo := clusterInfoParse(allInfo)
@@ -135,22 +196,15 @@ func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{}
 	clusterParse := make(map[string]interface{})
 	clusterParse["cluster_name"] = clusterInfo["cluster_name"]
 	nodes := make([]string, 0)
-	nodeIDs := make([]interface{}, 0)
-	ips := make([]map[string]interface{}, 0)
-	dataInterface, _ := clusterInfo["data"].([]interface{})
-	var nodesInfo []map[string]interface{}
-	for _, item := range dataInterface {
-		nodesInfo = append(nodesInfo, item.(map[string]interface{}))
-	}
+	nodeIDs := make([]int, 0)
+	ips := make([]map[string]string, 0)
+	nodesInfo := clusterInfo["data"].([]map[string]interface{})
 	for _, nodeInfo := range nodesInfo {
 		nodes = append(nodes, nodeInfo["name"].(string))
-		nodeIDs = append(nodeIDs, nodeInfo["nodeid"])
-
-		ip := make(map[string]interface{})
-		for k, v := range nodeInfo {
-			if k != "name" && k != "nodeid" && k != "password" {
-				ip[k] = v
-			}
+		nodeIDs = append(nodeIDs, nodeInfo["nodeid"].(int))
+		ip := make(map[string]string)
+		for _, item := range nodeInfo["ring_addr"].([](map[string]string)) {
+			ip[item["ring"]] = item["ip"]
 		}
 		ips = append(ips, ip)
 	}
@@ -168,6 +222,12 @@ func getLocalConf() *ClusterInfo {
 	localConf := NewClustersInfo(localFile)
 	return localConf
 
+}
+
+func getRemoteNodes(clusterName string) interface{} {
+	localConf := getLocalConf()
+	nodeList := localConf.GetNodes(clusterName)
+	return nodeList
 }
 
 // readFile reads a JSON file, decodes its content, and returns it as a map.
@@ -218,7 +278,7 @@ func SyncConfig(remoteConf map[string]interface{}) map[string]interface{} {
 // syncClusterConfFile synchronizes the cluster configuration file with all nodes in the cluster.
 func syncClusterConfFile(conf *ClusterInfo) {
 	// Get local cluster info
-	clusterInfo := localClusterInfo()
+	clusterInfo := LocalClusterInfo()
 
 	// If the current node has no cluster config, save the provided config
 	if len(clusterInfo) == 0 {
@@ -276,6 +336,29 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	}
 }
 
+func hostAuthWithAddr(authInfo AuthInfo) AuthRetA {
+	authFaild := false
+	authFaildInfo := ""
+
+	authCmd := "pcs host auth " + authInfo.nodeList[0] + " addr=" + authInfo.ip[0] + " -u hacluster -p '" + authInfo.passWord[0] + "'"
+	out, err := utils.RunCommand(authCmd)
+	if err != nil {
+		authFaild = true
+		authFaildInfo = string(out)
+	}
+	if authFaild {
+		return AuthRetA{
+			Action:     false,
+			Error:      "节点认证失败",
+			DetailInfo: authFaildInfo,
+		}
+	}
+	return AuthRetA{
+		Action:  true,
+		Message: "host auth success",
+	}
+}
+
 // ClusterAdd adds a new cluster using the provided node information.
 // Returns results indicating the success or failure of the operation.
 func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
@@ -330,31 +413,47 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 }
 
 // ClusterSetup performs the setup of a cluster using the provided cluster information.
-func ClusterSetup(clusterInfo map[string]interface{}) map[string]interface{} {
+func ClusterSetup(clusterSetInfo ClusterSetData) map[string]interface{} {
 	authInfo := make(map[string]interface{})
 	nodeList := make([]string, 0)
 	passwords := make([]string, 0)
 
-	dataInterface, _ := clusterInfo["data"].([]interface{})
-
+	setData := clusterSetInfo.Data
 	var data []map[string]interface{}
-	for _, item := range dataInterface {
-		data = append(data, item.(map[string]interface{}))
+	for _, node := range setData {
+		nodeList = append(nodeList, node.Name)
+		passwords = append(passwords, node.Password)
+		nodeMap := make(map[string]interface{})
+		nodeMap["name"] = node.Name
+		nodeMap["nodeid"] = node.NodeID
+		nodeMap["password"] = node.Password
+
+		// 将每个RingAddrData映射到一个新的map并添加到RingAddr切片中
+		var ringAddr []map[string]string
+		for _, addrData := range node.RingAddr {
+			addrMap := make(map[string]string)
+			addrMap["ring"] = addrData.Ring
+			addrMap["ip"] = addrData.Ip
+			ringAddr = append(ringAddr, addrMap)
+		}
+
+		nodeMap["ring_addr"] = ringAddr
+		data = append(data, nodeMap)
 	}
 
-	for _, node := range data {
-		nodeList = append(nodeList, node["name"].(string))
-		passwords = append(passwords, node["password"].(string))
-	}
+	clusterInfo := make(map[string]interface{})
+	clusterInfo["cluster_name"] = clusterSetInfo.Cluster_name
+	clusterInfo["data"] = data
 
 	authInfo["node_list"] = nodeList
 	authInfo["password"] = passwords
-
 	authRes := hostAuth(authInfo)
+	//this map is used for transitional use, and then deleted when clusterInfoParse and related functions adopt a structure
+
 	if !authRes["action"].(bool) {
 		return authRes
 	} else {
-		res := clusterSetup(clusterInfo)
+		res := clusterSetup(clusterSetInfo)
 		if res["action"].(bool) {
 			localConf := getLocalConf()
 			localConf.AddCluster(clusterInfoParse(clusterInfo))
@@ -384,4 +483,76 @@ func ClusterRemove(RemoveInfo RemoveData) *RemoveRet {
 	RetData.Faild_cluster = faildCluster
 	RetData.Data = removeRes
 	return &RetData
+}
+
+func AddNodes(AddNodesinfo AddNodesData) interface{} {
+	localConf := getLocalConf()
+	clusterName := AddNodesinfo.Cluster_name
+	localClusterName := getClusterName()
+
+	if localClusterName["clusterName"] == clusterName {
+		return LocalAddNodes(AddNodesinfo)
+	}
+	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
+	if len(remoteNodeList) > 0 {
+		for _, node := range remoteNodeList {
+			url := fmt.Sprintf("https://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
+
+			httpResp := sendRequest(url, "POST", AddNodesinfo.Data)
+			if httpResp.StatusCode == http.StatusOK {
+				httpRespData, _ := io.ReadAll(httpResp.Body)
+				httpResp.Body.Close()
+				var httpRespMessage map[string]interface{}
+				json.Unmarshal(httpRespData, &httpRespMessage)
+
+				url = fmt.Sprintf("https://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
+				httpResp = sendRequest(url, "GET", nil)
+				httpRespData, _ = io.ReadAll(httpResp.Body)
+				httpResp.Body.Close()
+				var remoteClusterInfo map[string]interface{}
+				json.Unmarshal(httpRespData, &remoteClusterInfo)
+
+				localConf.UpdateCluster(remoteClusterInfo["cluster_name"].(string), remoteClusterInfo)
+				localConf.Save()
+				syncClusterConfFile(localConf)
+
+				return httpRespMessage
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"action":     false,
+		"error":      "未找到集群",
+		"detailInfo": "无法连接到集群",
+	}
+}
+
+func sendRequest(url string, method string, data interface{}) *http.Response {
+	var httpResp *http.Response
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+
+	switch method {
+	case "POST":
+		jsonData, _ := json.Marshal(data)
+		httpResp, _ = client.Post(url, "application/json", bytes.NewReader(jsonData))
+	case "GET":
+		httpResp, _ = client.Get(url)
+	case "DELETE":
+		jsonData, _ := json.Marshal(data)
+		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(jsonData))
+		httpResp, _ = client.Do(req)
+	case "PUT":
+		jsonData, _ := json.Marshal(data)
+		req, _ := http.NewRequest("PUT", url, bytes.NewReader(jsonData))
+		httpResp, _ = client.Do(req)
+	}
+
+	return httpResp
 }

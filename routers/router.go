@@ -40,6 +40,8 @@ func init() {
 		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),
 		web.NSRouter("/managec/cluster_destroy", &controllers.ClusterDestroyController{}),
 		web.NSRouter("/managec/cluster_remove", &controllers.ClusterRemoveController{}),
+		web.NSRouter("/managec/add_nodes", &controllers.AddNodesController{}),
+		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
 
 		web.NSRouter("/haclusters/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
@@ -68,6 +70,10 @@ func init() {
 		web.NSRouter("/haclusters/1/commands", &controllers.CommandsController{}),
 		web.NSRouter("/haclusters/1/commands/:cmd_type", &controllers.CommandsRunnerController{}),
 	)
-
+	nr := web.NewNamespace("/remote/api/v1",
+		web.NSRouter("/nodes/add_nodes", &controllers.LocalAddNodesController{}),
+		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
+	)
 	web.AddNamespace(ns)
+	web.AddNamespace(nr)
 }
