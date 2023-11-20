@@ -36,12 +36,13 @@ func init() {
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
-		web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
+		//web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),
 		web.NSRouter("/managec/cluster_destroy", &controllers.ClusterDestroyController{}),
 		web.NSRouter("/managec/cluster_remove", &controllers.ClusterRemoveController{}),
 		web.NSRouter("/managec/add_nodes", &controllers.AddNodesController{}),
 		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
+		web.NSRouter("/managec/is_cluster_exist", &controllers.IsClusterExist{}),
 
 		web.NSRouter("/haclusters/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/haclusters/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
@@ -71,8 +72,10 @@ func init() {
 		web.NSRouter("/haclusters/1/commands/:cmd_type", &controllers.CommandsRunnerController{}),
 	)
 	nr := web.NewNamespace("/remote/api/v1",
+		web.NSRouter("/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/nodes/add_nodes", &controllers.LocalAddNodesController{}),
 		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
+		web.NSRouter("/destroy_cluster", &controllers.LocalClusterDestroyController{}),
 	)
 	web.AddNamespace(ns)
 	web.AddNamespace(nr)

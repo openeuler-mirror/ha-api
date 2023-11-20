@@ -38,6 +38,10 @@ type ClusterSetupController struct {
 	web.Controller
 }
 
+type LocalClusterDestroyController struct {
+	web.Controller
+}
+
 type ClusterDestroyController struct {
 	web.Controller
 }
@@ -59,6 +63,10 @@ type LocalAddNodesController struct {
 }
 
 type LocalClusterInfoController struct {
+	web.Controller
+}
+
+type IsClusterExist struct {
 	web.Controller
 }
 
@@ -133,16 +141,41 @@ func (lci *LocalClusterInfoController) Get() {
 	lci.ServeJSON()
 }
 
+func (ice *IsClusterExist) Get() {
+	logs.Debug("handle get request in ClustersController.")
+	result := models.IsClusterExist()
+	ice.Data["json"] = &result
+	ice.ServeJSON()
+}
+
 func (cc *ClustersController) Post() {
 	logs.Debug("handle post request in ClustersController.")
 	cc.ServeJSON()
 }
 
-func (cd *ClusterDestroyController) Post() {
+func (lcd *LocalClusterDestroyController) Get() {
 	logs.Debug("handle post request in ClustersController.")
-	result := models.ClustersDestroy()
-	cd.Data["json"] = &result
+	result := models.LocalClustersDestroy()
+	lcd.Data["json"] = &result
 	// return result of destroying cluster back to user.
+	lcd.ServeJSON()
+}
+
+func (cd *ClusterDestroyController) Post() {
+	logs.Debug("handle post request in NodesController.")
+	//var Result models.AddNodesRet
+	result := map[string]interface{}{}
+	ReqData := make(map[string]interface{})
+	body := cd.Ctx.Input.RequestBody
+	err := json.Unmarshal(body, &ReqData)
+	if err != nil {
+		result = make(map[string]interface{})
+		result["action"] = false
+		result["error"] = "invalid input data"
+	} else {
+		result = models.ClusterDestroy(ReqData)
+	}
+	cd.Data["json"] = &result
 	cd.ServeJSON()
 }
 
