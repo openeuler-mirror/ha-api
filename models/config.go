@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func isClusterExist() bool {
+func IsClusterExist() bool {
 	_, err := os.Stat("/etc/corosync/corosync.conf")
 	return err == nil
 }

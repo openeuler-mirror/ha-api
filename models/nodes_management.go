@@ -58,7 +58,7 @@ func GetClusterInfo() map[string]interface{} {
 	_, currentNode := utils.RunCommand("cat /etc/hostname")
 	currentNodeStr := strings.ReplaceAll(fmt.Sprintf("%s", currentNode), "\n", "")
 
-	if isClusterExist() {
+	if IsClusterExist() {
 		nodeList := getNodeList()
 		nodes := make([]map[string]interface{}, 0)
 
@@ -179,7 +179,7 @@ func generateNodeCmdStr(nodesInfo []NodeData) string {
 	return cmd.String()
 }
 
-func ClustersDestroy() map[string]interface{} {
+func LocalClustersDestroy() map[string]interface{} {
 	res := map[string]interface{}{}
 	cmd := "pcs cluster destroy --all"
 	out, err := utils.RunCommand(cmd)
@@ -235,7 +235,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 		return authres
 	}
 
-	if isClusterExist() {
+	if IsClusterExist() {
 		hbIPPrefix := "addr="
 		cmdPrefix := "pcs cluster node add "
 		addNodeCmd := ""

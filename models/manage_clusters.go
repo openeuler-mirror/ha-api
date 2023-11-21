@@ -13,7 +13,7 @@ import (
 )
 
 var clustersFileName = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
-var port = 8088
+var port = 8080
 
 // ClusterInfo is a structure representing information about clusters.
 type ClusterInfo struct {
@@ -290,7 +290,7 @@ func syncClusterConfFile(conf *ClusterInfo) {
 	nodeList := clusterInfo["nodes"].([]string)
 	for _, node := range nodeList {
 		// Node-to-node config file sync operation
-		url := fmt.Sprintf("https://%s:%s/remote/api/v1/sync_config", node, port)
+		url := fmt.Sprintf("http://%s:%d/remote/api/v1/sync_config", node, port)
 		confJSON, err := json.Marshal(conf.Text)
 		if err != nil {
 			fmt.Println("Error marshaling config to JSON:", err)
@@ -372,7 +372,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		return authRes
 	}
 
-	url := fmt.Sprintf("https://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
+	url := fmt.Sprintf("https://%s:%d/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
 	resp, err := http.Get(url)
 	if err != nil {
 		return map[string]interface{}{
@@ -496,7 +496,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
 	if len(remoteNodeList) > 0 {
 		for _, node := range remoteNodeList {
-			url := fmt.Sprintf("https://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
+			url := fmt.Sprintf("http://%s:%d/remote/api/v1/nodes/add_nodes", node, port)
 
 			httpResp := sendRequest(url, "POST", AddNodesinfo.Data)
 			if httpResp.StatusCode == http.StatusOK {
@@ -505,7 +505,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				var httpRespMessage map[string]interface{}
 				json.Unmarshal(httpRespData, &httpRespMessage)
 
-				url = fmt.Sprintf("https://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
+				url = fmt.Sprintf("http://%s:%d/remote/api/v1/managec/local_cluster_info", node, port)
 				httpResp = sendRequest(url, "GET", nil)
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
@@ -525,6 +525,71 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 		"action":     false,
 		"error":      "未找到集群",
 		"detailInfo": "无法连接到集群",
+	}
+}
+
+func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} {
+	localConf := getLocalConf()
+	clusterList := localConf.Clusters
+	res := make([]bool, 0)
+	failedClusterList := make([]string, 0)
+	detailInfos := make([]string, 0)
+	clusters := clustersJSON["cluster_name"].([]interface{})
+	for _, desCluster := range clusters {
+		nodeList := make([]interface{}, 0)
+		for _, cluster := range clusterList {
+			if desCluster == cluster.(map[string]interface{})["cluster_name"] {
+				nodeList = cluster.(map[string]interface{})["nodes"].([]interface{})
+			}
+		}
+		des := false
+		detailInfo := "cluster cannot connect"
+		for _, node := range nodeList {
+			url := fmt.Sprintf("http://%s:%d/remote/api/v1/destroy_cluster", node, port)
+			success := false
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Println(r) // 处理异常
+					}
+				}()
+				response, err := http.Get(url)
+				if err != nil {
+					panic(err) // 触发异常
+				}
+				defer response.Body.Close()
+				var requestMessage map[string]interface{}
+				err = json.NewDecoder(response.Body).Decode(&requestMessage)
+				if err != nil {
+					panic(err) // 触发异常
+				}
+				if requestMessage["action"].(bool) {
+					success = true
+				} else {
+					detailInfo = requestMessage["detailInfo"].(string)
+				}
+			}()
+			if success {
+				des = true
+				break
+			}
+		}
+		if !des {
+			res = append(res, false)
+			failedClusterList = append(failedClusterList, desCluster.(string))
+			detailInfos = append(detailInfos, detailInfo)
+		} else {
+			res = append(res, true)
+		}
+		localConf.DeleteCluster(desCluster.(string))
+		localConf.Save()
+		syncClusterConfFile(localConf)
+	}
+	return map[string]interface{}{
+		"action":     true,
+		"data":       res,
+		"clusters":   failedClusterList,
+		"detailInfo": detailInfos,
 	}
 }
 
