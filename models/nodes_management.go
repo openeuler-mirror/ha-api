@@ -3,7 +3,7 @@ package models
 import (
 	"bufio"
 	"fmt"
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 	"os"
 	"strconv"
 	"strings"

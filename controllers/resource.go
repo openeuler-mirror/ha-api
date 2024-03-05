@@ -20,7 +20,7 @@ import (
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 
-	"openkylin.com/ha-api/models"
+	"gitee.com/openeuler/ha-api/models"
 )
 
 type ResourceController struct {

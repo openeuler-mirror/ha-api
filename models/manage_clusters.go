@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 	"os"
 )
 

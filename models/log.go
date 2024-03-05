@@ -15,7 +15,7 @@
 package models
 
 import (
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 func GenerateLog() map[string]interface{} {

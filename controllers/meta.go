@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"github.com/beego/beego/v2/server/web"
-	"openkylin.com/ha-api/models"
+	"gitee.com/openeuler/ha-api/models"
 )
 
 type MetaController struct {

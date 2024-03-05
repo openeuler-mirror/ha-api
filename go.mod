@@ -1,4 +1,4 @@
-module openkylin.com/ha-api
+module gitee.com/openeuler/ha-api
 
 go 1.13
 

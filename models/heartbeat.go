@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 
 	"errors"
 )

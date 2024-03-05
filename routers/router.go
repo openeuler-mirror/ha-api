@@ -16,7 +16,7 @@ package routers
 
 import (
 	"github.com/beego/beego/v2/server/web"
-	"openkylin.com/ha-api/controllers"
+	"gitee.com/openeuler/ha-api/controllers"
 )
 
 func init() {

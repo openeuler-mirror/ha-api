@@ -17,7 +17,7 @@ package main
 import (
 	"net/http"
 
-	_ "openkylin.com/ha-api/routers"
+	_ "gitee.com/openeuler/ha-api/routers"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"

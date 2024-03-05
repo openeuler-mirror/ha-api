@@ -21,8 +21,8 @@ import (
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 
-	"openkylin.com/ha-api/settings"
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/settings"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 // TypeToSplit used in cluster global parameters that has a unit

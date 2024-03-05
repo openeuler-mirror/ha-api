@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 func GetAllResourceMetas() map[string]interface{} {

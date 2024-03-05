@@ -22,7 +22,7 @@ import (
 	"github.com/beego/beego/v2/server/web"
 	"github.com/beego/beego/v2/server/web/context"
 
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 func init() {
@@ -51,7 +51,7 @@ type LoginController struct {
 }
 
 func (lc *LoginController) Post() {
-	logs.Debug("handle psot request in LoginController.")
+	logs.Debug("handle post request in LoginController.")
 	result := struct {
 		Action bool   `json:"action"`
 		Error  string `json:"error"`

@@ -19,7 +19,7 @@ import (
 
 	"encoding/json"
 
-	"openkylin.com/ha-api/models"
+	"gitee.com/openeuler/ha-api/models"
 )
 
 type AlarmConfig struct {
