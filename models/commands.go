@@ -17,7 +17,7 @@ package models
 import (
 	"errors"
 
-	"openkylin.com/ha-api/utils"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 // DO NOT EDIT ANYWHERE!!!

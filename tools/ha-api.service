@@ -1,6 +1,6 @@
 [Unit]
 Description=ha-api
-Documentation=http://openkylin.com
+Documentation=http://gitee.com/openeuler
 [Service]
 Type=simple
 KillMode=process

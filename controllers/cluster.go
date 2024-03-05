@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"openkylin.com/ha-api/models"
+	"gitee.com/openeuler/ha-api/models"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
