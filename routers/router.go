@@ -15,8 +15,8 @@
 package routers
 
 import (
-	"github.com/beego/beego/v2/server/web"
 	"gitee.com/openeuler/ha-api/controllers"
+	"github.com/beego/beego/v2/server/web"
 )
 
 func init() {
@@ -35,6 +35,7 @@ func init() {
 		web.NSRouter("/haclusters/1/cluster_status", &controllers.ClustersStatusController{}),
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
+		web.NSRouter("/user", &controllers.PasswordChangeController{}),
 		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
 		//web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),
