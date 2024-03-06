@@ -54,8 +54,9 @@ func (lc *LoginController) Post() {
 	logs.Debug("handle post request in LoginController.")
 	result := struct {
 		Action bool   `json:"action"`
-		Error  string `json:"error"`
-	}{false, ""}
+		Error  string `json:"error,omitempty"`
+		Info   string `json:"info,omitempty"`
+	}{true, "", ""}
 
 	d := struct {
 		Username string `json:"username"`
@@ -64,17 +65,20 @@ func (lc *LoginController) Post() {
 
 	if err := json.Unmarshal(lc.Ctx.Input.RequestBody, &d); err != nil {
 		result.Action = false
-		result.Error = "Login failed"
+		result.Error = err.Error()
+		logs.Error("Login failed:", err)
 		goto ret
 	}
 	if d.Username == "" || d.Password == "" {
 		result.Action = false
-		result.Error = "Username or password error"
+		result.Error = "username or password empty"
+		logs.Error("Login failed: username or password is empty")
 		goto ret
 	}
 	if d.Username != "hacluster" {
 		result.Action = false
 		result.Error = "Username is not allowed to login"
+		logs.Error("Login failed: username is not allowed to login")
 		goto ret
 	}
 
@@ -85,10 +89,11 @@ func (lc *LoginController) Post() {
 		lc.SetSession("password", d.Password)
 
 		result.Action = true
-		result.Error = ""
+		result.Info = "Login success"
 	} else {
 		result.Action = false
 		result.Error = "Username or password error"
+		logs.Error("Login failed: username or password error")
 	}
 
 ret:
@@ -107,8 +112,55 @@ func (lc *LogoutController) Post() {
 
 	result := struct {
 		Action bool   `json:"action"`
-		Error  string `json:"info"`
-	}{true, "logout"}
+		Error  string `json:"error,omitempty"`
+		Info   string `json:"info,omitempty"`
+	}{true, "", ""}
+	result.Info = "Logout success"
+	logs.Info("Logout success")
+	lc.Data["json"] = &result
+	lc.ServeJSON()
+}
+
+type PasswordChangeController struct {
+	web.Controller
+}
+
+func (lc *PasswordChangeController) Post() {
+	logs.Debug("handle post request in PasswordChangeController.")
+	var cmd string = ""
+	result := struct {
+		Action bool   `json:"action"`
+		Error  string `json:"error,omitempty"`
+		Info   string `json:"info,omitempty"`
+	}{false, "", ""}
+
+	data := struct {
+		Password string `json:"password"`
+	}{}
+
+	if err := json.Unmarshal(lc.Ctx.Input.RequestBody, &data); err != nil {
+		result.Action = false
+		result.Error = err.Error()
+		goto ret
+	}
+
+	if data.Password == "" {
+		result.Action = false
+		result.Error = "The new password is empty"
+		goto ret
+	}
+	cmd = "echo 'hacluster:" + data.Password + "'|chpasswd >/dev/null 2>&1"
+	if _, err := utils.RunCommand(cmd); err != nil {
+		logs.Error("run command error: ", err)
+		result.Action = false
+		result.Error = err.Error()
+		goto ret
+	} else {
+		result.Action = true
+		result.Info = "Change password success"
+	}
+
+ret:
 	lc.Data["json"] = &result
 	lc.ServeJSON()
 }
