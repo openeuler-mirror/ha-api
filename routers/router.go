@@ -73,6 +73,7 @@ func init() {
 		web.NSRouter("/haclusters/1/commands/:cmd_type", &controllers.CommandsRunnerController{}),
 
 		web.NSRouter("/haclusters/1/utilization", &controllers.UtilizationController{}),
+		web.NSRouter("/haclusters/1/rules", &controllers.RuleController{}),
 	)
 	nr := web.NewNamespace("/remote/api/v1",
 		web.NSRouter("/sync_config", &controllers.Sync_configController{}),

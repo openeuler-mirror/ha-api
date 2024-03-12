@@ -15,50 +15,50 @@
 package models
 
 import (
-   	"strings"
-	"gitee.com/openeuler/ha-api/utils"
 	"encoding/json"
-	"github.com/beego/beego/v2/core/logs"
+	"strings"
+
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 func GetUtilization() map[string]interface{} {
 	result := map[string]interface{}{}
 	ul := make(map[string]interface{})
 
-    ul["NodeUtilization"] = GetOneTypeUtilization("node")
-    ul["ResUtilization"] = GetOneTypeUtilization("resource")
+	ul["NodeUtilization"] = GetOneTypeUtilization("node")
+	ul["ResUtilization"] = GetOneTypeUtilization("resource")
 	result["action"] = true
 	result["data"] = ul
 	return result
 }
-	
+
 func GetOneTypeUtilization(Uti_type string) []map[string]interface{} {
 	data := []map[string]interface{}{}
-    cmd := "pcs " + Uti_type + " utilization"
+	cmd := "pcs " + Uti_type + " utilization"
 	output, _ := utils.RunCommand(cmd)
-	Util := strings.Split(string(output),"Utilization:")[1]
+	Util := strings.Split(string(output), "Utilization:")[1]
 	info := map[string]interface{}{}
-    if Util == ""{
+	if Util == "" {
 		return nil
-	}else {
+	} else {
 		attri := map[string]string{}
 		UtilList := strings.Split(Util, "\n")
-		if UtilList[1] == ""{
+		if UtilList[1] == "" {
 			return nil
 		}
 		Data := strings.Split(UtilList[1], ":")
-		for i,j := range strings.Split(strings.TrimSpace(Data[1]), " "){
+		for _, j := range strings.Split(strings.TrimSpace(Data[1]), " ") {
 			parts := strings.Split(string(j), "=")
 			res_key := strings.TrimSpace(parts[0])
 			res_value := strings.TrimSpace(parts[1])
-			attri[res_key] = res_value 
+			attri[res_key] = res_value
 		}
 		info["attri"] = attri
 		// for k,OneUtil := range UtilList{
-			
-		data = append(data, info)        
+
+		data = append(data, info)
 	}
-    return data
+	return data
 }
 
 func SetUtilization(data []byte) map[string]interface{} {
@@ -70,30 +70,30 @@ func SetUtilization(data []byte) map[string]interface{} {
 	if err != nil {
 		return map[string]interface{}{"action": false, "error": "Cannot convert data to json map"}
 	}
-	
+
 	result := map[string]interface{}{}
 	utype, _ := jsonData["type"]
 	name, _ := jsonData["name"]
-    cmd := "pcs " + utype + " utilization " + name + " "
-	for k,v := range jsonData{
-		if k != "name" && k != "type"{
+	cmd := "pcs " + utype + " utilization " + name + " "
+	for k, v := range jsonData {
+		if k != "name" && k != "type" {
 			cmd = cmd + k + "=" + v
-		}	
+		}
 	}
 	out, err := utils.RunCommand(cmd)
-	if err == nil{
+	if err == nil {
 		result["action"] = true
 		result["info"] = "利用率设置成功！"
-		
-	}else {
+
+	} else {
 		result["action"] = false
-		if strings.Contains(string(out),"Error: Unable to find"){
-			if utype == "node"{
+		if strings.Contains(string(out), "Error: Unable to find") {
+			if utype == "node" {
 				result["error"] = "节点名称填写错误"
-			}else if utype == "resource"{
+			} else if utype == "resource" {
 				result["error"] = "资源名称填写错误"
 			}
-		}else{
+		} else {
 			result["error"] = out
 		}
 	}
@@ -109,21 +109,21 @@ func DelUtilization(data []byte) map[string]interface{} {
 	if err != nil {
 		return map[string]interface{}{"action": false, "error": "Cannot convert data to json map"}
 	}
-	
+
 	result := map[string]interface{}{}
 	utype, _ := jsonData["type"]
 	name, _ := jsonData["name"]
-	cmd := "pcs " + utype+ " utilization " + name + " "
-	for k,_ := range jsonData{
-		if k != "name" && k!= "type"{
-			cmd = cmd + k + "=" 
+	cmd := "pcs " + utype + " utilization " + name + " "
+	for k, _ := range jsonData {
+		if k != "name" && k != "type" {
+			cmd = cmd + k + "="
 		}
 	}
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
 		result["action"] = true
 		result["info"] = "利用率删除成功！"
-	}else{
+	} else {
 		result["action"] = false
 		result["error"] = out
 	}
