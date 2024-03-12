@@ -29,9 +29,8 @@ type Rule struct {
 }
 
 type RuleGetResponse struct {
-	Action bool   `json:"action"`
-	Error  string `json:"error,omitempty"`
-	Data   []Rule `json:"data,omitempty"`
+	GeneralResponse
+	Data []Rule `json:"data"`
 }
 
 type GeneralResponse struct {
@@ -80,13 +79,77 @@ func RulesGet(rscName string) RuleGetResponse {
 	}
 
 	return RuleGetResponse{
-		Action: true,
-		Data:   rulelist,
+		Data: rulelist,
+		GeneralResponse: GeneralResponse{
+			Action: true,
+		},
 	}
 
 ret:
 	return RuleGetResponse{
-		Action: false,
-		Error:  err.Error(),
+		GeneralResponse: GeneralResponse{
+			Action: true,
+			Error:  err.Error(),
+		},
 	}
+}
+
+type RuleDeleteResponse struct {
+	Action bool                     `json:"action"`
+	Info   string                   `json:"info,omitempty"`
+	Error  []map[string]interface{} `json:"error,omitempty"`
+}
+
+// Todo:return list ?
+func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
+	ruleIdList := ruleids["ids"]
+	var res []map[string]interface{}
+
+	for _, id := range ruleIdList {
+		delRuleCmd := "pcs constraint rule delete " + id
+		_, err := utils.RunCommand(delRuleCmd)
+		if err != nil {
+			res = append(res, map[string]interface{}{
+				"id":    id,
+				"error": err.Error(),
+			})
+		}
+	}
+	if len(res) != 0 {
+		return RuleDeleteResponse{
+			Action: true,
+			Error:  res,
+		}
+	}
+	return RuleDeleteResponse{
+		Action: true,
+		Info:   "Delete rule success!",
+	}
+}
+
+func RuleAdd(data map[string]string) GeneralResponse {
+	var cmdAddRule string
+	if _, ok := data["ruleid"]; ok {
+		cmdAddRule = "pcs constraint location " + data["rsc"] + " rule score=" + data["score"] + " id=" + data["ruleid"]
+	} else {
+		cmdAddRule = "pcs constraint location " + data["rsc"] + " rule score=" + data["score"]
+	}
+
+	if _, ok := data["value"]; ok {
+		cmdAddRule = cmdAddRule + " " + data["attribute"] + " " + data["operation"] + " " + data["value"]
+	} else {
+		cmdAddRule = cmdAddRule + " " + data["operation"] + " " + data["attribute"]
+	}
+	_, err := utils.RunCommand(cmdAddRule)
+	if err != nil {
+		return GeneralResponse{
+			Action: false,
+			Error:  err.Error(),
+		}
+	}
+	return GeneralResponse{
+		Action: true,
+		Info:   "Add rule success!",
+	}
+
 }
