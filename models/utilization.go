@@ -17,14 +17,13 @@ package models
 import (
 	"encoding/json"
 	"strings"
-
+//	"github.com/beego/beego/v2/core/logs"
 	"gitee.com/openeuler/ha-api/utils"
 )
 
 func GetUtilization() map[string]interface{} {
 	result := map[string]interface{}{}
 	ul := make(map[string]interface{})
-
 	ul["NodeUtilization"] = GetOneTypeUtilization("node")
 	ul["ResUtilization"] = GetOneTypeUtilization("resource")
 	result["action"] = true
@@ -37,25 +36,26 @@ func GetOneTypeUtilization(Uti_type string) []map[string]interface{} {
 	cmd := "pcs " + Uti_type + " utilization"
 	output, _ := utils.RunCommand(cmd)
 	Util := strings.Split(string(output), "Utilization:")[1]
-	info := map[string]interface{}{}
-	if Util == "" {
+	
+	Util = strings.TrimSpace(Util)
+	if Util == ""{
 		return nil
-	} else {
-		attri := map[string]string{}
-		UtilList := strings.Split(Util, "\n")
-		if UtilList[1] == "" {
-			return nil
-		}
-		Data := strings.Split(UtilList[1], ":")
-		for _, j := range strings.Split(strings.TrimSpace(Data[1]), " ") {
+	}
+	attri := map[string]string{}
+	UtilList := strings.Split(Util, "\n")
+	
+	for i := range UtilList {
+		info := map[string]interface{}{}
+		name := strings.Split(UtilList[i], ":")[0]
+		Data := strings.Split(UtilList[i], ":")[1]
+		info["name"] = name
+		for _, j := range strings.Split(strings.TrimSpace(Data), " ") {
 			parts := strings.Split(string(j), "=")
 			res_key := strings.TrimSpace(parts[0])
 			res_value := strings.TrimSpace(parts[1])
 			attri[res_key] = res_value
 		}
 		info["attri"] = attri
-		// for k,OneUtil := range UtilList{
-
 		data = append(data, info)
 	}
 	return data
