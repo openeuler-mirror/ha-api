@@ -16,6 +16,8 @@
 package controllers
 
 import (
+	"encoding/json"
+
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 
@@ -30,5 +32,16 @@ func (rc *RuleController) Get() {
 	logs.Debug("handle rule GET request")
 	rscName := rc.GetString("rscname")
 	rc.Data["json"] = models.RulesGet(rscName)
+	rc.ServeJSON()
+}
+
+func (rc *RuleController) Post() {
+	logs.Debug("handle rule POST request")
+	data := make(map[string]string)
+	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+		rc.handleJsonError(err.Error(), false)
+	}
+	res := models.RuleAdd(data)
+	rc.Data["json"] = &res
 	rc.ServeJSON()
 }
