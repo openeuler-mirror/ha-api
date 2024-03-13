@@ -29,14 +29,8 @@ type Rule struct {
 }
 
 type RuleGetResponse struct {
-	GeneralResponse
+	utils.GeneralResponse
 	Data []Rule `json:"data"`
-}
-
-type GeneralResponse struct {
-	Action bool   `json:"action"`
-	Error  string `json:"error,omitempty"`
-	Info   string `json:"info,omitempty"`
 }
 
 const cstQueryCmd string = "cibadmin --query --scope constraints"
@@ -80,16 +74,16 @@ func RulesGet(rscName string) RuleGetResponse {
 
 	return RuleGetResponse{
 		Data: rulelist,
-		GeneralResponse: GeneralResponse{
+		GeneralResponse: utils.GeneralResponse{
 			Action: true,
 		},
 	}
 
 ret:
 	return RuleGetResponse{
-		GeneralResponse: GeneralResponse{
-			Action: true,
-			Error:  err.Error(),
+		GeneralResponse: utils.GeneralResponse{
+			Action: false,
+			Error:  "获取规则失败",
 		},
 	}
 }
@@ -111,23 +105,24 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 		if err != nil {
 			res = append(res, map[string]interface{}{
 				"id":    id,
-				"error": err.Error(),
+				"error": "编号为 " + id + "的规则找不到", // error信息特殊处理？
 			})
 		}
 	}
 	if len(res) != 0 {
+		// Todo： some rules was deleted failed, recovery？
 		return RuleDeleteResponse{
-			Action: true,
+			Action: false,
 			Error:  res,
 		}
 	}
 	return RuleDeleteResponse{
 		Action: true,
-		Info:   "Delete rule success!",
+		Info:   "删除规则成功",
 	}
 }
 
-func RuleAdd(data map[string]string) GeneralResponse {
+func RuleAdd(data map[string]string) utils.GeneralResponse {
 	var cmdAddRule string
 	if _, ok := data["ruleid"]; ok {
 		cmdAddRule = "pcs constraint location " + data["rsc"] + " rule score=" + data["score"] + " id=" + data["ruleid"]
@@ -142,14 +137,53 @@ func RuleAdd(data map[string]string) GeneralResponse {
 	}
 	_, err := utils.RunCommand(cmdAddRule)
 	if err != nil {
-		return GeneralResponse{
-			Action: false,
-			Error:  err.Error(),
+		return utils.HandleCmdError("添加规则失败，重复的约束已存在", false)
+	}
+	return utils.GeneralResponse{
+		Action: true,
+		Info:   "添加规则成功",
+	}
+
+}
+
+func RuleUpdate(data map[string]string) utils.GeneralResponse {
+	out, err := utils.RunCommand(cstQueryCmd)
+	if err != nil {
+		return utils.HandleCmdError(err.Error(), false)
+	}
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(out); err != nil {
+		return utils.HandleXmlError(err.Error(), false)
+	}
+	r := make(map[string]string)
+	rules := doc.FindElements("//rsc_location/rule")
+	for _, ruleElem := range rules {
+		if ruleId := ruleElem.SelectAttrValue("id", ""); ruleId == data["ruleid"] {
+			r["ruleid"] = ruleElem.SelectAttrValue("id", "")
+			r["score"] = ruleElem.SelectAttrValue("score", "")
+			r["attribute"] = ruleElem.SelectElement("expression").SelectAttrValue("attribute", "")
+			r["operation"] = ruleElem.SelectElement("expression").SelectAttrValue("operation", "")
+			r["value"] = ruleElem.SelectElement("expression").SelectAttrValue("value", "")
 		}
 	}
-	return GeneralResponse{
+	// delete old rule
+	deleteRuleCmd := "pcs constraint rule delete " + data["ruleid"]
+	_, err = utils.RunCommand(deleteRuleCmd)
+	if err != nil {
+		return utils.HandleCmdError("更新规则失败，原id为"+data["ruleid"]+"规则找不到", false)
+	}
+	// add new rule
+	resp := RuleAdd(data)
+	if !resp.Action {
+		// recovery the update op
+		RuleAdd(r)
+		return utils.HandleCmdError("更新规则失败，重复的约束已存在", false)
+	}
+
+	return utils.GeneralResponse{
 		Action: true,
-		Info:   "Add rule success!",
+		Info:   "更新规则成功",
 	}
 
 }
