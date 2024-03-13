@@ -45,3 +45,25 @@ func (rc *RuleController) Post() {
 	rc.Data["json"] = &res
 	rc.ServeJSON()
 }
+
+func (rc *RuleController) Delete() {
+	logs.Debug("handle rule DELETE request")
+	data := make(map[string][]string)
+	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+		rc.handleJsonError(err.Error(), false)
+	}
+	res := models.RulesDelete(data)
+	rc.Data["json"] = &res
+	rc.ServeJSON()
+}
+
+func (rc *RuleController) Put() {
+	logs.Debug("handle rule PUT request")
+	data := make(map[string]string)
+	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+		rc.handleJsonError(err.Error(), false)
+	}
+	res := models.RuleUpdate(data)
+	rc.Data["json"] = &res
+	rc.ServeJSON()
+}
