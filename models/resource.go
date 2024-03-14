@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"strings"
 
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
-	"gitee.com/openeuler/ha-api/utils"
 )
 
 // GetResourceInfo
@@ -83,7 +83,7 @@ func GetResourceType(rscID string) string {
 	return rscType
 }
 
-//TODO needs to integrate to func GetResourceByConstraintAndId
+// TODO needs to integrate to func GetResourceByConstraintAndId
 // or func GetAllConstraints??
 func GetResourceConstraints(rscID, relation string) (map[string]interface{}, error) {
 	retData := make(map[string]interface{})
@@ -1551,8 +1551,7 @@ func GetResourceSvc(rscId string) string {
 	if err != nil {
 		return ""
 	}
-
-	xmlStr := strings.Split(string(out), "xml:")[1]
+	xmlStr := strings.Split(string(out), "XML:")[1]
 	doc := etree.NewDocument()
 	if err = doc.ReadFromString(xmlStr); err != nil {
 		return ""
