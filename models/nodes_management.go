@@ -3,10 +3,11 @@ package models
 import (
 	"bufio"
 	"fmt"
-	"gitee.com/openeuler/ha-api/utils"
 	"os"
 	"strconv"
 	"strings"
+
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 // nodes_info格式
@@ -231,7 +232,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 	authInfo.passWord = password
 	authInfo.ip = ip
 	authres := hostAuthWithAddr(authInfo)
-	if authres.Action == false {
+	if !authres.Action {
 		return authres
 	}
 

@@ -88,8 +88,7 @@ func GetResourceType(rscID string) string {
 func GetResourceConstraints(rscID, relation string) (map[string]interface{}, error) {
 	retData := make(map[string]interface{})
 
-	var cmd string
-	cmd = "cibadmin --query --scope constraints"
+	cmd := "cibadmin --query --scope constraints"
 	out, err := utils.RunCommand(cmd)
 
 	if err != nil {
@@ -129,7 +128,6 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		}
 		retData["node_level"] = resourceLocations
 		retData["rsc_id"] = rscID
-		break
 	case "colocation":
 		sameNodes := []string{}
 		diffNodes := []string{}
@@ -142,10 +140,8 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 				switch score {
 				case "INFINITY":
 					sameNodes = append(sameNodes, rscWith)
-					break
 				case "-INFINITY":
 					diffNodes = append(diffNodes, rscWith)
-					break
 				}
 			}
 
@@ -155,17 +151,14 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 				switch score {
 				case "INFINITY":
 					sameNodes = append(sameNodes, rsc)
-					break
 				case "-INFINITY":
 					diffNodes = append(diffNodes, rsc)
-					break
 				}
 			}
 		}
 		retData["same_node"] = sameNodes
 		retData["rsc_id"] = rscID
 		retData["diff_node"] = diffNodes
-		break
 	case "order":
 		before := []string{}
 		after := []string{}
@@ -185,7 +178,6 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		retData["before_rscs"] = before
 		retData["rsc_id"] = rscID
 		retData["after_rscs"] = after
-		break
 	}
 	return retData, nil
 }
@@ -335,7 +327,7 @@ func GetResourceByConstraintAndId() {
 }
 
 func CreateResource(data []byte) map[string]interface{} {
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return map[string]interface{}{"action": false, "error": "No input data"}
 	}
 	jsonData := map[string]interface{}{}
@@ -405,7 +397,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
-				if "target-role" == s {
+				if s == "target-role" {
 					flag = 1
 					break
 				}
@@ -499,7 +491,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
-				if "target-role" == s {
+				if s == "target-role" {
 					flag = 1
 					break
 				}
@@ -545,7 +537,7 @@ func CreateResource(data []byte) map[string]interface{} {
 		attrib := GetMetaAndInst(rscId)
 		for _, arr := range attrib {
 			for _, s := range arr {
-				if "target-role" == s {
+				if s == "target-role" {
 					flag = 1
 					break
 				}
@@ -591,8 +583,8 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 			"class":"ocf"
 		}
 	*/
-	if data == nil || len(data) == 0 {
-		return errors.New("No input data")
+	if len(data) == 0 {
+		return errors.New("no input data")
 	}
 	// delete all the attribute
 	attrib := GetMetaAndInst(rscId)
@@ -624,7 +616,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				if t, ok := v.(string); ok {
 					value = t
 				} else if t, ok := v.(bool); ok {
-					if t == true {
+					if t {
 						value = "true"
 					} else {
 						value = "false"
@@ -650,7 +642,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				if t, ok := v.(string); ok {
 					value = t
 				} else if t, ok := v.(bool); ok {
-					if t == true {
+					if t {
 						value = "true"
 					} else {
 						value = "false"
@@ -1827,8 +1819,6 @@ func findOrder(rscID string) bool {
 }
 
 func GetResourceInfoByrscID(rscID string) (interface{}, error) {
-	result := map[string]interface{}{}
-
 	cmd := "crm_resource --resource " + rscID + " --query-xml"
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
@@ -1842,7 +1832,7 @@ func GetResourceInfoByrscID(rscID string) (interface{}, error) {
 	}
 
 	ct := doc.Root().Tag
-	result, err = GetResourceInfoID(ct, xml)
+	result, err := GetResourceInfoID(ct, xml)
 	if err != nil {
 		return nil, err
 	}
@@ -2113,7 +2103,7 @@ func ScoreToLevel(score string) string {
 			break
 		}
 	}
-	if isIn == false {
+	if !isIn {
 		return score
 	}
 

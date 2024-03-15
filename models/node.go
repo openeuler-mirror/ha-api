@@ -18,9 +18,9 @@ import (
 	"errors"
 	"strings"
 
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
-	"gitee.com/openeuler/ha-api/utils"
 )
 
 func GetNodesInfo() ([]map[string]string, error) {
@@ -42,7 +42,7 @@ func GetNodesInfo() ([]map[string]string, error) {
 		if len(result) > 0 {
 			return result, nil
 		}
-		return nil, errors.New("Get node failed")
+		return nil, errors.New("get node failed")
 	}
 
 	doc := etree.NewDocument()
@@ -97,16 +97,14 @@ func GetNodesInfo() ([]map[string]string, error) {
 	if len(result) > 0 {
 		return result, nil
 	}
-	return nil, errors.New("Get node failed")
+	return nil, errors.New("get node failed")
 }
 
 func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
-	var cmd string
-	cmd = "cat /etc/hosts|grep " + nodeID + "|awk -F ' ' '{print $1}'"
+	cmd := "cat /etc/hosts|grep " + nodeID + "|awk -F ' ' '{print $1}'"
 	out, err := utils.RunCommand(cmd)
 
-	ips := []string{}
-	ips = strings.Split(strings.TrimSpace(string(out)), "\n")
+	ips := strings.Split(strings.TrimSpace(string(out)), "\n")
 	logs.Debug(ips)
 
 	if err != nil || len(ips) == 0 {

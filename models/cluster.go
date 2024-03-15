@@ -91,7 +91,7 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 		if t, ok := value.(string); ok {
 			strValue = t
 		} else if t, ok := value.(bool); ok {
-			if t == true {
+			if t {
 				strValue = "true"
 			} else {
 				strValue = "false"

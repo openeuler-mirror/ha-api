@@ -8,8 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"gitee.com/openeuler/ha-api/utils"
 	"os"
+
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 var clustersFileName = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
@@ -74,7 +75,7 @@ func NewClustersInfo(text map[string]interface{}) *ClusterInfo {
 		Text: text,
 	}
 
-	if text == nil || len(text) == 0 {
+	if len(text) == 0 {
 		c.Text = make(map[string]interface{})
 		c.Version = 0
 		c.Clusters = make([]interface{}, 0)
@@ -383,7 +384,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 
 	if resp.StatusCode == http.StatusOK {
 		var NewClusterInfo map[string]interface{}
-		body, err := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = json.Unmarshal(body, &NewClusterInfo)
 		if err != nil {
@@ -472,7 +473,7 @@ func ClusterRemove(RemoveInfo RemoveData) *RemoveRet {
 	for _, cluster := range clusters {
 		res := localConf.DeleteCluster(cluster)
 		removeRes = append(removeRes, res)
-		if res == false {
+		if !res {
 			faildCluster = append(faildCluster, cluster)
 		}
 		localConf.Save()
