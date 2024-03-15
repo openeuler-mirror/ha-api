@@ -109,14 +109,14 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 			rsc := resourceLocation.SelectAttr("rsc").Value
 			if rsc == rscID {
 				rscConstraint := map[string]string{}
-				score := resourceLocation.SelectAttr("score").Value
+				score := resourceLocation.SelectAttrValue("score", "")
 				if score == "-INFINITY" || score == "-infinity" {
 					continue
 				}
 				if score == "INFINITY" || score == "infinity" {
 					continue
 				}
-				rscConstraint["node"] = resourceLocation.SelectAttr("node").Value
+				rscConstraint["node"] = resourceLocation.SelectAttrValue("node", "")
 				if score == "20000" {
 					rscConstraint["level"] = "Master Node"
 				} else if score == "16000" {
@@ -138,7 +138,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 			rscWith := colocation.SelectAttr("with-rsc").Value
 
 			if rsc == rscID {
-				score := colocation.SelectAttr("score").Value
+				score := colocation.SelectAttrValue("score", "")
 				switch score {
 				case "INFINITY":
 					sameNodes = append(sameNodes, rscWith)
@@ -151,7 +151,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 
 			//TODO find better way to solve the rsc and with-rsc
 			if rscWith == rscID {
-				score := colocation.SelectAttr("score").Value
+				score := colocation.SelectAttrValue("score", "")
 				switch score {
 				case "INFINITY":
 					sameNodes = append(sameNodes, rsc)
@@ -209,7 +209,7 @@ func GetResourceFailedMessage() map[string]map[string]string {
 			rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
 			rscIdm := strings.Split(rscIdf, "_start_")[0]
 			rscId := strings.Split(rscIdm, "_start_")[0]
-			node := failure.SelectAttr("node").Value
+			node := failure.SelectAttrValue("node", "")
 			exitreason := failure.SelectAttr("exitreason").Value
 			infoFail["node"] = node
 			infoFail["exitreason"] = exitreason
@@ -947,9 +947,9 @@ func GetAllConstraints() map[string]interface{} {
 				if strings.HasPrefix(location.SelectAttr("id").Value, "cli-prefer-") {
 					continue
 				}
-				node := location.SelectAttr("node").Value
-				rscId := location.SelectAttr("rsc").Value
-				score := location.SelectAttr("score").Value
+				node := location.SelectAttrValue("node", "")
+				rscId := location.SelectAttrValue("rsc", "")
+				score := location.SelectAttrValue("score", "")
 				locationSingle := make(map[string]string)
 				locationSingle["node"] = node
 				locationSingle["level"] = ScoreToLevel(score)
@@ -995,7 +995,7 @@ func GetAllConstraints() map[string]interface{} {
 				with := colocation.SelectAttr("with-rsc").Value
 
 				//try except
-				score := colocation.SelectAttr("score").Value
+				score := colocation.SelectAttrValue("score", "")
 				if score == "INFINITY" || score == "+INFINITY" || score == "infinity" || score == "+infinity" {
 					rsc := map[string]string{}
 					rsc["rsc"] = first
@@ -1551,7 +1551,16 @@ func GetResourceSvc(rscId string) string {
 	if err != nil {
 		return ""
 	}
-	xmlStr := strings.Split(string(out), "XML:")[1]
+	// Provide compatibility with different versions of Corosync
+	xmlIndex := strings.Index(string(out), "XML:")
+	if xmlIndex == -1 {
+		xmlIndex = strings.Index(string(out), "xml:")
+	}
+	if xmlIndex == -1 {
+		return ""
+	}
+	xmlStr := string(out)[xmlIndex+len("XML:"):]
+
 	doc := etree.NewDocument()
 	if err = doc.ReadFromString(xmlStr); err != nil {
 		return ""
