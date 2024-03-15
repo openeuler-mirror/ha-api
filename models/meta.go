@@ -18,8 +18,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/beevik/etree"
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/beevik/etree"
 )
 
 func GetAllResourceMetas() map[string]interface{} {
@@ -64,7 +64,7 @@ func GetAllResourceMetas() map[string]interface{} {
 					agMap[agStr] = true
 				}
 				ag = []string{}
-				for k, _ := range agMap {
+				for k := range agMap {
 					ag = append(ag, k)
 				} // Eliminate Duplicates Over
 				res[p] = ag
@@ -88,7 +88,7 @@ func GetAllResourceMetas() map[string]interface{} {
 				}
 			}
 			la = []string{}
-			for k, _ := range laMap {
+			for k := range laMap {
 				la = append(la, k)
 			} // Eliminate Duplicates Over
 			laLen := len(la)

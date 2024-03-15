@@ -33,7 +33,7 @@ func GetHeartBeatHosts() ([]HostInfo, error) {
 
 	out, err := utils.RunCommand("cat /var/lib/pcsd/known-hosts")
 	if err != nil {
-		return nil, errors.New("No node in the Cluster, please run \"pcs host auth $nodename\" to add node")
+		return nil, errors.New("no node in the Cluster, please run \"pcs host auth $nodename\" to add node")
 	}
 
 	jsonData := map[string]interface{}{}
@@ -104,7 +104,7 @@ func GetHeartBeatConfig() (interface{}, error) {
 
 func EditHeartbeatInfo(jsonData []byte) error {
 	if len(jsonData) == 0 {
-		return errors.New("No input data")
+		return errors.New("no input data")
 	}
 
 	data := struct {
@@ -176,8 +176,8 @@ func EditHeartbeatInfo(jsonData []byte) error {
 		return nil
 	}
 
-	return errors.New("There are running resources in the cluster, please close first")
+	return errors.New("there are running resources in the cluster, please close first")
 
 ret:
-	return errors.New("Change cluster failed")
+	return errors.New("change cluster failed")
 }

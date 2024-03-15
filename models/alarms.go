@@ -15,9 +15,9 @@
 package models
 
 import (
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
-	"gitee.com/openeuler/ha-api/utils"
 )
 
 // 报警信息展示
@@ -89,7 +89,7 @@ func AlarmsGet() map[string]interface{} {
 
 ret:
 	data := map[string]interface{}{}
-	var result map[string]interface{}
+	result := make(map[string]interface{})
 	if len(data) == 0 {
 		data["flag"] = false
 		data["smtp"] = ""
@@ -105,8 +105,7 @@ ret:
 }
 
 func AlarmsSet(data map[string]string) map[string]interface{} {
-
-	var result map[string]interface{}
+	result := make(map[string]interface{})
 	var receiver string
 	cmdGetAlert := "pcs alert delete alert_Kylin"
 	utils.RunCommand(cmdGetAlert)
