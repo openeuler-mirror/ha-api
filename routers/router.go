@@ -8,8 +8,8 @@
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
- * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-20 11:12:16
+ * Date: 2024-03-19 11:19:33
+ * LastEditTime: 2024-03-19 15:00:25
  * Description: 网页路由
  ******************************************************************************/
 package routers
@@ -75,6 +75,7 @@ func init() {
 		web.NSRouter("/haclusters/1/utilization", &controllers.UtilizationController{}),
 		web.NSRouter("/haclusters/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/haclusters/1/scripts", &controllers.ScriptsController{}),
+		web.NSRouter("/remotescripts", &controllers.ScriptsRemoteController{}),
 	)
 	nr := web.NewNamespace("/remote/api/v1",
 		web.NSRouter("/sync_config", &controllers.Sync_configController{}),

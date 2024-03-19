@@ -94,6 +94,7 @@ const (
 	ruby_executable = "/usr/bin/ruby"
 
 	gui_session_lifetime_seconds = 60 * 60
+	HAAPI_DEFAULT_PORT           = 8080
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")
