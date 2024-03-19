@@ -38,7 +38,7 @@ var loginFilter = func(ctx *context.Context) {
 	// implement login check
 	username := ctx.Input.Session("username")
 	if username == nil {
-		if !strings.Contains(ctx.Request.RequestURI, "/login") {
+		if !strings.Contains(ctx.Request.RequestURI, "/login") && !strings.Contains(ctx.Request.RequestURI, "/remote") {
 			if strings.HasPrefix(ctx.Request.RequestURI, apiPreffix) {
 				ctx.Redirect(403, "session timeout")
 			}

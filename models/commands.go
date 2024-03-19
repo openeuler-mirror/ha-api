@@ -1,17 +1,3 @@
-/*
- * Copyright (c) KylinSoft Co., Ltd.2024. All Rights Reserved.
- *  ha-api is licensed under the Mulan PSL v2.
- *  You can use this software accodring to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- * 	http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
- * @Author: bizhiyuan
- * @Date: 2024-03-12 09:50:39
- * @LastEditTime: 2024-03-15 17:38:34
- * @Description: 
- */
 /******************************************************************************
  * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
  * ha-api is licensed under the Mulan PSL v2.
@@ -23,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-20 10:30:19
+ * LastEditTime: 2024-03-19 14:46:17
  * Description: 集群命令
  ******************************************************************************/
 package models
@@ -41,6 +27,11 @@ var commandTable = map[int]string{
 	3: "pcs config show",
 	4: "corosync-cfgtool -s",
 }
+
+const (
+	CmdNodeStatus string = "crm_node -l"
+	CmdHostName string = "hostname"
+)
 
 func GetCommandsList() map[string]interface{} {
 	result := map[string]interface{}{}
