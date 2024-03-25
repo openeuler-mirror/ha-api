@@ -95,6 +95,8 @@ const (
 
 	gui_session_lifetime_seconds = 60 * 60
 	HAAPI_DEFAULT_PORT           = 8080
+	ClustersConfigFile           = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
+	MaxBackTimes                 = 50
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")

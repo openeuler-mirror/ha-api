@@ -1,4 +1,4 @@
-/******************************************************************************
+ /******************************************************************************
  * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
  * ha-api is licensed under the Mulan PSL v2.
  * You can use this software accodring to the terms and conditions of the Mulan PSL v2.
@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2024-03-19 14:46:17
+ * LastEditTime: 2024-03-22 16:18:43
  * Description: 集群命令
  ******************************************************************************/
 package models
@@ -31,6 +31,7 @@ var commandTable = map[int]string{
 const (
 	CmdNodeStatus string = "crm_node -l"
 	CmdHostName string = "hostname"
+	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 )
 
 func GetCommandsList() map[string]interface{} {

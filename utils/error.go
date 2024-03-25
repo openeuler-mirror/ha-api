@@ -9,16 +9,10 @@
  * See the Mulan PSL v2 for more details.
  * Author: bizhiyuan
  * Date: 2024-03-12 15:54:56
- * LastEditTime: 2024-03-19 16:28:26
+ * LastEditTime: 2024-03-25 17:17:35
  * Description: utils 层进行错误处理响应
  */
 package utils
-
-type GeneralResponse struct {
-	Action bool   `json:"action"`
-	Error  string `json:"error,omitempty"`
-	Info   string `json:"info,omitempty"`
-}
 
 type ErrorInfo struct {
 	Action bool   `json:"action"`
