@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: bixiaoyan
  * Date: 2024-03-13 15:05:51
- * LastEditTime: 2024-03-22 17:24:41
+ * LastEditTime: 2024-03-25 15:23:50
  * Description: tag
  ******************************************************************************/
 package models
@@ -17,6 +17,7 @@ package models
 import (
 	"encoding/xml"
     "strings"
+    "encoding/json"
 	"gitee.com/openeuler/ha-api/utils"
     "github.com/beego/beego/v2/core/logs"
     
@@ -38,11 +39,22 @@ type Tags struct {
     Tags    []Tag    `xml:"tag"`
 }
 
+type TagPostData struct {
+    ID       string      `json:"id"`
+    Tag_resource  []string    `json:"tag_resource"`
+}
+
 type TagGetResult struct {
     Action  bool        `json:"action"`
     Data    []TagInfo   `json:"data"`
     ResList []string    `json:"res_list"`
     Error   string      `json:"error,omitempty"`
+}
+
+type TagPostResule struct {
+    Action bool   `json:"action"`
+    Error  string `json:"error,omitempty"`
+    Info   string `json:"info,omitempty"`
 }
 
 
@@ -67,7 +79,6 @@ func GetTag() TagGetResult {
     }
     
     // 解析tag数据
-    // confJSON := map[string]interface{}{}
     var tags Tags
     if err := xml.Unmarshal([]byte(out), &tags); err != nil {
         return TagGetResult{Action: false, Error: "JSON解析失败"}
@@ -82,4 +93,36 @@ func GetTag() TagGetResult {
     }
     
     return TagGetResult{Action: true, Data: tagInfos, ResList: resList}
+}
+
+func SetTag(data []byte) TagPostResule{
+    
+    var result TagPostResule
+    // json数据解析
+	if data == nil || len(data) == 0 {
+        result.Action = false
+        result.Error = "No input data"
+        return result
+    }
+    var TagData TagPostData
+	err := json.Unmarshal(data, &TagData)
+	if err != nil {
+        result.Action = false
+        result.Error = "Cannot convert data to json map"
+        return result
+    }
+
+    cmd := "pcs tag create " + TagData.ID
+    for i, res := range TagData.Tag_resource {
+        cmd = cmd + " " + string(res)        
+    }
+    out, err := utils.RunCommand(cmd)
+    if err == nil {
+        result.Action = true
+        result.Info = "Tag设置成功"
+    } else {
+        result.Action = false
+        result.Error = string(out)
+    }
+    return result
 }
