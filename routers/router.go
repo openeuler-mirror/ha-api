@@ -73,6 +73,7 @@ func init() {
 		web.NSRouter("/haclusters/1/commands/:cmd_type", &controllers.CommandsRunnerController{}),
 
 		web.NSRouter("/haclusters/1/utilization", &controllers.UtilizationController{}),
+		web.NSRouter("/haclusters/1/tag", &controllers.TagController{}),
 		web.NSRouter("/haclusters/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/haclusters/1/scripts", &controllers.ScriptsController{}),
 		web.NSRouter("/remotescripts", &controllers.ScriptsRemoteController{}),
