@@ -2,7 +2,7 @@
  * @Author: bixiaoyan bixiaoyan@kylinos.cn
  * @Date: 2024-03-13 15:04:41
  * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
- * @LastEditTime: 2024-03-14 17:14:11
+ * @LastEditTime: 2024-03-25 11:39:36
  * @FilePath: /ha-api/controllers/tag.go
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -25,6 +25,7 @@ package controllers
 import (
 	"github.com/beego/beego/v2/server/web"
 	"gitee.com/openeuler/ha-api/models"
+	"github.com/beego/beego/v2/core/logs"
 )
 
 type TagController struct {
@@ -37,13 +38,13 @@ func (tc *TagController) Get() {
 	tc.ServeJSON() 
 }
 
-// func (tc *TagController) Post() {
-// 	logs.Debug("handle utilization POST request")
+func (tc *TagController) Post() {
+	logs.Debug("handle Tag POST request")
 
-// 	jsonStr := tc.Ctx.Input.RequestBody
-// 	tc.Data["json"] = models.SetTag(jsonStr)
-// 	tc.ServeJSON()
-// }
+	jsonStr := tc.Ctx.Input.RequestBody
+	tc.Data["json"] = models.SetTag(jsonStr)
+	tc.ServeJSON()
+}
  
 
  
