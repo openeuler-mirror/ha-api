@@ -15,7 +15,6 @@
 package models
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -279,19 +278,16 @@ func GenerateScript(data map[string]string) ScriptResponse {
 					},
 				}
 			}
-			headers := map[string]string{
-				"Content-Type": "application/json",
-			}
 
-			resp, err := http.Post(remoteUrl, headers["Content-Type"], bytes.NewBuffer(body))
-			if err != nil {
+			httpResp := utils.SendRequest(remoteUrl, "POST", body)
+			if httpResp.StatusCode != http.StatusOK {
 				result[nodeName] = "Generate script failed"
 				logs.Error(err)
 				continue
 			}
-			defer resp.Body.Close() // 确保请求在函数结束时关闭
+			defer httpResp.Body.Close() // 确保请求在函数结束时关闭
 
-			body, err = io.ReadAll(resp.Body)
+			body, err = io.ReadAll(httpResp.Body)
 			if err != nil {
 				result[nodeName] = "Generate script failed"
 				continue

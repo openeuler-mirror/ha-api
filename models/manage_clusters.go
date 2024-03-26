@@ -2,22 +2,23 @@ package models
 
 import (
 	"bytes"
-	"crypto/tls"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 
+	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
 )
 
-var clustersFileName = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
 var port = 8080
 
-// ClusterInfo is a structure representing information about clusters.
-type ClusterInfo struct {
+// ClustersInfo is a structure representing information about clusters.
+type ClustersInfo struct {
 	Text     map[string]interface{}
 	Version  int
 	Clusters []interface{}
@@ -68,10 +69,10 @@ type AuthRetA struct {
 	Message    string `json:"message,omitempty"`
 }
 
-// NewClustersInfo creates a new ClusterInfo instance using the provided text data.
+// NewClustersInfo creates a new ClustersInfo instance using the provided text data.
 // If the text data is nil or empty, default values are initialized.
-func NewClustersInfo(text map[string]interface{}) *ClusterInfo {
-	c := &ClusterInfo{
+func NewClustersInfo(text map[string]interface{}) *ClustersInfo {
+	c := &ClustersInfo{
 		Text: text,
 	}
 
@@ -89,12 +90,12 @@ func NewClustersInfo(text map[string]interface{}) *ClusterInfo {
 	return c
 }
 
-// Save updates the version, performs a backup, and saves the ClusterInfo to a file in JSON format.
-func (ci *ClusterInfo) Save() {
+// Save updates the version, performs a backup, and saves the ClustersInfo to a file in JSON format.
+func (ci *ClustersInfo) Save() {
 	ci.Version++
 	ci.Backup()
 	saveConf := ci.UpdateText()
-	file, err := os.Create(clustersFileName)
+	file, err := os.Create(settings.ClustersConfigFile)
 	if err != nil {
 		fmt.Println("Error creating file:", err)
 		return
@@ -110,25 +111,41 @@ func (ci *ClusterInfo) Save() {
 }
 
 // Backup creates a backup of the cluster information file with a timestamp.
-func (ci *ClusterInfo) Backup() {
+func (ci *ClustersInfo) Backup() error {
 	// Implement backup functionality
 	// You can use the time and date in the file name
+	cureTime := time.Now().Unix()
+	backFile := fmt.Sprintf("%s.%d", settings.ClustersConfigFile, cureTime)
+	backCount, err := BackCount(ci)
+	if err == nil && backCount < settings.MaxBackTimes {
+		os.Rename(settings.ClustersConfigFile, backFile)
+		return nil
+	}
+	return err
+}
+
+func BackCount(ci *ClustersInfo) (int, error) {
+	if out, err := utils.RunCommand(CmdCountClustersConfigsBackuped); err != nil {
+		return 0, err
+	} else {
+		return int(binary.LittleEndian.Uint16(out)), nil
+	}
 }
 
 // UpdateText updates the version and clusters in the Text field and returns it.
-func (ci *ClusterInfo) UpdateText() map[string]interface{} {
+func (ci *ClustersInfo) UpdateText() map[string]interface{} {
 	ci.Text["version"] = ci.Version
 	ci.Text["clusters"] = ci.Clusters
 	return ci.Text
 }
 
 // AddCluster adds cluster information to the Clusters field.
-func (ci *ClusterInfo) AddCluster(clusterInfo map[string]interface{}) {
+func (ci *ClustersInfo) AddCluster(clusterInfo map[string]interface{}) {
 	ci.Clusters = append(ci.Clusters, clusterInfo)
 }
 
 // IsClusterNameInUse checks if a cluster name is already in use.
-func (ci *ClusterInfo) IsClusterNameInUse(clusterName string) bool {
+func (ci *ClustersInfo) IsClusterNameInUse(clusterName string) bool {
 	for _, c := range ci.Clusters {
 		cV := c.(map[string]interface{})
 		if cV["cluster_name"].(string) == clusterName {
@@ -138,13 +155,13 @@ func (ci *ClusterInfo) IsClusterNameInUse(clusterName string) bool {
 	return false
 }
 
-// SetVersion sets the version of the ClusterInfo.
-func (ci *ClusterInfo) SetVersion(version int) {
+// SetVersion sets the version of the ClustersInfo.
+func (ci *ClustersInfo) SetVersion(version int) {
 	ci.Version = version
 }
 
-// DeleteCluster deletes the Cluster from ClusterInfo.
-func (ci *ClusterInfo) DeleteCluster(clusterNameJson string) bool {
+// DeleteCluster deletes the Cluster from ClustersInfo.
+func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
 	for i, c := range ci.Clusters {
 		cV := c.(map[string]interface{})
 		if cV["cluster_name"] == clusterNameJson {
@@ -155,7 +172,7 @@ func (ci *ClusterInfo) DeleteCluster(clusterNameJson string) bool {
 	return false
 }
 
-func (ci *ClusterInfo) UpdateCluster(clusterNameJson string, clusterInfo map[string]interface{}) {
+func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo map[string]interface{}) {
 	for _, c := range ci.Clusters {
 		if c.(map[string]interface{})["name"] == clusterNameJson {
 			c.(map[string]interface{})["nodes"] = clusterInfo["nodes"]
@@ -166,7 +183,7 @@ func (ci *ClusterInfo) UpdateCluster(clusterNameJson string, clusterInfo map[str
 }
 
 // GetNodes  gets nodes information
-func (ci *ClusterInfo) GetNodes(clusterNameJson string) []interface{} {
+func (ci *ClustersInfo) GetNodes(clusterNameJson string) []interface{} {
 	for _, c := range ci.Clusters {
 		cV := c.(map[string]interface{})
 		if cV["cluster_name"] == clusterNameJson {
@@ -179,6 +196,18 @@ func (ci *ClusterInfo) GetNodes(clusterNameJson string) []interface{} {
 		}
 	}
 	return []interface{}{}
+}
+
+func (ci *ClustersInfo) GetClusterNameOfNode(nodeName string) string {
+	for _, cluster := range ci.Clusters {
+		nodes := cluster.(map[string]interface{})["nodes"]
+		for _, node := range nodes.([]string) {
+			if node == nodeName {
+				return cluster.(map[string]interface{})["cluster_name"].(string)
+			}
+		}
+	}
+	return ""
 }
 
 // localClusterInfo retrieves the cluster information locally and returns it as a map.
@@ -216,9 +245,9 @@ func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{}
 	return clusterParse
 }
 
-// getLocalConf reads the local cluster configuration from a file and returns a ClusterInfo instance.
-func getLocalConf() *ClusterInfo {
-	localFile := readFile(clustersFileName)
+// getLocalConf reads the local cluster configuration from a file and returns a ClustersInfo instance.
+func getLocalConf() *ClustersInfo {
+	localFile := readFile(settings.ClustersConfigFile)
 
 	localConf := NewClustersInfo(localFile)
 	return localConf
@@ -256,7 +285,7 @@ func readFile(filename string) map[string]interface{} {
 	return newDict
 }
 
-// comment out due to type error as localconf could not be {}, it should be of type *ClusterInfo
+// comment out due to type error as localconf could not be {}, it should be of type *ClustersInfo
 // SyncConfig synchronizes the local configuration with remote configuration.
 // Returns appropriate results indicating the synchronization status.
 func SyncConfig(remoteConf map[string]interface{}) map[string]interface{} {
@@ -277,7 +306,7 @@ func SyncConfig(remoteConf map[string]interface{}) map[string]interface{} {
 }
 
 // syncClusterConfFile synchronizes the cluster configuration file with all nodes in the cluster.
-func syncClusterConfFile(conf *ClusterInfo) {
+func syncClusterConfFile(conf *ClustersInfo) {
 	// Get local cluster info
 	clusterInfo := LocalClusterInfo()
 
@@ -499,7 +528,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 		for _, node := range remoteNodeList {
 			url := fmt.Sprintf("http://%s:%d/remote/api/v1/nodes/add_nodes", node, port)
 
-			httpResp := sendRequest(url, "POST", AddNodesinfo.Data)
+			httpResp := utils.SendRequest(url, "POST", AddNodesinfo.Data)
 			if httpResp.StatusCode == http.StatusOK {
 				httpRespData, _ := io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
@@ -507,7 +536,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				json.Unmarshal(httpRespData, &httpRespMessage)
 
 				url = fmt.Sprintf("http://%s:%d/remote/api/v1/managec/local_cluster_info", node, port)
-				httpResp = sendRequest(url, "GET", nil)
+				httpResp = utils.SendRequest(url, "GET", nil)
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
 				var remoteClusterInfo map[string]interface{}
@@ -592,33 +621,4 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 		"clusters":   failedClusterList,
 		"detailInfo": detailInfos,
 	}
-}
-
-func sendRequest(url string, method string, data interface{}) *http.Response {
-	var httpResp *http.Response
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-
-	switch method {
-	case "POST":
-		jsonData, _ := json.Marshal(data)
-		httpResp, _ = client.Post(url, "application/json", bytes.NewReader(jsonData))
-	case "GET":
-		httpResp, _ = client.Get(url)
-	case "DELETE":
-		jsonData, _ := json.Marshal(data)
-		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(jsonData))
-		httpResp, _ = client.Do(req)
-	case "PUT":
-		jsonData, _ := json.Marshal(data)
-		req, _ := http.NewRequest("PUT", url, bytes.NewReader(jsonData))
-		httpResp, _ = client.Do(req)
-	}
-
-	return httpResp
 }

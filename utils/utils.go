@@ -9,12 +9,18 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-20 11:32:56
+ * LastEditTime: 2024-03-25 17:19:21
  * Description: 删除重复数据，获取数字单位
  ******************************************************************************/
 package utils
 
-import "regexp"
+import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"net/http"
+	"regexp"
+)
 
 func IsInSlice(str string, sli []string) bool {
 	//TODO
@@ -49,4 +55,34 @@ func GetNumAndUnitFromStr(s string) (string, string) {
 		return s[:1], s[1:]
 	}
 	return s[:index[1]], s[index[1]:]
+}
+
+// Send http request
+func SendRequest(url string, method string, data interface{}) *http.Response {
+	var httpResp *http.Response
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+
+	switch method {
+	case "POST":
+		jsonData, _ := json.Marshal(data)
+		httpResp, _ = client.Post(url, "application/json", bytes.NewReader(jsonData))
+	case "GET":
+		httpResp, _ = client.Get(url)
+	case "DELETE":
+		jsonData, _ := json.Marshal(data)
+		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(jsonData))
+		httpResp, _ = client.Do(req)
+	case "PUT":
+		jsonData, _ := json.Marshal(data)
+		req, _ := http.NewRequest("PUT", url, bytes.NewReader(jsonData))
+		httpResp, _ = client.Do(req)
+	}
+
+	return httpResp
 }
