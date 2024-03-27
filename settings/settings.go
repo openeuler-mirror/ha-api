@@ -100,7 +100,7 @@ const (
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")
-var corosync_conf_file = filepath.Join(corosync_conf_dir, "corosync.conf")
+var CorosyncConfFile = filepath.Join(corosync_conf_dir, "corosync.conf")
 var corosync_uidgid_dir = filepath.Join(corosync_conf_dir, "uidgid.d/")
 var corosync_qdevice_net_server_certs_dir = filepath.Join(corosync_conf_dir, "qnetd/nssdb")
 var corosync_qdevice_net_client_certs_dir = filepath.Join(corosync_conf_dir, "qdevice/net/nssdb")

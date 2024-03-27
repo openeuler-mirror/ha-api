@@ -24,14 +24,14 @@ func GenerateLog() map[string]interface{} {
 
 	var out []byte
 	var err error
-	if out, err = utils.RunCommand("/usr/share/heartbeat-gui/ha-api/loggen.sh"); err != nil {
+	if out, err = utils.RunCommand(utils.CmdGenLog); err != nil {
 		result["action"] = false
 		result["error"] = "Get neokylinha log failed"
 		return result
 	}
 
-	file_path := string(out)
-	file["filepath"] = file_path
+	filePath := string(out)
+	file["filepath"] = filePath
 	result["action"] = true
 	result["data"] = file
 	return result

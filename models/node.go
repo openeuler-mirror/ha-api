@@ -26,7 +26,7 @@ import (
 func GetNodesInfo() ([]map[string]string, error) {
 	result := []map[string]string{}
 
-	out, err := utils.RunCommand("crm_mon --as-xml")
+	out, err := utils.RunCommand(utils.CmdClusterStatusAsXML)
 	if err != nil {
 		nodeOffline, err2 := GetHeartBeatHosts()
 		if err2 != nil {
@@ -121,15 +121,15 @@ func DoNodeAction(nodeID, action string) map[string]interface{} {
 	result := map[string]interface{}{}
 
 	if action == "standby" {
-		cmd = "pcs node standby " + nodeID
+		cmd = utils.CmdNodeStandby + nodeID
 	} else if action == "unstandby" {
-		cmd = "pcs node unstandby " + nodeID
+		cmd = utils.CmdNodeUnStandby + nodeID
 	} else if action == "start" {
-		cmd = "pcs cluster start " + nodeID + " &sleep 5"
+		cmd = utils.CmdStartCluster + nodeID + " &sleep 5"
 	} else if action == "stop" {
-		cmd = "pcs cluster stop " + nodeID
+		cmd = utils.CmdStopCluster + nodeID
 	} else if action == "restart" {
-		cmd = "pcs cluster restart " + nodeID
+		cmd = utils.CmdStopCluster + nodeID + "||" + utils.CmdStopCluster + nodeID
 	}
 
 	if _, err := utils.RunCommand(cmd); err != nil {

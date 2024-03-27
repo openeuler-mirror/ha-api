@@ -1,20 +1,36 @@
+/*
+ * Copyright (c) KylinSoft Co., Ltd.2024. All Rights Reserved.
+ *  ha-api is licensed under the Mulan PSL v2.
+ *  You can use this software accodring to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ * 	http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * @Author: bizhiyuan
+ * @Date: 2024-03-19 11:19:33
+ * @LastEditTime: 2024-03-27 09:27:48
+ * @Description:
+ */
 package models
 
 import (
 	"bufio"
 	"os"
 	"strings"
+
+	"gitee.com/openeuler/ha-api/settings"
 )
 
 func IsClusterExist() bool {
-	_, err := os.Stat("/etc/corosync/corosync.conf")
+	_, err := os.Stat(settings.CorosyncConfFile)
 	return err == nil
 }
 
 func getNodeList() []string {
 
-	filename := "/etc/corosync/corosync.conf"
-	node_list := []string{} // 存储文件内数据
+	filename := settings.CorosyncConfFile
+	nodeList := []string{} // 存储文件内数据
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -42,9 +58,9 @@ func getNodeList() []string {
 			break
 		}
 		if line != "nodelist {" && line != "}" && line != "" {
-			node_list = append(node_list, line)
+			nodeList = append(nodeList, line)
 		}
 	}
 
-	return node_list
+	return nodeList
 }

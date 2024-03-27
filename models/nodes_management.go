@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
 )
 
@@ -22,7 +23,7 @@ type AuthInfo struct {
 // getClusterName reads the cluster name from the corosync configuration file.
 // Returns a map indicating the result and the extracted cluster name, if available.
 func getClusterName() map[string]interface{} {
-	filename := "/etc/corosync/corosync.conf"
+	filename := settings.CorosyncConfFile
 	clusterName := ""
 	result := make(map[string]interface{})
 
@@ -149,7 +150,7 @@ func clusterSetup(addNodes ClusterSetData) map[string]interface{} {
 	}
 
 	nodeCmdStr := generateNodeCmdStr(addNodes.Data)
-	cmd := "pcs cluster setup " + clusterName + nodeCmdStr + " totem token=8000 --start"
+	cmd := fmt.Sprintf(utils.CmdSetupClusterStandard, clusterName, nodeCmdStr)
 	output, err := utils.RunCommand(cmd)
 	outputStr := string(output[:])
 	if err != nil {
@@ -182,7 +183,7 @@ func generateNodeCmdStr(nodesInfo []NodeData) string {
 
 func LocalClustersDestroy() map[string]interface{} {
 	res := map[string]interface{}{}
-	cmd := "pcs cluster destroy --all"
+	cmd := utils.CmdDestroyCluster
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		res["action"] = false
@@ -238,7 +239,6 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 
 	if IsClusterExist() {
 		hbIPPrefix := "addr="
-		cmdPrefix := "pcs cluster node add "
 		addNodeCmd := ""
 
 		currentNodeData, _ := utils.RunCommand("cat /etc/hostname")
@@ -250,7 +250,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 		curNodeSbdStat := strings.Split(string(out), ":")[1]
 		curNodeRunSbd := strings.Split(curNodeSbdStat, "|")
 		if curNodeRunSbd[1] == " YES " {
-			out, _ := utils.RunCommand("pcs stonith sbd status --full")
+			out, _ := utils.RunCommand(utils.CmdGetSbdStatus)
 			sbdHeader := strings.Split(string(out), "SBD header on device")
 			deviceInfo := strings.Split(sbdHeader[1], ":")
 			sbdDevice := strings.TrimSpace(deviceInfo[0])
@@ -261,7 +261,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 					hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v.Ip)
 					nodeStr += hbIPCmd
 				}
-				addNodeCmd += cmdPrefix + nodeStr + " " + "device=" + sbdDevice + " --start ; "
+				addNodeCmd = fmt.Sprintf(utils.CmdNodeAddStart, nodeStr) + "device=" + sbdDevice
 			}
 		} else {
 			for _, nodeInfo := range addNodesInfo {
@@ -271,7 +271,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 					hbIPCmd = fmt.Sprintf(" %s%s", hbIPPrefix, v.Ip)
 					nodeStr += hbIPCmd
 				}
-				addNodeCmd += cmdPrefix + nodeStr + " --start ; "
+				addNodeCmd = fmt.Sprintf(utils.CmdNodeAddStart, nodeStr)
 			}
 		}
 		out, err := utils.RunCommand(addNodeCmd)

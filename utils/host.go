@@ -20,6 +20,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"gitee.com/openeuler/ha-api/settings"
 )
 
 func GetNodeList() ([]map[string]string, error) {
@@ -31,7 +33,7 @@ func GetNodeList() ([]map[string]string, error) {
 }
 
 func IsClusterExist() bool {
-	_, err := os.Lstat("/etc/corosync/corosync.conf")
+	_, err := os.Lstat(settings.CorosyncConfFile)
 	return !os.IsNotExist(err)
 }
 
@@ -44,7 +46,7 @@ type CorosyncConfig struct {
 
 func getCorosyncConfig() (CorosyncConfig, error) {
 	var result CorosyncConfig
-	f, err := os.Open("/etc/corosync/corosync.conf")
+	f, err := os.Open(settings.CorosyncConfFile)
 	if err != nil {
 		return result, err
 	}

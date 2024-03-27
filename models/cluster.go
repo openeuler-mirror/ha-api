@@ -103,9 +103,9 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 		var cmdStr string
 		// special for getting resource-stickiness property
 		if key == "resource-stickiness" {
-			cmdStr = "crm_attribute  -t rsc_defaults -n resource-stickiness -v " + strValue
+			cmdStr = utils.CmdUpdateResourceStickness + strValue
 		} else {
-			cmdStr = "crm_attribute -t crm_config -n " + key + " -v " + strValue
+			cmdStr = utils.CmdUpdateCrmConfig + key + " -v " + strValue
 		}
 
 		out, err := utils.RunCommand(cmdStr)
@@ -297,7 +297,7 @@ func getClusterProperties() (map[string]interface{}, error) {
 	var doc *etree.Document
 	var nvParis []*etree.Element
 
-	out, err := utils.RunCommand("cibadmin --query --scope crm_config")
+	out, err := utils.RunCommand(utils.CmdQueryCrmConfig)
 	if err != nil {
 		logs.Error("get cluster properties failed", err)
 		goto ret
@@ -366,14 +366,14 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 func OperationClusterAction(action string) map[string]interface{} {
 	result := map[string]interface{}{}
 	if action == "start" {
-		utils.RunCommand("pcs cluster start")
+		utils.RunCommand(utils.CmdStartCluster)
 	}
 	if action == "stop" {
-		utils.RunCommand("pcs cluster stop")
+		utils.RunCommand(utils.CmdStopClusterLocal)
 	}
 	if action == "restart" {
-		utils.RunCommand("pcs cluster stop")
-		utils.RunCommand("pcs cluster start")
+		utils.RunCommand(utils.CmdStopClusterLocal)
+		utils.RunCommand(utils.CmdStartCluster)
 	}
 	if action == "" {
 		result["action"] = false
@@ -387,7 +387,7 @@ func OperationClusterAction(action string) map[string]interface{} {
 }
 
 func getResourceStickiness() int {
-	cmdStr := "pcs resource defaults | grep resource-stickiness --color=never"
+	cmdStr := utils.CmdDefaultResourceStickness
 	out, err := utils.RunCommand(cmdStr)
 	if err != nil {
 		logs.Error("get resource-stickiness failed: ", err.Error())
