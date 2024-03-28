@@ -15,6 +15,8 @@
 package models
 
 import (
+	"fmt"
+
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beevik/etree"
 )
@@ -33,8 +35,6 @@ type RuleGetResponse struct {
 	Data []Rule `json:"data"`
 }
 
-const cstQueryCmd string = "cibadmin --query --scope constraints"
-
 func RulesGet(rscName string) RuleGetResponse {
 
 	var doc *etree.Document
@@ -42,7 +42,7 @@ func RulesGet(rscName string) RuleGetResponse {
 
 	rulelist := []Rule{}
 
-	out, err := utils.RunCommand(cstQueryCmd)
+	out, err := utils.RunCommand(utils.CmdQueryConstraints)
 	if err != nil {
 		goto ret
 	}
@@ -100,7 +100,7 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 	var res []map[string]interface{}
 
 	for _, id := range ruleIdList {
-		delRuleCmd := "pcs constraint rule delete " + id
+		delRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, id)
 		_, err := utils.RunCommand(delRuleCmd)
 		if err != nil {
 			res = append(res, map[string]interface{}{
@@ -125,9 +125,9 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 func RuleAdd(data map[string]string) utils.GeneralResponse {
 	var cmdAddRule string
 	if _, ok := data["ruleid"]; ok {
-		cmdAddRule = "pcs constraint location " + data["rsc"] + " rule score=" + data["score"] + " id=" + data["ruleid"]
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, data["rsc"], data["score"], data["ruleid"])
 	} else {
-		cmdAddRule = "pcs constraint location " + data["rsc"] + " rule score=" + data["score"]
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAdd, data["rsc"], data["score"])
 	}
 
 	if _, ok := data["value"]; ok {
@@ -147,7 +147,7 @@ func RuleAdd(data map[string]string) utils.GeneralResponse {
 }
 
 func RuleUpdate(data map[string]string) utils.GeneralResponse {
-	out, err := utils.RunCommand(cstQueryCmd)
+	out, err := utils.RunCommand(utils.CmdQueryConstraints)
 	if err != nil {
 		return utils.HandleCmdError(err.Error(), false)
 	}
@@ -168,7 +168,7 @@ func RuleUpdate(data map[string]string) utils.GeneralResponse {
 		}
 	}
 	// delete old rule
-	deleteRuleCmd := "pcs constraint rule delete " + data["ruleid"]
+	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, data["ruleid"])
 	_, err = utils.RunCommand(deleteRuleCmd)
 	if err != nil {
 		return utils.HandleCmdError("更新规则失败，原id为"+data["ruleid"]+"规则找不到", false)

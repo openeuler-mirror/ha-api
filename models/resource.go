@@ -17,6 +17,7 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -71,7 +72,7 @@ func GetResourceCategory(rscID string) string {
 }
 
 func GetResourceType(rscID string) string {
-	cmd := "cibadmin --query --scope resources|grep 'id=\"" + rscID + "\"'"
+	cmd := fmt.Sprintf(utils.CmdQueryResourcesById, rscID)
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return ""
@@ -88,7 +89,7 @@ func GetResourceType(rscID string) string {
 func GetResourceConstraints(rscID, relation string) (map[string]interface{}, error) {
 	retData := make(map[string]interface{})
 
-	cmd := "cibadmin --query --scope constraints"
+	cmd := utils.CmdQueryConstraints
 	out, err := utils.RunCommand(cmd)
 
 	if err != nil {
@@ -183,7 +184,7 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 }
 
 func GetResourceFailedMessage() map[string]map[string]string {
-	out, err := utils.RunCommand("crm_mon -1 --as-xml")
+	out, err := utils.RunCommand(utils.CmdClusterStatusAsXML)
 	failInfo := map[string]map[string]string{}
 	if err != nil {
 		return failInfo
@@ -349,8 +350,8 @@ func CreateResource(data []byte) map[string]interface{} {
 		rscClass := " class=\"" + jsonMap["class"].(string) + "\""
 		rscType := " type=\"" + jsonMap["type"].(string) + "\""
 		cmd := "cibadmin --create -o resources --xml-text '<"
-		role := "pcs resource disable "
-		out, err := utils.RunCommand("cibadmin -Q")
+		role := utils.CmdResourceStop
+		out, err := utils.RunCommand(utils.CmdQueryCIB)
 		if err != nil {
 			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
@@ -411,10 +412,10 @@ func CreateResource(data []byte) map[string]interface{} {
 			}
 		}
 		if _, ok := jsonMap["provider"]; !ok {
-			instance := "crm_resource --resource "
+			instance := fmt.Sprintf(utils.CmdCrmResource, rscId)
 			class := jsonMap["class"]
 			if class == "stonith" {
-				cmdStr := instance + rscId + " --set-parameter pcmk_host_check --parameter-value static-list"
+				cmdStr := instance + " --set-parameter pcmk_host_check --parameter-value static-list"
 				_, err := utils.RunCommand(cmdStr)
 				if err != nil {
 					return map[string]interface{}{"action": false, "error": err.Error()}
@@ -440,17 +441,17 @@ func CreateResource(data []byte) map[string]interface{} {
 		for ix, v := range rscsArr {
 			rscs[ix] = v.(string)
 		}
-		role := "pcs resource disable "
+		role := utils.CmdResourceStop
 		for _, rsc := range rscs {
 			DeletePriAttrib(rsc)
 		}
 		rscId := jsonMap["id"].(string)
-		cmdStr := "pcs resource group add " + rscId
+		cmdStr := fmt.Sprintf(utils.CmdResourceGroupAdd, rscId)
 		for _, r := range rscs {
 			cmdStr = cmdStr + " " + r
 
 		}
-		out, err := utils.RunCommand("cibadmin -Q")
+		out, err := utils.RunCommand(utils.CmdQueryCIB)
 		if err != nil {
 			return map[string]interface{}{"action": false, "error": err.Error()}
 		}
@@ -519,14 +520,14 @@ func CreateResource(data []byte) map[string]interface{} {
 		oriId := jsonMap["rsc_id"].(string)
 		ids := getResourceConstraintIDs(oriId, "location")
 		for _, item := range ids {
-			cmd := "pcs constraint location delete " + item
+			cmd := fmt.Sprintf(utils.CmdLocationDelete, item)
 			_, err := utils.RunCommand(cmd)
 			if err != nil {
 				return map[string]interface{}{"action": false, "error": err.Error()}
 			}
 		}
-		role := "pcs resource disable "
-		cmdStr := "pcs resource clone " + oriId
+		role := utils.CmdResourceStop
+		cmdStr := fmt.Sprintf(utils.CmdResourceClone, oriId)
 		DeleteCloneAttrib(oriId)
 		_, err := utils.RunCommand(cmdStr)
 		if err != nil {
@@ -627,7 +628,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				} else {
 					logs.Error("unparsed value: ", v)
 				}
-				cmd := "pcs resource meta " + rscId + " " + k + "=" + value
+				cmd := fmt.Sprintf(utils.CmdResourceMetaAdd, rscId, k, value)
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -653,7 +654,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				} else {
 					logs.Error("unparsed value: ", v)
 				}
-				cmd := "pcs resource update " + rscId + " meta " + k + "=" + value + " --force"
+				cmd := fmt.Sprintf(utils.CmdResourceUpdateMetaForce, rscId, k, value)
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -675,7 +676,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		}
 
 		if instStr != "" {
-			_, err = utils.RunCommand("pcs resource update " + rscId + " " + instStr + " --force")
+			_, err = utils.RunCommand(fmt.Sprintf(utils.CmdResourceUpdateForce, rscId, instStr))
 			if err != nil {
 				return err
 			}
@@ -687,7 +688,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		// delete all the attribute
 		opList := GetAllOps(rscId)
 		if len(opList) != 0 {
-			cmdDelHead := "pcs resource op delete " + rscId
+			cmdDelHead := fmt.Sprintf(utils.CmdResourceOpDelete, rscId)
 			for _, op := range opList {
 				cmdDel := cmdDelHead + " " + op
 				_, err = utils.RunCommand(cmdDel)
@@ -755,7 +756,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				if !utils.IsInSlice(v, rscsExist) {
 					// 在新配置中但是不在原配置中，需要新增
 					DeletePriAttrib(v)
-					cmdAdd := "pcs resource group add " + rscId + " " + v
+					cmdAdd := fmt.Sprintf(utils.CmdResourceGroupAdd, rscId+" "+v)
 					if _, err := utils.RunCommand(cmdAdd); err != nil {
 						return err
 					}
@@ -763,7 +764,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 			} else {
 				if utils.IsInSlice(v, rscsExist) {
 					// 不在新配置中但是在原配置中，需要删除
-					cmdRmv := "pcs resource group remove " + rscId + " " + v
+					cmdRmv := fmt.Sprintf(utils.CmdResourceGroupRemove, rscId+" "+v)
 					if _, err := utils.RunCommand(cmdRmv); err != nil {
 
 						return err
@@ -777,7 +778,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 
 func GetAllOps(rscId string) []string {
 	opList := []string{}
-	cmd := "crm_resource --resource " + rscId + " --query-xml"
+	cmd := fmt.Sprintf(utils.CmdQueryResourceAsXml, rscId)
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return opList
@@ -823,7 +824,7 @@ func DeletePriAttrib(rscId string) error {
 	// location
 	ids := getResourceConstraintIDs(rscId, "location")
 	for _, item := range ids {
-		cmd := "pcs constraint location delete " + item
+		cmd := fmt.Sprintf(utils.CmdLocationDelete, item)
 		_, err := utils.RunCommand(cmd)
 		if err != nil {
 			return err
@@ -831,7 +832,7 @@ func DeletePriAttrib(rscId string) error {
 	}
 	// order
 	if findOrder(rscId) {
-		cmd := "pcs constraint order delete " + rscId
+		cmd := fmt.Sprintf(utils.CmdOrderDelete, rscId)
 		_, err := utils.RunCommand(cmd)
 		if err != nil {
 			return err
@@ -858,7 +859,7 @@ func DeleteCloneAttrib(rscId string) error {
 }
 
 func GetMetaAndInst(rscId string) map[string][]string {
-	cmdStr := "crm_resource --resource " + rscId + " --query-xml"
+	cmdStr := fmt.Sprintf(utils.CmdQueryResourceAsXml, rscId)
 	out, err := utils.RunCommand(cmdStr)
 	if err != nil {
 		// return map[string]interface{}{"action": false, "error": err}
@@ -916,7 +917,7 @@ func GetAllConstraints() map[string]interface{} {
 		data[rsc]["location"] = []map[string]string{}
 	}
 
-	out, err := utils.RunCommand("cibadmin -Q")
+	out, err := utils.RunCommand(utils.CmdQueryCIB)
 	if err != nil {
 		result := map[string]interface{}{}
 		result["action"] = false
@@ -1062,7 +1063,7 @@ func GetAllConstraints() map[string]interface{} {
 func GetAllMigrateResources() []string {
 	result := make([]string, 1)
 
-	cmd := "cibadmin -Q"
+	cmd := utils.CmdQueryCIB
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return result
@@ -1122,7 +1123,7 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 		}
 	*/
 	rscInfo := map[string]map[string]interface{}{}
-	out, err := utils.RunCommand("crm_mon -1 --as-xml")
+	out, err := utils.RunCommand(utils.CmdClusterStatusAsXML)
 	if err != nil {
 		return map[string]map[string]interface{}{}
 	}
@@ -1388,7 +1389,7 @@ func GetSubResources(rscId string) map[string]interface{} {
 	failInfo := GetResourceFailedMessage() // failure run information
 	rscInfo := map[string]interface{}{}
 
-	out, err := utils.RunCommand("cibadmin --query --scope resources")
+	out, err := utils.RunCommand(utils.CmdQueryResources)
 	if err != nil {
 		return rscInfo
 	}
@@ -1538,7 +1539,7 @@ func GetSubResources(rscId string) map[string]interface{} {
 }
 
 func GetResourceSvc(rscId string) string {
-	cmd := "crm_resource --resource " + rscId + " --query-xml"
+	cmd := fmt.Sprintf(utils.CmdQueryResourceAsXml, rscId)
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return ""
@@ -1565,7 +1566,7 @@ func GetResourceSvc(rscId string) string {
 func GetTopResource() []string {
 	result := []string{}
 
-	out, err := utils.RunCommand("cibadmin --query --scope resources")
+	out, err := utils.RunCommand(utils.CmdQueryResources)
 	if err != nil {
 		return result
 	}
@@ -1597,26 +1598,26 @@ func ResourceAction(rscID, action string, data []byte) error {
 	// cmd := "crm_resource --resource "
 	switch action {
 	case "start":
-		cmd := "pcs resource enable " + rscID
+		cmd := utils.CmdResourceStart + rscID
 		_, err := utils.RunCommand(cmd)
 		return err
 	case "stop":
-		cmd := "pcs resource disable " + rscID
+		cmd := utils.CmdResourceStop + rscID
 		_, err := utils.RunCommand(cmd)
 		return err
 	case "delete":
 		var cmd string
 		category := GetResourceCategory(rscID)
 		if category == "clone" {
-			cmd = "pcs resource delete " + rscID[:len(rscID)-6] + " --force"
+			cmd = fmt.Sprintf(utils.CmdResourceDeleteForce, rscID[:len(rscID)-6])
 		} else {
 			// not clone
-			cmd = "pcs resource delete " + rscID + " --force"
+			cmd = fmt.Sprintf(utils.CmdResourceDeleteForce, rscID)
 		}
 		_, err := utils.RunCommand(cmd)
 		return err
 	case "cleanup":
-		cmd := "crm_resource --resource " + rscID + " --cleanup"
+		cmd := fmt.Sprintf(utils.CmdCrmResource, rscID) + " --cleanup"
 		_, err := utils.RunCommand(cmd)
 		return err
 	case "migrate":
@@ -1629,7 +1630,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 			return errors.New("invalid json data")
 		}
 
-		cmd := "crm_resource --resource " + rscID + " --move -N " + d.ToNode
+		cmd := fmt.Sprintf(utils.CmdCrmResource, rscID) + " --move -N " + d.ToNode
 		out, err := utils.RunCommand(cmd)
 		if err != nil {
 			if string(out) == "Error performing operation: Situation already as requested" {
@@ -1638,7 +1639,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 		}
 		return err
 	case "unmigrate":
-		cmd := "cibadmin --query --scope constraints"
+		cmd := utils.CmdQueryConstraints
 		out, err := utils.RunCommand(cmd)
 		if err != nil {
 			return err
@@ -1652,7 +1653,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 			rsc := item.SelectAttrValue("rsc", "")
 			if rscID == rsc {
 				locationID := item.SelectAttrValue("id", "")
-				cmd2 := "pcs constraint location delete " + locationID
+				cmd2 := fmt.Sprintf(utils.CmdLocationDelete, locationID)
 				if _, err := utils.RunCommand(cmd2); err != nil {
 					return err
 				}
@@ -1666,7 +1667,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 		// {"node": "ns188", "level": "Slave 1"}]}
 		ids := getResourceConstraintIDs(rscID, action)
 		for _, item := range ids {
-			cmd := "pcs constraint location delete " + item
+			cmd := fmt.Sprintf(utils.CmdLocationDelete, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
@@ -1685,7 +1686,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 				score = 16000
 			}
 			node := mapItem["node"].(string)
-			cmd := "pcs constraint location " + rscID + " prefers " + node + "=" + strconv.Itoa(score)
+			cmd := fmt.Sprintf(utils.CmdLocationAdd, rscID, node, strconv.Itoa(score))
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
@@ -1706,20 +1707,20 @@ func ResourceAction(rscID, action string, data []byte) error {
 			return err
 		}
 		for _, item := range d.SameNode {
-			cmd := "pcs constraint colocation add " + rscID + " with " + item + " INFINITY"
+			cmd := fmt.Sprintf(utils.CmdColationAdd, rscID, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
 		}
 		for _, item := range d.DiffNode {
-			cmd := "pcs constraint colocation add " + rscID + " with " + item + " -INFINITY"
+			cmd := fmt.Sprintf(utils.CmdColationAdd, rscID, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
 		}
 	case "order":
 		if findOrder(rscID) {
-			cmd := "pcs constraint order delete " + rscID
+			cmd := fmt.Sprintf(utils.CmdOrderDelete, rscID)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
@@ -1732,13 +1733,13 @@ func ResourceAction(rscID, action string, data []byte) error {
 			return err
 		}
 		for _, item := range d.BeforeRscs {
-			cmd := "pcs constraint order start " + item + " then " + rscID
+			cmd := fmt.Sprintf(utils.CmdOrderAdd, item, rscID)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
 		}
 		for _, item := range d.AfterRscs {
-			cmd := "pcs constraint order start " + rscID + " then " + item
+			cmd := fmt.Sprintf(utils.CmdOrderAdd, rscID, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
@@ -1750,7 +1751,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 
 func getResourceConstraintIDs(rscID, action string) []string {
 	ids := []string{}
-	out, err := utils.RunCommand("cibadmin --query --scope constraints")
+	out, err := utils.RunCommand(utils.CmdQueryConstraints)
 	if err != nil {
 		return ids
 	}
@@ -1790,7 +1791,7 @@ func getResourceConstraintIDs(rscID, action string) []string {
 
 func DeleteColocationByIdAndAction(rscID string, targetIds []string) error {
 	for _, item := range targetIds {
-		cmd := "pcs constraint colocation delete " + rscID + " " + item
+		cmd := fmt.Sprintf(utils.CmdColationDelete, rscID, item)
 		if _, err := utils.RunCommand(cmd); err != nil {
 			return err
 		}
@@ -1799,7 +1800,7 @@ func DeleteColocationByIdAndAction(rscID string, targetIds []string) error {
 }
 
 func findOrder(rscID string) bool {
-	out, err := utils.RunCommand("cibadmin --query --scope constraints")
+	out, err := utils.RunCommand(utils.CmdQueryConstraints)
 	if err != nil {
 		return false
 	}
@@ -1819,7 +1820,7 @@ func findOrder(rscID string) bool {
 }
 
 func GetResourceInfoByrscID(rscID string) (interface{}, error) {
-	cmd := "crm_resource --resource " + rscID + " --query-xml"
+	cmd := fmt.Sprintf(utils.CmdQueryResourceAsXml, rscID)
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
 		return nil, err
@@ -2051,7 +2052,7 @@ func getPrimitiveResourceInfo(ele *etree.Element) PrimitiveResource {
 }
 
 func getGroupRscs(groupId string) ([]string, error) {
-	cmd := "crm_resource --resource " + groupId + " --query-xml"
+	cmd := fmt.Sprintf(utils.CmdQueryResourceAsXml, groupId)
 	out, err := utils.RunCommand(cmd)
 
 	if err != nil {

@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -25,7 +26,7 @@ import (
 func GetAllResourceMetas() map[string]interface{} {
 	result := map[string]interface{}{}
 
-	out, err := utils.RunCommand("crm_resource --list-standards")
+	out, err := utils.RunCommand(utils.CmdListResourceStandards)
 	if err != nil {
 		result["action"] = false
 		result["error"] = err.Error()
@@ -40,7 +41,7 @@ func GetAllResourceMetas() map[string]interface{} {
 			continue
 		}
 		if st == "ocf" {
-			out, err := utils.RunCommand("crm_resource --list-ocf-providers")
+			out, err := utils.RunCommand(utils.CmdListOcfProviders)
 			if err != nil {
 				result["action"] = false
 				result["error"] = err.Error()
@@ -51,7 +52,7 @@ func GetAllResourceMetas() map[string]interface{} {
 				if p == "" {
 					continue
 				}
-				out, err := utils.RunCommand("crm_resource --list-agents ocf:" + p)
+				out, err := utils.RunCommand(fmt.Sprintf(utils.CmdListOcfResourceAgent, p))
 				if err != nil {
 					result["action"] = false
 					result["error"] = err.Error()
@@ -73,7 +74,7 @@ func GetAllResourceMetas() map[string]interface{} {
 		} else if st == "lsb" {
 			continue
 		} else {
-			out, err := utils.RunCommand("crm_resource --list-agents " + st)
+			out, err := utils.RunCommand(fmt.Sprintf(utils.CmdListResourceAgent, st))
 			if err != nil {
 				result["action"] = false
 				result["error"] = err.Error()
@@ -116,11 +117,10 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	actions := []map[string]string{}
 
 	cmd := ""
-	resourceType := "crm_resource  --show-metadata "
 	if rscProvider == "" {
-		cmd = resourceType + rscClass + ":" + rscType
+		cmd = fmt.Sprintf(utils.CmdShowMetaData, rscClass, rscType)
 	} else {
-		cmd = resourceType + rscClass + ":" + rscProvider + ":" + rscType
+		cmd = fmt.Sprintf(utils.CmdShowMetaDataWithProvider, rscProvider, rscClass, rscType)
 	}
 	out, err := utils.RunCommand(cmd)
 	if err != nil {

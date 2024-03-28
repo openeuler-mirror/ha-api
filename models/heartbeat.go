@@ -31,7 +31,7 @@ type HostInfo struct {
 func GetHeartBeatHosts() ([]HostInfo, error) {
 	knownHosts := []HostInfo{}
 
-	out, err := utils.RunCommand("cat /var/lib/pcsd/known-hosts")
+	out, err := utils.RunCommand(utils.CmdGetPcsdAuthFile)
 	if err != nil {
 		return nil, errors.New("no node in the Cluster, please run \"pcs host auth $nodename\" to add node")
 	}
@@ -134,7 +134,7 @@ func EditHeartbeatInfo(jsonData []byte) error {
 		}
 	}
 
-	cmd := "pcs cluster setup hacluster"
+	cmd := utils.CmdSetupCluster
 	for key, value := range heartBeatInfos {
 		cmd = cmd + " " + key
 		for _, v := range value {
@@ -146,7 +146,7 @@ func EditHeartbeatInfo(jsonData []byte) error {
 
 	runResource := false
 	// TODO: check logic
-	if _, err := utils.RunCommand("crm_mon -1 --as-xml"); err != nil {
+	if _, err := utils.RunCommand(utils.CmdClusterStatusAsXML); err != nil {
 		// means a cluster is already running
 		runResource = false
 	} else {
@@ -154,22 +154,22 @@ func EditHeartbeatInfo(jsonData []byte) error {
 	}
 
 	if runResource {
-		if _, err := utils.RunCommand("pcs cluster cib ra-cfg"); err != nil {
+		if _, err := utils.RunCommand(utils.CmdSaveCIB); err != nil {
 			goto ret
 		}
-		if _, err := utils.RunCommand("pcs resource cleanup"); err != nil {
+		if _, err := utils.RunCommand(utils.CmdResourceCleanup); err != nil {
 			goto ret
 		}
-		if _, err := utils.RunCommand("pcs cluster stop --all"); err != nil {
+		if _, err := utils.RunCommand(utils.CmdStopCluster); err != nil {
 			goto ret
 		}
-		if _, err := utils.RunCommand("pcs cluster destroy --all"); err != nil {
+		if _, err := utils.RunCommand(utils.CmdDestroyCluster); err != nil {
 			goto ret
 		}
 		if _, err := utils.RunCommand(cmd); err != nil {
 			goto ret
 		}
-		if _, err := utils.RunCommand("pcs cluster cib-push ra-cfg"); err != nil {
+		if _, err := utils.RunCommand(utils.CmdPushFileToCIB); err != nil {
 			goto ret
 		}
 

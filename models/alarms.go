@@ -34,8 +34,7 @@ func AlarmsGet() map[string]interface{} {
 	port := ""
 	switCh := ""
 
-	cmdGetAlert := "cibadmin --query --scope configuration"
-	out, err := utils.RunCommand(cmdGetAlert)
+	out, err := utils.RunCommand(utils.CmdCibQueryConfig)
 
 	if err != nil {
 		logs.Error("get alert message failed", err)
@@ -107,8 +106,8 @@ ret:
 func AlarmsSet(data map[string]string) map[string]interface{} {
 	result := make(map[string]interface{})
 	var receiver string
-	cmdGetAlert := "pcs alert delete alert_Kylin"
-	utils.RunCommand(cmdGetAlert)
+
+	utils.RunCommand(utils.CmdDeleteAlert)
 	sender := ""
 	smtp := ""
 	password := ""
@@ -141,7 +140,7 @@ func AlarmsSet(data map[string]string) map[string]interface{} {
 	}
 
 	opsStr := " options email_sender=" + sender + " email_server=" + smtp + " password=" + password + " port=" + port + " switCh=" + switCh
-	cmdStr := "pcs alert create id=alert_Kylin path=/usr/share/pacemaker/alerts/neokylin_alert.sh" + opsStr
+	cmdStr := utils.CmdCreateAlert + opsStr
 	_, err := utils.RunCommand(cmdStr)
 	if err != nil {
 		result["action"] = false
@@ -150,7 +149,7 @@ func AlarmsSet(data map[string]string) map[string]interface{} {
 	}
 
 	for _, recipient := range receiver {
-		reveiverStr := "pcs alert recipient add alert_Kylin" + " value=" + string(recipient) + " --force"
+		reveiverStr := utils.CmdAddAlert + " value=" + string(recipient) + " --force"
 		_, err := utils.RunCommand(reveiverStr)
 		if err != nil {
 			result["action"] = false

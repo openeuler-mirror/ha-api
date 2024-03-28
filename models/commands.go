@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2024-03-22 16:18:43
+ * LastEditTime: 2024-03-26 10:00:27
  * Description: 集群命令
  ******************************************************************************/
 package models
@@ -27,12 +27,6 @@ var commandTable = map[int]string{
 	3: "pcs config show",
 	4: "corosync-cfgtool -s",
 }
-
-const (
-	CmdNodeStatus string = "crm_node -l"
-	CmdHostName string = "hostname"
-	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
-)
 
 func GetCommandsList() map[string]interface{} {
 	result := map[string]interface{}{}

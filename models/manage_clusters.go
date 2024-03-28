@@ -125,7 +125,7 @@ func (ci *ClustersInfo) Backup() error {
 }
 
 func BackCount(ci *ClustersInfo) (int, error) {
-	if out, err := utils.RunCommand(CmdCountClustersConfigsBackuped); err != nil {
+	if out, err := utils.RunCommand(utils.CmdCountClustersConfigsBackuped); err != nil {
 		return 0, err
 	} else {
 		return int(binary.LittleEndian.Uint16(out)), nil
@@ -343,7 +343,7 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	passwordList := authInfo["password"].([]string)
 
 	for i := 0; i < len(nodeList); i++ {
-		authCmd := fmt.Sprintf("pcs host auth %s -u hacluster -p '%s'", nodeList[i], passwordList[i])
+		authCmd := fmt.Sprintf(utils.CmdHostAuthNode, nodeList[i], passwordList[i])
 
 		_, err := utils.RunCommand(authCmd)
 
@@ -370,7 +370,7 @@ func hostAuthWithAddr(authInfo AuthInfo) AuthRetA {
 	authFaild := false
 	authFaildInfo := ""
 
-	authCmd := "pcs host auth " + authInfo.nodeList[0] + " addr=" + authInfo.ip[0] + " -u hacluster -p '" + authInfo.passWord[0] + "'"
+	authCmd := fmt.Sprintf(utils.CmdHostAuthNodeWithAddr, authInfo.nodeList[0], authInfo.ip[0], authInfo.passWord[0])
 	out, err := utils.RunCommand(authCmd)
 	if err != nil {
 		authFaild = true

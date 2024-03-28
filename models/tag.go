@@ -15,114 +15,111 @@
 package models
 
 import (
+	"encoding/json"
 	"encoding/xml"
-    "strings"
-    "encoding/json"
+	"strings"
+
 	"gitee.com/openeuler/ha-api/utils"
-    "github.com/beego/beego/v2/core/logs"
-    
 )
 
 type TagInfo struct {
-    ID       string      `json:"id"`
-    TagsRsc  interface{} `json:"tagsrsc"`
+	ID      string      `json:"id"`
+	TagsRsc interface{} `json:"tagsrsc"`
 }
 
 type Tag struct {
-    ID       string    `xml:"id,attr"`
-    ObjRefs  []ObjRef  `xml:"obj_ref"`
+	ID      string   `xml:"id,attr"`
+	ObjRefs []ObjRef `xml:"obj_ref"`
 }
 type ObjRef struct {
-    ID      string   `xml:"id,attr"`
+	ID string `xml:"id,attr"`
 }
 type Tags struct {
-    Tags    []Tag    `xml:"tag"`
+	Tags []Tag `xml:"tag"`
 }
 
 type TagPostData struct {
-    ID       string      `json:"id"`
-    Tag_resource  []string    `json:"tag_resource"`
+	ID           string   `json:"id"`
+	Tag_resource []string `json:"tag_resource"`
 }
 
 type TagGetResult struct {
-    Action  bool        `json:"action"`
-    Data    []TagInfo   `json:"data"`
-    ResList []string    `json:"res_list"`
-    Error   string      `json:"error,omitempty"`
+	Action  bool      `json:"action"`
+	Data    []TagInfo `json:"data"`
+	ResList []string  `json:"res_list"`
+	Error   string    `json:"error,omitempty"`
 }
 
 type TagPostResule struct {
-    Action bool   `json:"action"`
-    Error  string `json:"error,omitempty"`
-    Info   string `json:"info,omitempty"`
+	Action bool   `json:"action"`
+	Error  string `json:"error,omitempty"`
+	Info   string `json:"info,omitempty"`
 }
-
-
 
 func GetTag() TagGetResult {
-    resList := []string{}
-    cmd := "cibadmin --query --scope tags"
-    rsc_info := GetResourceInfo()
-    
-    out, err := utils.RunCommand(cmd)
-    for _, res := range rsc_info["data"].([]map[string]interface{}) {        
-        resList = append(resList, res["id"].(string))
-    }
+	resList := []string{}
+	cmd := "cibadmin --query --scope tags"
+	rsc_info := GetResourceInfo()
 
-    if err != nil{
-        if strings.Contains(string(out), "No such device or address") {
-            return TagGetResult{Action: true, Data: []TagInfo{}, ResList: resList}
-        }else {
-            return TagGetResult{Action: false, Error: "tag信息获取失败"}
-        }
-        
-    }
-    
-    // 解析tag数据
-    var tags Tags
-    if err := xml.Unmarshal([]byte(out), &tags); err != nil {
-        return TagGetResult{Action: false, Error: "JSON解析失败"}
-    }
+	out, err := utils.RunCommand(cmd)
+	for _, res := range rsc_info["data"].([]map[string]interface{}) {
+		resList = append(resList, res["id"].(string))
+	}
 
-    tagInfos := make([]TagInfo, len(tags.Tags))
-    for i, tag := range tags.Tags {
-        tagInfos[i] = TagInfo{
-            ID:      tag.ID,
-            TagsRsc: tag.ObjRefs,
-        }
-    }
-    
-    return TagGetResult{Action: true, Data: tagInfos, ResList: resList}
+	if err != nil {
+		if strings.Contains(string(out), "No such device or address") {
+			return TagGetResult{Action: true, Data: []TagInfo{}, ResList: resList}
+		} else {
+			return TagGetResult{Action: false, Error: "tag信息获取失败"}
+		}
+
+	}
+
+	// 解析tag数据
+	var tags Tags
+	if err := xml.Unmarshal([]byte(out), &tags); err != nil {
+		return TagGetResult{Action: false, Error: "JSON解析失败"}
+	}
+
+	tagInfos := make([]TagInfo, len(tags.Tags))
+	for i, tag := range tags.Tags {
+		tagInfos[i] = TagInfo{
+			ID:      tag.ID,
+			TagsRsc: tag.ObjRefs,
+		}
+	}
+
+	return TagGetResult{Action: true, Data: tagInfos, ResList: resList}
 }
 
-func SetTag(data []byte) TagPostResule{
-    
-    var result TagPostResule
-    // json数据解析
+func SetTag(data []byte) TagPostResule {
+
+	var result TagPostResule
+	// json数据解析
 	if data == nil || len(data) == 0 {
-        result.Action = false
-        result.Error = "No input data"
-        return result
-    }
-    var TagData TagPostData
+		result.Action = false
+		result.Error = "No input data"
+		return result
+	}
+	var TagData TagPostData
 	err := json.Unmarshal(data, &TagData)
 	if err != nil {
-        result.Action = false
-        result.Error = "Cannot convert data to json map"
-        return result
-    }
+		result.Action = false
+		result.Error = "Cannot convert data to json map"
+		return result
+	}
 
-    cmd := "pcs tag create " + TagData.ID
-    for i, res := range TagData.Tag_resource {
-        cmd = cmd + " " + string(res)        
-    }
-    out, err := utils.RunCommand(cmd)
-    if err == nil {
-        result.Action = true
-        result.Info = "Tag设置成功"
-    } else {
-        result.Action = false
-        result.Error = string(out)
-    }
-    return result
+	cmd := "pcs tag create " + TagData.ID
+	for _, res := range TagData.Tag_resource {
+		cmd = cmd + " " + string(res)
+	}
+	out, err := utils.RunCommand(cmd)
+	if err == nil {
+		result.Action = true
+		result.Info = "Tag设置成功"
+	} else {
+		result.Action = false
+		result.Error = string(out)
+	}
+	return result
 }

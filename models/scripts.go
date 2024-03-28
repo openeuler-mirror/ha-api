@@ -28,17 +28,13 @@ import (
 	"github.com/beego/beego/v2/core/logs"
 )
 
-const (
-	pacemakerAgentsCmd = "pcs resource agents ocf:pacemaker"
-)
-
 type ScriptResponse struct {
 	utils.GeneralResponse
 	Data map[string]string `json:"data,omitempty"`
 }
 
 func IsScriptExist(scriptName string) utils.GeneralResponse {
-	out, err := utils.RunCommand(pacemakerAgentsCmd)
+	out, err := utils.RunCommand(utils.CmdPacemakerAgents)
 	if err != nil {
 		return utils.HandleCmdError("查询脚本命令执行失败", false)
 	}
@@ -230,7 +226,7 @@ exit $?`
 
 func GenerateScript(data map[string]string) ScriptResponse {
 	// 获取所有节点
-	out, err := utils.RunCommand(CmdNodeStatus)
+	out, err := utils.RunCommand(utils.CmdNodeStatus)
 	if err != nil {
 		return ScriptResponse{
 			GeneralResponse: utils.GeneralResponse{
@@ -241,7 +237,7 @@ func GenerateScript(data map[string]string) ScriptResponse {
 	}
 	// 获取当前节点名称
 	nodes := strings.Split(strings.TrimSpace(string(out)), "\n")
-	out, err = utils.RunCommand(CmdHostName)
+	out, err = utils.RunCommand(utils.CmdHostName)
 	if err != nil {
 		return ScriptResponse{
 			GeneralResponse: utils.GeneralResponse{
