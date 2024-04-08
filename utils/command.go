@@ -22,7 +22,8 @@ import (
 
 const (
 	CmdNodeStatus                   = "crm_node -l"
-	CmdClusterStatusAsXML           = "crm_mon -1 --as-xml"
+	CmdClusterStatus                = "crm_mon -1"
+	CmdClusterStatusAsXML           = CmdClusterStatus + "--as-xml"
 	CmdHostName                     = "hostname"
 	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 	CmdCibQueryConfig               = "cibadmin --query --scope configuration"
