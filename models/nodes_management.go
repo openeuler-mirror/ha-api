@@ -57,7 +57,7 @@ func getClusterName() map[string]interface{} {
 // getClusterInfo retrieves cluster information, including cluster nodes and their properties.
 // Returns the cluster information in a structured map.
 func GetClusterInfo() map[string]interface{} {
-	_, currentNode := utils.RunCommand("cat /etc/hostname")
+	_, currentNode := utils.RunCommand(utils.CmdHostName)
 	currentNodeStr := strings.ReplaceAll(fmt.Sprintf("%s", currentNode), "\n", "")
 
 	if IsClusterExist() {
@@ -241,7 +241,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 		hbIPPrefix := "addr="
 		addNodeCmd := ""
 
-		currentNodeData, _ := utils.RunCommand("cat /etc/hostname")
+		currentNodeData, _ := utils.RunCommand(utils.CmdHostName)
 		currentNode := string(currentNodeData)
 		currentNode = strings.Replace(currentNode, "\n", "", -1)
 
