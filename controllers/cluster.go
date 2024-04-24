@@ -16,10 +16,11 @@ package controllers
 
 import (
 	"encoding/json"
-	"gitee.com/openeuler/ha-api/models"
 
+	"gitee.com/openeuler/ha-api/models"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 )
 
 type ClustersController struct {
@@ -78,7 +79,7 @@ func (mcc *MultipleClustersController) Post() {
 	if err := json.Unmarshal(mcc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.ClusterAdd(reqData)
 	}
@@ -95,7 +96,7 @@ func (sc *Sync_configController) Post() {
 	if err := json.Unmarshal(sc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.SyncConfig(reqData)
 	}
@@ -111,7 +112,7 @@ func (csc *ClusterSetupController) Post() {
 	if err := json.Unmarshal(csc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.ClusterSetup(reqData)
 	}
@@ -171,7 +172,7 @@ func (cd *ClusterDestroyController) Post() {
 	if err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.ClusterDestroy(ReqData)
 	}
@@ -187,7 +188,7 @@ func (crc *ClusterRemoveController) Post() {
 	err := json.Unmarshal(body, &ReqData)
 	if err != nil {
 		Result.Action = false
-		Result.Error = "invalid input data"
+		Result.Error = gettext.Gettext("invalid input data")
 		crc.Data["json"] = &Result
 		crc.ServeJSON()
 	} else {
@@ -207,7 +208,7 @@ func (anc *AddNodesController) Post() {
 	if err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.AddNodes(ReqData).(map[string]interface{})
 	}
@@ -225,7 +226,7 @@ func (lanc *LocalAddNodesController) Post() {
 	if err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.LocalAddNodes(ReqData).(map[string]interface{})
 	}
@@ -241,7 +242,7 @@ func (cc *ClustersController) Put() {
 	if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.UpdateClusterProperties(reqData)
 	}

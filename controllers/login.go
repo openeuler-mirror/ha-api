@@ -21,6 +21,7 @@ import (
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/beego/beego/v2/server/web/context"
+	"github.com/chai2010/gettext-go"
 
 	"gitee.com/openeuler/ha-api/utils"
 )
@@ -71,13 +72,13 @@ func (lc *LoginController) Post() {
 	}
 	if d.Username == "" || d.Password == "" {
 		result.Action = false
-		result.Error = "username or password empty"
+		result.Error = gettext.Gettext("username or password empty")
 		logs.Error("Login failed: username or password is empty")
 		goto ret
 	}
 	if d.Username != "hacluster" {
 		result.Action = false
-		result.Error = "Username is not allowed to login"
+		result.Error = gettext.Gettext("username is not allowed to login")
 		logs.Error("Login failed: username is not allowed to login")
 		goto ret
 	}
@@ -89,10 +90,10 @@ func (lc *LoginController) Post() {
 		lc.SetSession("password", d.Password)
 
 		result.Action = true
-		result.Info = "Login success"
+		result.Info = gettext.Gettext("Login success")
 	} else {
 		result.Action = false
-		result.Error = "Username or password error"
+		result.Error = gettext.Gettext("Username or password error")
 		logs.Error("Login failed: username or password error")
 	}
 
@@ -115,7 +116,7 @@ func (lc *LogoutController) Post() {
 		Error  string `json:"error,omitempty"`
 		Info   string `json:"info,omitempty"`
 	}{true, "", ""}
-	result.Info = "Logout success"
+	result.Info = gettext.Gettext("Logout success")
 	logs.Info("Logout success")
 	lc.Data["json"] = &result
 	lc.ServeJSON()
@@ -146,7 +147,7 @@ func (lc *PasswordChangeController) Post() {
 
 	if data.Password == "" {
 		result.Action = false
-		result.Error = "The new password is empty"
+		result.Error = gettext.Gettext("The new password is empty")
 		goto ret
 	}
 	cmd = "echo 'hacluster:" + data.Password + "'|chpasswd >/dev/null 2>&1"
@@ -157,7 +158,7 @@ func (lc *PasswordChangeController) Post() {
 		goto ret
 	} else {
 		result.Action = true
-		result.Info = "Change password success"
+		result.Info = gettext.Gettext("Change password success")
 	}
 
 ret:

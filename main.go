@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-20 14:21:08
+ * LastEditTime: 2024-04-22 09:23:45
  * Description: ha-api的入口
  ******************************************************************************/
 package main
@@ -21,10 +21,26 @@ import (
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 )
 
 func pageNotFoundHandler(rw http.ResponseWriter, r *http.Request) {
 	rw.Write([]byte("page not found"))
+}
+
+func detectUserLanguage() string {
+	// Todo: check user language preferences, check environment variables, user profiles, or HTTP request headers
+	return "zh_CN"
+}
+
+func init() {
+	gettext.BindLocale(gettext.New("ha-api", "locale"))
+	switch language := detectUserLanguage(); language {
+	case "zh_CN":
+		gettext.SetLanguage("zh_CN")
+	default:
+		gettext.SetLanguage("zh_CN") // default chinese
+	}
 }
 
 func main() {
@@ -33,7 +49,7 @@ func main() {
 	logs.SetLevel(logs.LevelNotice)
 
 	web.BConfig.CopyRequestBody = true
-	//	web.BConfig.Listen.HTTPAddr = "172.30.30.94"
+
 	web.SetStaticPath("/static", "views/static")
 
 	// web.SetStaticPath("/4.12.13", "views/static/4.12.13")

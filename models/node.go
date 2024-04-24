@@ -21,6 +21,7 @@ import (
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 )
 
 func GetNodesInfo() ([]map[string]string, error) {
@@ -30,7 +31,7 @@ func GetNodesInfo() ([]map[string]string, error) {
 	if err != nil {
 		nodeOffline, err2 := GetHeartBeatHosts()
 		if err2 != nil {
-			return nil, errors.New("请确定集群节点已认证")
+			return nil, errors.New(gettext.Gettext("Please make sure that Cluster nodes has been authenticated"))
 		}
 		for _, node := range nodeOffline {
 			infoMap := map[string]string{}
@@ -42,12 +43,12 @@ func GetNodesInfo() ([]map[string]string, error) {
 		if len(result) > 0 {
 			return result, nil
 		}
-		return nil, errors.New("get node failed")
+		return nil, errors.New(gettext.Gettext("get node failed"))
 	}
 
 	doc := etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		return nil, errors.New("parse xml failed")
+		return nil, errors.New(gettext.Gettext("parse xml failed"))
 	}
 	nodes := doc.SelectElement("crm_mon").SelectElement("nodes")
 	for _, node := range nodes.SelectElements("node") {
@@ -97,7 +98,7 @@ func GetNodesInfo() ([]map[string]string, error) {
 	if len(result) > 0 {
 		return result, nil
 	}
-	return nil, errors.New("get node failed")
+	return nil, errors.New(gettext.Gettext("get node failed"))
 }
 
 func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
@@ -135,10 +136,10 @@ func DoNodeAction(nodeID, action string) map[string]interface{} {
 	if _, err := utils.RunCommand(cmd); err != nil {
 		logs.Error("run command error: ", err)
 		result["action"] = false
-		result["error"] = "Change node status Failed"
+		result["error"] = gettext.Gettext("Change node status Failed")
 	}
 
 	result["action"] = true
-	result["error"] = "Change node status success"
+	result["info"] = gettext.Gettext("Change node status success")
 	return result
 }

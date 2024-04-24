@@ -19,6 +19,7 @@ import (
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 
 	"gitee.com/openeuler/ha-api/models"
 )
@@ -66,7 +67,7 @@ func (rac *ResourceActionController) Put() {
 		result["error"] = err.Error()
 	} else {
 		result["action"] = true
-		result["info"] = "Action on resource success"
+		result["info"] = gettext.Gettext("Action on resource success")
 	}
 
 	rac.Data["json"] = &result
@@ -110,7 +111,7 @@ func (robi *ResourceOpsById) Put() {
 	if err := json.Unmarshal(robi.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		err = models.UpdateResourceAttributes(rscID, reqData)
 		if err != nil {
@@ -118,7 +119,7 @@ func (robi *ResourceOpsById) Put() {
 			result["error"] = err.Error()
 		} else {
 			result["action"] = true
-			result["info"] = "Update resource attributes Success"
+			result["info"] = gettext.Gettext("Update resource attributes success")
 		}
 	}
 

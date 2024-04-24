@@ -24,6 +24,7 @@ import (
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 )
 
 // GetResourceInfo
@@ -329,12 +330,12 @@ func GetResourceByConstraintAndId() {
 
 func CreateResource(data []byte) map[string]interface{} {
 	if len(data) == 0 {
-		return map[string]interface{}{"action": false, "error": "No input data"}
+		return map[string]interface{}{"action": false, "error": gettext.Gettext("No input data")}
 	}
 	jsonData := map[string]interface{}{}
 	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
-		return map[string]interface{}{"action": false, "error": "Cannot convert data to json map"}
+		return map[string]interface{}{"action": false, "error": gettext.Gettext("Cannot convert data to json map")}
 	}
 	jsonMap := jsonData
 
@@ -585,7 +586,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		}
 	*/
 	if len(data) == 0 {
-		return errors.New("no input data")
+		return errors.New(gettext.Gettext("No input data"))
 	}
 	// delete all the attribute
 	attrib := GetMetaAndInst(rscId)

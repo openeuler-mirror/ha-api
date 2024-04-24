@@ -13,6 +13,7 @@ import (
 
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 )
 
 var port = 8080
@@ -356,13 +357,13 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	if authFailed {
 		return map[string]interface{}{
 			"action": false,
-			"error":  "host auth failed",
+			"error":  gettext.Gettext("host auth failed"),
 		}
 	}
 
 	return map[string]interface{}{
 		"action":  true,
-		"message": "host auth success",
+		"message": gettext.Gettext("host auth success"),
 	}
 }
 
@@ -379,13 +380,13 @@ func hostAuthWithAddr(authInfo AuthInfo) AuthRetA {
 	if authFaild {
 		return AuthRetA{
 			Action:     false,
-			Error:      "节点认证失败",
+			Error:      gettext.Gettext("host auth failed"),
 			DetailInfo: authFaildInfo,
 		}
 	}
 	return AuthRetA{
 		Action:  true,
-		Message: "host auth success",
+		Message: gettext.Gettext("host auth success"),
 	}
 }
 
@@ -407,7 +408,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	if err != nil {
 		return map[string]interface{}{
 			"action": false,
-			"error":  "添加集群失败"}
+			"error":  gettext.Gettext("add cluster failed")}
 	}
 	defer resp.Body.Close()
 
@@ -419,14 +420,14 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		if err != nil {
 			return map[string]interface{}{
 				"action": false,
-				"error":  "添加集群失败"}
+				"error":  gettext.Gettext("add cluster failed")}
 		}
 
 		localConf := getLocalConf()
 		if localConf.IsClusterNameInUse(NewClusterInfo["cluster_name"].(string)) {
 			return map[string]interface{}{
 				"action": false,
-				"error":  "请勿重复添加"}
+				"error":  gettext.Gettext("The cluster already exists, please do not add it again")}
 		}
 
 		localConf.AddCluster(NewClusterInfo)
@@ -434,12 +435,12 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		syncClusterConfFile(localConf)
 		return map[string]interface{}{
 			"action": true,
-			"error":  "添加集群成功"}
+			"error":  gettext.Gettext("add cluster success")}
 	}
 
 	return map[string]interface{}{
 		"action": false,
-		"error":  "添加集群失败"}
+		"error":  gettext.Gettext("add cluster failed")}
 }
 
 // ClusterSetup performs the setup of a cluster using the provided cluster information.
@@ -553,8 +554,8 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 
 	return map[string]interface{}{
 		"action":     false,
-		"error":      "未找到集群",
-		"detailInfo": "无法连接到集群",
+		"error":      gettext.Gettext("No cluster found"),
+		"detailInfo": gettext.Gettext("Unable to connect to cluster"),
 	}
 }
 
@@ -573,7 +574,7 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 			}
 		}
 		des := false
-		detailInfo := "cluster cannot connect"
+		detailInfo := gettext.Gettext("Unable to connect to cluster")
 		for _, node := range nodeList {
 			url := fmt.Sprintf("http://%s:%d/remote/api/v1/destroy_cluster", node, port)
 			success := false

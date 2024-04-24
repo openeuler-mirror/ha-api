@@ -9,13 +9,14 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-19 17:37:59
+ * LastEditTime: 2024-04-22 17:04:44
  * Description: 告警控制器
  ******************************************************************************/
 package controllers
 
 import (
 	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 
 	"encoding/json"
 
@@ -38,7 +39,7 @@ func (ac *AlarmConfig) Post() {
 	if err := json.Unmarshal(ac.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
-		result["error"] = "invalid input data"
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.AlarmsSet(reqData)
 	}

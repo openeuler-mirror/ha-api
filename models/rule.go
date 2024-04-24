@@ -19,6 +19,7 @@ import (
 
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 )
 
 type Rule struct {
@@ -83,7 +84,7 @@ ret:
 	return RuleGetResponse{
 		GeneralResponse: utils.GeneralResponse{
 			Action: false,
-			Error:  "获取规则失败",
+			Error:  gettext.Gettext("Get rule failed"),
 		},
 	}
 }
@@ -118,7 +119,7 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 	}
 	return RuleDeleteResponse{
 		Action: true,
-		Info:   "删除规则成功",
+		Info:   gettext.Gettext("Delete rule success"),
 	}
 }
 
@@ -137,11 +138,11 @@ func RuleAdd(data map[string]string) utils.GeneralResponse {
 	}
 	_, err := utils.RunCommand(cmdAddRule)
 	if err != nil {
-		return utils.HandleCmdError("添加规则失败，重复的约束已存在", false)
+		return utils.HandleCmdError(gettext.Gettext("Add rule failed, duplicate constraint already exists"), false)
 	}
 	return utils.GeneralResponse{
 		Action: true,
-		Info:   "添加规则成功",
+		Info:   gettext.Gettext("Add rule success"),
 	}
 
 }
@@ -178,12 +179,12 @@ func RuleUpdate(data map[string]string) utils.GeneralResponse {
 	if !resp.Action {
 		// recovery the update op
 		RuleAdd(r)
-		return utils.HandleCmdError("更新规则失败，重复的约束已存在", false)
+		return utils.HandleCmdError(gettext.Gettext("Update rule failed, duplicate constraint already exists"), false)
 	}
 
 	return utils.GeneralResponse{
 		Action: true,
-		Info:   "更新规则成功",
+		Info:   gettext.Gettext("Update rule success"),
 	}
 
 }

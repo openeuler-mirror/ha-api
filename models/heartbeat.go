@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 
 	"errors"
 )
@@ -104,7 +105,7 @@ func GetHeartBeatConfig() (interface{}, error) {
 
 func EditHeartbeatInfo(jsonData []byte) error {
 	if len(jsonData) == 0 {
-		return errors.New("no input data")
+		return errors.New(gettext.Gettext("No input data"))
 	}
 
 	data := struct {
@@ -113,7 +114,7 @@ func EditHeartbeatInfo(jsonData []byte) error {
 		Hbaddrs2Enabled int        `json:"hbaddrs2_enabled"`
 	}{}
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return errors.New("invalid config data")
+		return errors.New(gettext.Gettext("invalid config data"))
 	}
 
 	heartBeatInfos := map[string]([]string){}
@@ -176,8 +177,8 @@ func EditHeartbeatInfo(jsonData []byte) error {
 		return nil
 	}
 
-	return errors.New("there are running resources in the cluster, please close first")
+	return errors.New(gettext.Gettext("there are running resources in the cluster, please close first"))
 
 ret:
-	return errors.New("change cluster failed")
+	return errors.New(gettext.Gettext("Change cluster failed"))
 }
