@@ -7,16 +7,17 @@
  * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
- * Author: liqiuyu
+ * Author: bizhiyuan
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-19 17:37:55
+ * LastEditTime: 2024-04-23 16:13:35
  * Description: 磁盘心跳控制器
  ******************************************************************************/
 package controllers
 
 import (
-	"github.com/beego/beego/v2/server/web"
 	"gitee.com/openeuler/ha-api/models"
+	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 )
 
 type HeartBeatController struct {
@@ -48,7 +49,7 @@ func (hbc *HeartBeatController) Post() {
 		result["error"] = err.Error()
 	} else {
 		result["action"] = true
-		result["info"] = "Change cluster success"
+		result["info"] = gettext.Gettext("Change cluster success")
 	}
 
 	hbc.Data["json"] = &result

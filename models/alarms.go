@@ -18,6 +18,7 @@ import (
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 )
 
 // 报警信息展示
@@ -144,7 +145,7 @@ func AlarmsSet(data map[string]string) map[string]interface{} {
 	_, err := utils.RunCommand(cmdStr)
 	if err != nil {
 		result["action"] = false
-		result["error"] = "Set alarm failed"
+		result["error"] = gettext.Gettext("Set alarm failed")
 		return result
 	}
 
@@ -153,12 +154,12 @@ func AlarmsSet(data map[string]string) map[string]interface{} {
 		_, err := utils.RunCommand(reveiverStr)
 		if err != nil {
 			result["action"] = false
-			result["error"] = "Set alarm failed"
+			result["error"] = gettext.Gettext("Set alarm failed")
 			return result
 		}
 	}
 
 	result["action"] = true
-	result["info"] = "Set alarm success"
+	result["info"] = gettext.Gettext("Set alarm success")
 	return result
 }

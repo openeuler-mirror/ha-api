@@ -16,6 +16,7 @@ package models
 
 import (
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 )
 
 func GenerateLog() map[string]interface{} {
@@ -26,7 +27,7 @@ func GenerateLog() map[string]interface{} {
 	var err error
 	if out, err = utils.RunCommand(utils.CmdGenLog); err != nil {
 		result["action"] = false
-		result["error"] = "Get neokylinha log failed"
+		result["error"] = gettext.Gettext("Get neokylinha log failed")
 		return result
 	}
 

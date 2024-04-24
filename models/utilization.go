@@ -17,32 +17,32 @@ package models
 import (
 	"encoding/json"
 	"strings"
+
 	// "github.com/beego/beego/v2/core/logs"
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 )
 
-type UtilizationData struct{
-	Name string `json:"name"`
-	Attri map[string]interface{}  `json:"attri"`
+type UtilizationData struct {
+	Name  string                 `json:"name"`
+	Attri map[string]interface{} `json:"attri"`
 }
 
-type GetUtilResult struct{
-	Action bool `json:"action"`
-	Data *UtilResponseData `json:"data"`
+type GetUtilResult struct {
+	Action bool              `json:"action"`
+	Data   *UtilResponseData `json:"data"`
 }
 
-type UtilResponseData struct{
+type UtilResponseData struct {
 	NodeUtilization []UtilizationData `json:"NodeUtilization"`
-	ResUtilization []UtilizationData `json:"ResUtilization"`
- }
-
+	ResUtilization  []UtilizationData `json:"ResUtilization"`
+}
 
 type UtilizationResult struct {
-    Action bool   `json:"action"`
-    Error  string `json:"error,omitempty"`
-    Info   string `json:"info,omitempty"`
+	Action bool   `json:"action"`
+	Error  string `json:"error,omitempty"`
+	Info   string `json:"info,omitempty"`
 }
-
 
 func GetUtilization() GetUtilResult {
 	result := GetUtilResult{}
@@ -50,8 +50,8 @@ func GetUtilization() GetUtilResult {
 	resUtilization := GetOneTypeUtilization("resource")
 	result.Action = true
 	result.Data = &UtilResponseData{
-		NodeUtilization : nodeUtilization,
-		ResUtilization : resUtilization,
+		NodeUtilization: nodeUtilization,
+		ResUtilization:  resUtilization,
 	}
 
 	return result
@@ -62,14 +62,14 @@ func GetOneTypeUtilization(Uti_type string) []UtilizationData {
 	cmd := "pcs " + Uti_type + " utilization"
 	output, _ := utils.RunCommand(cmd)
 	Util := strings.Split(string(output), "Utilization:")[1]
-	
+
 	Util = strings.TrimSpace(Util)
-	if Util == ""{
+	if Util == "" {
 		return nil
 	}
 
 	UtilList := strings.Split(Util, "\n")
-	
+
 	for i := range UtilList {
 		info := UtilizationData{}
 		name := strings.Split(UtilList[i], ":")[0]
@@ -89,22 +89,22 @@ func GetOneTypeUtilization(Uti_type string) []UtilizationData {
 
 func SetUtilization(data []byte) UtilizationResult {
 	var result UtilizationResult
-	if data == nil || len(data) == 0 {
-        result.Action = false
-        result.Error = "No input data"
-        return result
-    }
+	if len(data) == 0 {
+		result.Action = false
+		result.Error = gettext.Gettext("No input data")
+		return result
+	}
 
 	jsonData := map[string]string{}
 	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
-        result.Action = false
-        result.Error = "Cannot convert data to json map"
-        return result
-    }
+		result.Action = false
+		result.Error = gettext.Gettext("Cannot convert data to json map")
+		return result
+	}
 
-	utype, _ := jsonData["type"]
-	name, _ := jsonData["name"]
+	utype := jsonData["type"]
+	name := jsonData["name"]
 	cmd := "pcs " + utype + " utilization " + name + " "
 	for k, v := range jsonData {
 		if k != "name" && k != "type" {
@@ -120,9 +120,9 @@ func SetUtilization(data []byte) UtilizationResult {
 		result.Action = false
 		if strings.Contains(string(out), "Error: Unable to find") {
 			if utype == "node" {
-				result.Error = "节点名称填写错误"
+				result.Error = gettext.Gettext("Node name error")
 			} else if utype == "resource" {
-				result.Error = "资源名称填写错误"
+				result.Error = gettext.Gettext("Resource name error")
 			}
 		} else {
 			result.Error = string(out)
@@ -133,24 +133,24 @@ func SetUtilization(data []byte) UtilizationResult {
 
 func DelUtilization(data []byte) UtilizationResult {
 	var result UtilizationResult
-	if data == nil || len(data) == 0 {
-        result.Action = false
-        result.Error = "No input data"
-        return result
-    }
+	if len(data) == 0 {
+		result.Action = false
+		result.Error = gettext.Gettext("No input data")
+		return result
+	}
 
 	jsonData := map[string]string{}
 	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
-        result.Action = false
-        result.Error = "Cannot convert data to json map"
-        return result
-    }
-	
-	utype, _ := jsonData["type"]
-	name, _ := jsonData["name"]
+		result.Action = false
+		result.Error = gettext.Gettext("Cannot convert data to json map")
+		return result
+	}
+
+	utype := jsonData["type"]
+	name := jsonData["name"]
 	cmd := "pcs " + utype + " utilization " + name + " "
-	for k, _ := range jsonData {
+	for k := range jsonData {
 		if k != "name" && k != "type" {
 			cmd = cmd + k + "="
 		}
@@ -158,7 +158,7 @@ func DelUtilization(data []byte) UtilizationResult {
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
 		result.Action = true
-		result.Info = "利用率删除成功！"
+		result.Info = gettext.Gettext("Delete Utilization success")
 	} else {
 		result.Action = false
 		result.Error = string(out)

@@ -20,6 +20,7 @@ import (
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
@@ -58,7 +59,7 @@ func GetClusterPropertiesInfo() map[string]interface{} {
 //	logs.Debug(clusterInfo)
 //	if len(clusterInfo) == 0 {
 //		result["action"] = false
-//		result["error"] = "No input data"
+//		result["error"] = gettext.Gettext("No input data")
 //		return result
 //	}
 //	authRes := hostAuth(clusterInfo)
@@ -82,7 +83,7 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 	logs.Debug(newProp)
 	if len(newProp) == 0 {
 		result["action"] = false
-		result["error"] = "No input data"
+		result["error"] = gettext.Gettext("No input data")
 		return result
 	}
 
@@ -117,7 +118,7 @@ func UpdateClusterProperties(newProp map[string]interface{}) map[string]interfac
 	}
 
 	result["action"] = true
-	result["info"] = "Update cluster properties Success"
+	result["info"] = gettext.Gettext("Update cluster properties Success")
 	return result
 }
 
@@ -377,11 +378,11 @@ func OperationClusterAction(action string) map[string]interface{} {
 	}
 	if action == "" {
 		result["action"] = false
-		result["error"] = "Action on node Failed"
+		result["error"] = gettext.Gettext("Action on node Failed")
 		return result
 	} else {
 		result["action"] = true
-		result["error"] = "Action on node Failed"
+		result["error"] = gettext.Gettext("Action on node Failed")
 		return result
 	}
 }

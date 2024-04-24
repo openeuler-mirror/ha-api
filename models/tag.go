@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 )
 
 type TagInfo struct {
@@ -70,7 +71,7 @@ func GetTag() TagGetResult {
 		if strings.Contains(string(out), "No such device or address") {
 			return TagGetResult{Action: true, Data: []TagInfo{}, ResList: resList}
 		} else {
-			return TagGetResult{Action: false, Error: "tag信息获取失败"}
+			return TagGetResult{Action: false, Error: gettext.Gettext("Get tag failed")}
 		}
 
 	}
@@ -78,7 +79,7 @@ func GetTag() TagGetResult {
 	// 解析tag数据
 	var tags Tags
 	if err := xml.Unmarshal([]byte(out), &tags); err != nil {
-		return TagGetResult{Action: false, Error: "JSON解析失败"}
+		return TagGetResult{Action: false, Error: gettext.Gettext("Parsing JSON failed")}
 	}
 
 	tagInfos := make([]TagInfo, len(tags.Tags))
@@ -98,14 +99,14 @@ func SetTag(data []byte) TagPostResule {
 	// json数据解析
 	if data == nil || len(data) == 0 {
 		result.Action = false
-		result.Error = "No input data"
+		result.Error = gettext.Gettext("No input data")
 		return result
 	}
 	var TagData TagPostData
 	err := json.Unmarshal(data, &TagData)
 	if err != nil {
 		result.Action = false
-		result.Error = "Cannot convert data to json map"
+		result.Error = gettext.Gettext("Cannot convert data to json map")
 		return result
 	}
 
@@ -116,7 +117,7 @@ func SetTag(data []byte) TagPostResule {
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
 		result.Action = true
-		result.Info = "Tag设置成功"
+		result.Info = gettext.Gettext("Add tag success")
 	} else {
 		result.Action = false
 		result.Error = string(out)

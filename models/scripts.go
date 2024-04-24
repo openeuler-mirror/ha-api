@@ -26,6 +26,7 @@ import (
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
+	"github.com/chai2010/gettext-go"
 )
 
 type ScriptResponse struct {
@@ -36,7 +37,7 @@ type ScriptResponse struct {
 func IsScriptExist(scriptName string) utils.GeneralResponse {
 	out, err := utils.RunCommand(utils.CmdPacemakerAgents)
 	if err != nil {
-		return utils.HandleCmdError("查询脚本命令执行失败", false)
+		return utils.HandleCmdError(gettext.Gettext("Execute query script command failed"), false)
 	}
 	scripts := strings.Split(strings.TrimSpace(string(out)), "\n")
 	for _, script := range scripts {
@@ -44,7 +45,7 @@ func IsScriptExist(scriptName string) utils.GeneralResponse {
 			logs.Warn(fmt.Sprintf("脚本 %s 已存在于pacemaker目录下", scriptName))
 			return utils.GeneralResponse{
 				Action: false,
-				Error:  "脚本已经存在于pacemaker目录下",
+				Error:  gettext.Gettext("The script already exists in the pacemaker directory"),
 			}
 		}
 	}
@@ -221,7 +222,7 @@ exit $?`
 		return utils.GeneralResponse{Action: false, Error: err.Error()}
 	}
 	// 返回成功信息
-	return utils.GeneralResponse{Action: true, Info: "Generate script success!"}
+	return utils.GeneralResponse{Action: true, Info: gettext.Gettext("Generate script success")}
 }
 
 func GenerateScript(data map[string]string) ScriptResponse {
@@ -255,7 +256,7 @@ func GenerateScript(data map[string]string) ScriptResponse {
 			// 生成当前节点的脚本
 			res := GenerateLocalScript(data)
 			if !res.Action {
-				result[nodeName] = "Generate script failed"
+				result[nodeName] = gettext.Gettext("Generate script failed")
 				logs.Error(fmt.Sprintf("Generate local script failed, err msg: %s", res.Error))
 				continue
 			} else {
@@ -277,7 +278,7 @@ func GenerateScript(data map[string]string) ScriptResponse {
 
 			httpResp := utils.SendRequest(remoteUrl, "POST", body)
 			if httpResp.StatusCode != http.StatusOK {
-				result[nodeName] = "Generate script failed"
+				result[nodeName] = gettext.Gettext("Generate script failed")
 				logs.Error(err)
 				continue
 			}
@@ -285,20 +286,20 @@ func GenerateScript(data map[string]string) ScriptResponse {
 
 			body, err = io.ReadAll(httpResp.Body)
 			if err != nil {
-				result[nodeName] = "Generate script failed"
+				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}
 
 			var retMap map[string]interface{}
 			if err = json.Unmarshal(body, &retMap); err != nil {
-				result[nodeName] = "Generate script failed!"
+				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}
 			retMap["action"] = retMap["action"].(bool)
 			if retMap["action"].(bool) {
-				result[nodeName] = "Generate script success!"
+				result[nodeName] = gettext.Gettext("Generate script success")
 			} else {
-				result[nodeName] = "Generate script failed"
+				result[nodeName] = gettext.Gettext("Generate script failed")
 			}
 		}
 	}

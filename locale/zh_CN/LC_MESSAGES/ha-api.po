@@ -1,0 +1,150 @@
+
+msgid "invalid input data"
+msgstr "输入无效"
+
+msgid "Set alarm success"
+msgstr "设置告警成功"
+
+msgid "Set alarm failed"
+msgstr "设置告警成功"
+
+msgid "No input data"
+msgstr "没有输入数据"
+
+msgid "Update cluster properties Success"
+msgstr "更新集群属性成功"
+
+msgid "Cannot convert data to json map"
+msgstr "无法将数据转换为JSON格式"
+
+msgid "Update cluster properties Success"
+msgstr "更新集群属性成功"
+
+msgid "Action on node Failed"
+msgstr "节点操作失败"
+
+msgid "Change cluster success"
+msgstr "修改集群成功"
+
+msgid "Change cluster failed"
+msgstr "修改集群失败"
+
+msgid "There are running resources in the cluster, please close first"
+msgstr "请先停止集群中运行的资源"
+
+msgid "invalid config data"
+msgstr "无效的配置数据"
+
+msgid "Get neokylinha log failed"
+msgstr "日志下载失败"
+
+msgid "host auth success"
+msgstr "节点认证成功"
+
+msgid "host auth failed"
+msgstr "节点认证失败"
+
+msgid "add cluster failed"
+msgstr "添加集群失败"
+
+msgid "add cluster success"
+msgstr "添加集群成功"
+
+msgid "The cluster already exists, please do not add it again"
+msgstr "请勿重复添加"
+
+msgid "No cluster found"
+msgstr "未找到集群"
+
+msgid "Unable to connect to cluster"
+msgstr  "无法连接到集群"
+
+msgid "username or password empty"
+msgstr "用户名或密码为空"
+
+msgid "username is not allowed to login"
+msgstr "用户名错误，不允许登录"
+
+msgid "Login success"
+msgstr "登录成功"
+
+msgid "Username or password error"
+msgstr "用户名或密码错误"
+
+msgid "Logout success"
+msgstr "登出成功"
+
+msgid "The new password is empty"
+msgstr "新密码为空"
+
+msgid "Change password success"
+msgstr "修改密码成功"
+
+msgid "Please make sure that Cluster nodes has been authenticated"
+msgstr "请确定集群节点已认证"
+
+msgid "get node failed"
+msgstr "获取节点信息失败"
+
+msgid "parse xml failed"
+msgstr "解析XML失败"
+
+msgid "Change node status Failed"
+msgstr "更改节点状态失败"
+
+msgid "Change node status success"
+msgstr "更改节点状态成功"
+
+msgid "Action on resource success"
+msgstr "资源操作成功"
+
+msgid "Update resource attributes success"
+msgstr "更新资源属性成功"
+
+msgid "Get rule failed"
+msgstr "获取规则失败"
+
+msgid "Delete rule success"
+msgstr "删除规则成功"
+
+msgid "Add rule success"
+msgstr "添加规则成功"
+
+msgid "Add rule failed, duplicate constraint already exists"
+msgstr "添加规则失败，重复的约束已存在"
+
+msgid "Update rule failed, duplicate constraint already exists"
+msgstr "更新规则失败，重复的约束已存在"
+
+msgid "Update rule success"
+msgstr "更新规则成功"
+
+msgid "Execute query script command failed"
+msgstr "查询脚本命令执行失败"
+
+msgid "The script already exists in the pacemaker directory"
+msgstr "脚本已经存在于pacemaker目录下"
+
+msgid "Generate script success!"
+msgstr "生成脚本成功"
+
+msgid "Generate script failed"
+msgstr "生成脚本失败"
+
+msgid "Tag get failed"
+msgstr "tag信息获取失败"
+
+msgid "Parsing JSON failed"
+msgstr "JSON解析失败"
+
+msgid "Add tag success"
+msgstr "Tag设置成功"
+
+msgid "Node name error"
+msgstr "节点名称填写错误"
+
+msgid "Resource name error"
+msgstr "资源名称填写错误"
+
+msgid "Delete Utilization success"
+msgstr "利用率删除成功"
