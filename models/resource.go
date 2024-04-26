@@ -1621,6 +1621,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 		cmd := fmt.Sprintf(utils.CmdCrmResource, rscID) + " --cleanup"
 		_, err := utils.RunCommand(cmd)
 		return err
+	// desperated
 	case "migrate":
 		d := struct {
 			IsForce bool   `json:"is_force"`
@@ -1639,6 +1640,7 @@ func ResourceAction(rscID, action string, data []byte) error {
 			}
 		}
 		return err
+	// desperated
 	case "unmigrate":
 		cmd := utils.CmdQueryConstraints
 		out, err := utils.RunCommand(cmd)
