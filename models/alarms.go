@@ -34,16 +34,16 @@ func AlarmsGet() map[string]interface{} {
 	password := ""
 	port := ""
 	switCh := ""
+	data := map[string]interface{}{}
 
 	out, err := utils.RunCommand(utils.CmdCibQueryConfig)
-
 	if err != nil {
 		logs.Error("get alert message failed", err)
 		goto ret
 	}
 	doc = etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		logs.Error("parse xml comfig error", err)
+		logs.Error("parse xml config error", err)
 		goto ret
 	}
 
@@ -78,7 +78,6 @@ func AlarmsGet() map[string]interface{} {
 		out, _ := utils.RunCommand(cmdStr)
 		mailPassword := string(out)
 
-		data := map[string]interface{}{}
 		data["sender"] = sender
 		data["smtp"] = smtp
 		data["lag"] = switCh
@@ -88,7 +87,6 @@ func AlarmsGet() map[string]interface{} {
 	}
 
 ret:
-	data := map[string]interface{}{}
 	result := make(map[string]interface{})
 	if len(data) == 0 {
 		data["flag"] = false
