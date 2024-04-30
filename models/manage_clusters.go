@@ -529,7 +529,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 		for _, node := range remoteNodeList {
 			url := fmt.Sprintf("http://%s:%d/remote/api/v1/nodes/add_nodes", node, port)
 
-			httpResp := utils.SendRequest(url, "POST", AddNodesinfo.Data)
+			httpResp, _ := utils.SendRequest(url, "POST", AddNodesinfo.Data)
 			if httpResp.StatusCode == http.StatusOK {
 				httpRespData, _ := io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
@@ -537,7 +537,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				json.Unmarshal(httpRespData, &httpRespMessage)
 
 				url = fmt.Sprintf("http://%s:%d/remote/api/v1/managec/local_cluster_info", node, port)
-				httpResp = utils.SendRequest(url, "GET", nil)
+				httpResp, _ = utils.SendRequest(url, "GET", nil)
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
 				var remoteClusterInfo map[string]interface{}

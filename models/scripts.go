@@ -209,7 +209,7 @@ case $1 in
 		;;
 esac
 exit $?`
-
+	// TODO: Fallback of write failures caused by non atomic operations
 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return errors.Wrap(err, "create script file failed")
@@ -226,7 +226,6 @@ exit $?`
 
 	// 返回成功信息
 	return nil
-	// return utils.GeneralResponse{Action: true, Info: gettext.Gettext("Generate script success")}
 }
 
 func GenerateScript(data map[string]string) ScriptResponse {
@@ -283,7 +282,12 @@ func GenerateScript(data map[string]string) ScriptResponse {
 				}
 			}
 
-			httpResp := utils.SendRequest(remoteUrl, "POST", body)
+			httpResp, err := utils.SendRequest(remoteUrl, "POST", body)
+			if err != nil {
+				logs.Error("connecting node %s failed", nodeName)
+				result[nodeName] = gettext.Gettext("node connecting failed")
+				continue
+			}
 			if httpResp.StatusCode != http.StatusOK {
 				utils.LogTrace(errors.Errorf("url: %s, error: send request failed", remoteUrl))
 				result[nodeName] = gettext.Gettext("Generate script failed")
@@ -312,10 +316,11 @@ func GenerateScript(data map[string]string) ScriptResponse {
 			}
 		}
 	}
+
 	return ScriptResponse{
 		Data: result,
 		GeneralResponse: utils.GeneralResponse{
-			Action: true,
+			Action: len(result) == 0,
 		},
 	}
 
