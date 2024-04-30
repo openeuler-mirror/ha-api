@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
@@ -37,12 +39,13 @@ type ScriptResponse struct {
 func IsScriptExist(scriptName string) utils.GeneralResponse {
 	out, err := utils.RunCommand(utils.CmdPacemakerAgents)
 	if err != nil {
+		utils.LogTrace(err)
 		return utils.HandleCmdError(gettext.Gettext("Execute query script command failed"), false)
 	}
 	scripts := strings.Split(strings.TrimSpace(string(out)), "\n")
 	for _, script := range scripts {
 		if script == scriptName {
-			logs.Warn(fmt.Sprintf("脚本 %s 已存在于pacemaker目录下", scriptName))
+			logs.Info(fmt.Sprintf("Script %s was already exists in the pacemaker directory", scriptName))
 			return utils.GeneralResponse{
 				Action: false,
 				Error:  gettext.Gettext("The script already exists in the pacemaker directory"),
@@ -52,11 +55,11 @@ func IsScriptExist(scriptName string) utils.GeneralResponse {
 
 	return utils.GeneralResponse{
 		Action: true,
-		Info:   "脚本不存在",
+		Info:   gettext.Gettext("Script not exists"),
 	}
 }
 
-func GenerateLocalScript(data map[string]string) utils.GeneralResponse {
+func GenerateLocalScript(data map[string]string) error {
 	name := data["name"]
 	startCommand := data["start"]
 	stopCommand := data["stop"]
@@ -209,30 +212,32 @@ exit $?`
 
 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
-		return utils.GeneralResponse{
-			Action: false, Error: err.Error()}
+		return errors.Wrap(err, "create script file failed")
 	}
 	defer file.Close() // 确保文件在函数结束时关闭
 
 	if _, err := file.WriteString(scriptTemplete); err != nil {
-		return utils.GeneralResponse{Action: false, Error: err.Error()}
+		return errors.Wrap(err, "write script file failed")
 	}
 
 	if err := os.Chmod(filePath, 0755); err != nil {
-		return utils.GeneralResponse{Action: false, Error: err.Error()}
+		return errors.Wrap(err, "chmod script file failed")
 	}
+
 	// 返回成功信息
-	return utils.GeneralResponse{Action: true, Info: gettext.Gettext("Generate script success")}
+	return nil
+	// return utils.GeneralResponse{Action: true, Info: gettext.Gettext("Generate script success")}
 }
 
 func GenerateScript(data map[string]string) ScriptResponse {
 	// 获取所有节点
 	out, err := utils.RunCommand(utils.CmdNodeStatus)
 	if err != nil {
+		utils.LogTraceWithMsg(err, "get node status failed")
 		return ScriptResponse{
 			GeneralResponse: utils.GeneralResponse{
-				Action: true,
-				Error:  err.Error(),
+				Action: false,
+				Error:  gettext.Gettext("get node status failed"),
 			},
 		}
 	}
@@ -240,10 +245,11 @@ func GenerateScript(data map[string]string) ScriptResponse {
 	nodes := strings.Split(strings.TrimSpace(string(out)), "\n")
 	out, err = utils.RunCommand(utils.CmdHostName)
 	if err != nil {
+		utils.LogTraceWithMsg(err, "get hostname failed")
 		return ScriptResponse{
 			GeneralResponse: utils.GeneralResponse{
 				Action: true,
-				Error:  err.Error(),
+				Error:  gettext.Gettext("get hostname failed"),
 			},
 		}
 	}
@@ -254,13 +260,13 @@ func GenerateScript(data map[string]string) ScriptResponse {
 		nodeName := strings.Split(node, " ")[1]
 		if nodeName == localHostName {
 			// 生成当前节点的脚本
-			res := GenerateLocalScript(data)
-			if !res.Action {
+			err := GenerateLocalScript(data)
+			if err != nil {
+				utils.LogTrace(err)
 				result[nodeName] = gettext.Gettext("Generate script failed")
-				logs.Error(fmt.Sprintf("Generate local script failed, err msg: %s", res.Error))
 				continue
 			} else {
-				result[nodeName] = "Generate script success"
+				result[nodeName] = gettext.Gettext("Generate script success")
 			}
 		} else {
 			// 生成集群其他节点的脚本
@@ -268,30 +274,33 @@ func GenerateScript(data map[string]string) ScriptResponse {
 			data["nodecall"] = localHostName
 			body, err := json.Marshal(data)
 			if err != nil {
+				utils.LogTrace(errors.Wrapf(err, "url: %s, error: marshal data failed", remoteUrl))
 				return ScriptResponse{
 					GeneralResponse: utils.GeneralResponse{
 						Action: true,
-						Error:  err.Error(),
+						Error:  gettext.Gettext("Generate script failed"),
 					},
 				}
 			}
 
 			httpResp := utils.SendRequest(remoteUrl, "POST", body)
 			if httpResp.StatusCode != http.StatusOK {
+				utils.LogTrace(errors.Errorf("url: %s, error: send request failed", remoteUrl))
 				result[nodeName] = gettext.Gettext("Generate script failed")
-				logs.Error(err)
 				continue
 			}
 			defer httpResp.Body.Close() // 确保请求在函数结束时关闭
 
 			body, err = io.ReadAll(httpResp.Body)
 			if err != nil {
+				utils.LogTrace(errors.Wrapf(err, "url: %s, error: read response body failed", remoteUrl))
 				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}
 
 			var retMap map[string]interface{}
 			if err = json.Unmarshal(body, &retMap); err != nil {
+				utils.LogTrace(errors.Wrapf(err, "url: %s, error: unmarshal response body failed", remoteUrl))
 				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}

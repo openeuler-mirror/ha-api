@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
 )
@@ -50,26 +51,28 @@ func RulesGet(rscName string) RuleGetResponse {
 
 	doc = etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
+		logs.Error("RulesGet: Read xml  : %v", err)
 		goto ret
 	}
-	if len(rules) == 0 {
-		rules := doc.FindElements("//rsc_location")
-		for _, ruleElem := range rules {
-			if rsc := ruleElem.SelectAttrValue("rsc", ""); rsc == rscName {
-				rule := ruleElem.SelectElement("rule")
-				if rule != nil {
-					r := Rule{
-						Rsc:       rsc,
-						RuleId:    rule.SelectAttrValue("id", ""),
-						Score:     rule.SelectAttrValue("score", ""),
-						Attribute: rule.SelectElement("expression").SelectAttrValue("attribute", ""),
-						Operation: rule.SelectElement("expression").SelectAttrValue("operation", ""),
-						Value:     rule.SelectElement("expression").SelectAttrValue("value", ""),
-					}
-					rulelist = append(rulelist, r)
-				}
 
+	rules = doc.FindElements("//rsc_location")
+	for _, ruleElem := range rules {
+		if rsc := ruleElem.SelectAttrValue("rsc", ""); rsc == rscName {
+			rule := ruleElem.SelectElement("rule")
+			if rule != nil {
+				// 降级返回
+				logs.Warn("RulesGet: rules are empty")
+				r := Rule{
+					Rsc:       rsc,
+					RuleId:    rule.SelectAttrValue("id", ""),
+					Score:     rule.SelectAttrValue("score", ""),
+					Attribute: rule.SelectElement("expression").SelectAttrValue("attribute", ""),
+					Operation: rule.SelectElement("expression").SelectAttrValue("operation", ""),
+					Value:     rule.SelectElement("expression").SelectAttrValue("value", ""),
+				}
+				rulelist = append(rulelist, r)
 			}
+
 		}
 	}
 
@@ -140,6 +143,7 @@ func RuleAdd(data map[string]string) utils.GeneralResponse {
 	if err != nil {
 		return utils.HandleCmdError(gettext.Gettext("Add rule failed, duplicate constraint already exists"), false)
 	}
+
 	return utils.GeneralResponse{
 		Action: true,
 		Info:   gettext.Gettext("Add rule success"),
