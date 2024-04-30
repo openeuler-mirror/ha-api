@@ -18,6 +18,7 @@ import (
 	"os/exec"
 
 	"github.com/beego/beego/v2/core/logs"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -100,7 +101,8 @@ func RunCommand(c string) ([]byte, error) {
 	command := exec.Command("bash", "-c", c)
 	out, err := command.CombinedOutput()
 	if err != nil {
-		logs.Error("Run command failed!, command: " + c + " out: " + string(out) + " err: " + err.Error())
+		// logs.Error("Run command failed!, command: " + c + " out: " + string(out) + " err: " + err.Error())
+		return out, errors.Wrapf(err, "Run command failed!, command: "+c+" out: "+string(out)+" err: "+err.Error())
 	}
-	return out, err
+	return out, nil
 }

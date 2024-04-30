@@ -14,6 +14,11 @@
  */
 package utils
 
+import (
+	"github.com/beego/beego/v2/core/logs"
+	"github.com/pkg/errors"
+)
+
 type ErrorInfo struct {
 	Action bool   `json:"action"`
 	Error  string `json:"error,omitempty"`
@@ -40,4 +45,14 @@ func HandleJsonError(errMsg string, action bool) ErrorInfo {
 		Error:  errMsg,
 	}
 	return result
+}
+
+func LogTraceWithMsg(err error, msg string) {
+	logs.Error(msg)
+	LogTrace(err)
+}
+
+func LogTrace(err error) {
+	logs.Error("original error: %T %v", errors.Cause(err), errors.Cause(err))
+	logs.Error("stack trace: %+v", err)
 }
