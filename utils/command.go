@@ -29,7 +29,7 @@ const (
 	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 	CmdCibQueryConfig               = "cibadmin --query --scope configuration"
 	CmdDeleteAlert                  = "pcs alert delete alert_Kylin"
-	CmdCreateAlert                  = "pcs alert create id=alert_Kylin path=/usr/share/pacemaker/alerts/neokylin_alert.sh"
+	CmdCreateAlert                  = "pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh"
 	CmdAddAlert                     = "pcs alert recipient add alert_Kylin"
 	CmdUpdateResourceStickness      = "crm_attribute  -t rsc_defaults -n resource-stickiness -v "
 	CmdUpdateCrmConfig              = "crm_attribute -t crm_config -n "

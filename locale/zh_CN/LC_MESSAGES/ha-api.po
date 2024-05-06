@@ -163,3 +163,15 @@ msgstr "生成脚本成功"
 
 msgid "node connecting failed"
 msgstr "节点不可连接"
+
+msgid "Create cluster failed"
+msgstr "创建集群失败"
+
+msgid "Create cluster success"
+msgstr "创建集群成功"
+
+msgid "Failed to configure the alarm function module. If you need an alarm log, please manually execute the following command: pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh"
+msgstr "配置告警日志失败，如需告警日志，请手动执行以下命令：pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh"
+
+msgid "Add node failed"
+msgstr "添加节点失败"
