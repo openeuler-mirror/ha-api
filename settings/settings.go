@@ -44,7 +44,7 @@ const (
 	PacemakerSchedulerd  = "/usr/libexec/pacemaker/pacemaker-schedulerd"
 	PacemakerControld    = "/usr/libexec/pacemaker/pacemaker-controld"
 	PacemakerBased       = "/usr/libexec/pacemaker/pacemaker-based"
-	pacemaker_fenced     = "/usr/libexec/pacemaker/pacemaker-fenced"
+	Pacemaker_fenced     = "/usr/libexec/pacemaker/pacemaker-fenced"
 	pcs_version          = "0.10.2"
 
 	crm_mon_schema              = "/usr/share/pacemaker/crm_mon.rng"
@@ -58,8 +58,8 @@ const (
 	pcsd_default_port           = 2224
 	pcsd_config                 = "/etc/sysconfig/pcsd"
 	cib_dir                     = "/var/lib/pacemaker/cib/"
-	pacemaker_uname             = "hacluster"
-	pacemaker_gname             = "haclient"
+	PacemakerUname              = "hacluster"
+	PacemakerGname              = "haclient"
 	sbd_binary                  = "/usr/sbin/sbd"
 	sbd_watchdog_default        = "/dev/watchdog"
 	sbd_config                  = "/etc/sysconfig/sbd"
@@ -97,6 +97,7 @@ const (
 	HAAPI_DEFAULT_PORT           = 8080
 	ClustersConfigFile           = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
 	MaxBackTimes                 = 50
+	DefaultClusterName           = "hacluster"
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")
