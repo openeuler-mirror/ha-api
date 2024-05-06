@@ -9,7 +9,7 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2024-03-25 17:19:21
+ * LastEditTime: 2024-05-06 16:00:21
  * Description: 删除重复数据，获取数字单位
  ******************************************************************************/
 package utils
@@ -19,8 +19,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
+
+	"github.com/beego/beego/v2/core/logs"
+	"github.com/spf13/viper"
 )
 
 func IsInSlice(str string, sli []string) bool {
@@ -93,4 +98,24 @@ func SendRequest(url string, method string, data interface{}) (resp *http.Respon
 	}
 
 	return httpResp, nil
+}
+
+// Read Port from config file
+func ReadPortFromConfig() (string, error) {
+	defaultPort := "8080"
+	viper.SetConfigName("port")
+	viper.SetConfigType("ini")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		logs.Error("Error reading config file, %s, using default port %s", err, defaultPort)
+		return defaultPort, fmt.Errorf("Error reading config file, %s, using default port %s", err, defaultPort)
+	} else {
+		port := viper.GetString("port.haapi_port")
+		_, err := strconv.Atoi(port)
+		if err != nil {
+			logs.Warning("Port in config is not a number, using default port 8080")
+			return defaultPort, fmt.Errorf("Port in config is not a number, using default port %s", defaultPort)
+		}
+		return port, nil
+	}
 }
