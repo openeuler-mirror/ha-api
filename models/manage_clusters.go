@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -16,7 +15,7 @@ import (
 	"github.com/chai2010/gettext-go"
 )
 
-var port = 8080
+var port, _ = utils.ReadPortFromConfig()
 
 // ClustersInfo is a structure representing information about clusters.
 type ClustersInfo struct {
@@ -249,10 +248,8 @@ func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{}
 // getLocalConf reads the local cluster configuration from a file and returns a ClustersInfo instance.
 func getLocalConf() *ClustersInfo {
 	localFile := readFile(settings.ClustersConfigFile)
-
 	localConf := NewClustersInfo(localFile)
 	return localConf
-
 }
 
 func getRemoteNodes(clusterName string) interface{} {
@@ -272,7 +269,7 @@ func readFile(filename string) map[string]interface{} {
 	}
 	defer infile.Close()
 
-	data, err := ioutil.ReadAll(infile)
+	data, err := io.ReadAll(infile)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return newDict
@@ -321,7 +318,7 @@ func syncClusterConfFile(conf *ClustersInfo) {
 	nodeList := clusterInfo["nodes"].([]string)
 	for _, node := range nodeList {
 		// Node-to-node config file sync operation
-		url := fmt.Sprintf("http://%s:%d/remote/api/v1/sync_config", node, port)
+		url := fmt.Sprintf("http://%s:%s/remote/api/v1/sync_config", node, port)
 		confJSON, err := json.Marshal(conf.Text)
 		if err != nil {
 			fmt.Println("Error marshaling config to JSON:", err)
@@ -403,7 +400,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		return authRes
 	}
 
-	url := fmt.Sprintf("https://%s:%d/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
+	url := fmt.Sprintf("https://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
 	resp, err := http.Get(url)
 	if err != nil {
 		return map[string]interface{}{
@@ -527,7 +524,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
 	if len(remoteNodeList) > 0 {
 		for _, node := range remoteNodeList {
-			url := fmt.Sprintf("http://%s:%d/remote/api/v1/nodes/add_nodes", node, port)
+			url := fmt.Sprintf("http://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
 
 			httpResp, _ := utils.SendRequest(url, "POST", AddNodesinfo.Data)
 			if httpResp.StatusCode == http.StatusOK {
@@ -536,7 +533,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				var httpRespMessage map[string]interface{}
 				json.Unmarshal(httpRespData, &httpRespMessage)
 
-				url = fmt.Sprintf("http://%s:%d/remote/api/v1/managec/local_cluster_info", node, port)
+				url = fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
 				httpResp, _ = utils.SendRequest(url, "GET", nil)
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
@@ -576,7 +573,7 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 		des := false
 		detailInfo := gettext.Gettext("Unable to connect to cluster")
 		for _, node := range nodeList {
-			url := fmt.Sprintf("http://%s:%d/remote/api/v1/destroy_cluster", node, port)
+			url := fmt.Sprintf("http://%s:%s/remote/api/v1/destroy_cluster", node, port)
 			success := false
 			func() {
 				defer func() {

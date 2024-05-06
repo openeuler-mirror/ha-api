@@ -15,16 +15,15 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"strconv"
 
 	_ "gitee.com/openeuler/ha-api/routers"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
-	"github.com/spf13/viper"
+
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 func pageNotFoundHandler(rw http.ResponseWriter, r *http.Request) {
@@ -34,26 +33,6 @@ func pageNotFoundHandler(rw http.ResponseWriter, r *http.Request) {
 func detectUserLanguage() string {
 	// Todo: check user language preferences, check environment variables, user profiles, or HTTP request headers
 	return "zh_CN"
-}
-
-// Read Port from config file
-func readPortFromConfig() (string, error) {
-	defaultPort := "8080"
-	viper.SetConfigName("port")
-	viper.SetConfigType("ini")
-	viper.AddConfigPath(".")
-	if err := viper.ReadInConfig(); err != nil {
-		logs.Error("Error reading config file, %s, using default port %s", err, defaultPort)
-		return defaultPort, fmt.Errorf("Error reading config file, %s, using default port %s", err, defaultPort)
-	} else {
-		port := viper.GetString("port.haapi_port")
-		_, err := strconv.Atoi(port)
-		if err != nil {
-			logs.Warning("Port in config is not a number, using default port 8080")
-			return defaultPort, fmt.Errorf("Port in config is not a number, using default port %s", defaultPort)
-		}
-		return port, nil
-	}
 }
 
 func init() {
@@ -83,6 +62,6 @@ func main() {
 
 	web.ErrorHandler("404", pageNotFoundHandler)
 
-	port, _ := readPortFromConfig()
+	port, _ := utils.ReadPortFromConfig()
 	web.Run(":" + port)
 }
