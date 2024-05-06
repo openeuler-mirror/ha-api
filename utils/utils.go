@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 )
@@ -58,7 +59,7 @@ func GetNumAndUnitFromStr(s string) (string, string) {
 }
 
 // Send http request
-func SendRequest(url string, method string, data interface{}) *http.Response {
+func SendRequest(url string, method string, data interface{}) (resp *http.Response, err error) {
 	var httpResp *http.Response
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -67,22 +68,29 @@ func SendRequest(url string, method string, data interface{}) *http.Response {
 			},
 		},
 	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
 
 	switch method {
 	case "POST":
-		jsonData, _ := json.Marshal(data)
-		httpResp, _ = client.Post(url, "application/json", bytes.NewReader(jsonData))
+		httpResp, err = client.Post(url, "application/json", bytes.NewReader(jsonData))
 	case "GET":
 		httpResp, _ = client.Get(url)
 	case "DELETE":
-		jsonData, _ := json.Marshal(data)
 		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(jsonData))
-		httpResp, _ = client.Do(req)
+		httpResp, err = client.Do(req)
 	case "PUT":
-		jsonData, _ := json.Marshal(data)
 		req, _ := http.NewRequest("PUT", url, bytes.NewReader(jsonData))
-		httpResp, _ = client.Do(req)
+		httpResp, err = client.Do(req)
+	default:
+		return nil, errors.New("unsupported method")
 	}
 
-	return httpResp
+	if err != nil {
+		return nil, err
+	}
+
+	return httpResp, nil
 }
