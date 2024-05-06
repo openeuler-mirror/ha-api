@@ -108,7 +108,7 @@ func (csc *ClusterSetupController) Post() {
 	logs.Debug("handle post request in ClustersController.")
 	result := map[string]interface{}{}
 	//reqData := make(map[string]interface{})
-	var reqData models.ClusterSetData
+	var reqData models.ClusterData
 	if err := json.Unmarshal(csc.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false

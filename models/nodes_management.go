@@ -9,6 +9,7 @@ import (
 
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
 )
 
 // nodes_info格式
@@ -143,24 +144,27 @@ func GetClusterInfo() map[string]interface{} {
 
 // clusterSetup sets up a cluster with the provided node information.
 // Returns results indicating the success or failure of the cluster setup.
-func clusterSetup(addNodes ClusterSetData) map[string]interface{} {
-	clusterName := addNodes.Cluster_name
+func clusterSetup(cluster ClusterData) map[string]interface{} {
+	clusterName := cluster.Cluster_name
 	if clusterName == "" {
 		clusterName = settings.DefaultClusterName
 	}
-
-	nodeCmdStr := generateNodeCmdStr(addNodes.Data)
+	// TODO: --force
+	nodeCmdStr := generateNodeCmdStr(cluster.Data)
 	cmd := fmt.Sprintf(utils.CmdSetupClusterStandard, clusterName, nodeCmdStr)
 	output, err := utils.RunCommand(cmd)
 	outputStr := string(output[:])
 	if err != nil {
-		if strings.Contains(outputStr, "Running cluster services") {
-			return map[string]interface{}{"action": false, "error": "添加的部分节点已在集群中，请先将这些节点从集群中移除，或从已在集群中进行添加节点操作。"}
-		}
-		return map[string]interface{}{"action": false, "error": "集群创建失败"}
-	} else {
-		return map[string]interface{}{"action": true, "message": "集群创建成功"}
+		return map[string]interface{}{"action": false, "error": gettext.Getdata("Create cluster failed"), "detailInfo": outputStr}
 	}
+
+	_, err = utils.RunCommand(utils.CmdCreateAlert)
+	if err != nil {
+		return map[string]interface{}{"action": true, "message": gettext.Getdata("Create cluster success"),
+			"alertInfo": gettext.Getdata("Failed to configure the alarm function module. If you need an alarm log, please manually execute the following command: pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh")}
+	}
+
+	return map[string]interface{}{"action": true, "message": gettext.Getdata("Create cluster success")}
 }
 
 // generateNodeCmdStr generates the command string for adding nodes to the cluster.
@@ -278,13 +282,13 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 		if err != nil {
 			return map[string]interface{}{
 				"action":     false,
-				"error":      "添加节点失败",
+				"error":      gettext.Getdata("Add node failed"),
 				"detailInfo": string(out),
 			}
 		}
 
 	} else {
-		var clusterInfo ClusterSetData
+		var clusterInfo ClusterData
 		clusterInfo.Cluster_name = addNodes.Cluster_name
 		clusterInfo.Data = addNodesInfo
 		return clusterSetup(clusterInfo)

@@ -25,7 +25,7 @@ type ClustersInfo struct {
 	Clusters []interface{}
 }
 
-type ClusterSetData struct {
+type ClusterData struct {
 	Cluster_name string
 	Data         []NodeData
 }
@@ -444,7 +444,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 }
 
 // ClusterSetup performs the setup of a cluster using the provided cluster information.
-func ClusterSetup(clusterSetInfo ClusterSetData) map[string]interface{} {
+func ClusterSetup(clusterSetInfo ClusterData) map[string]interface{} {
 	authInfo := make(map[string]interface{})
 	nodeList := make([]string, 0)
 	passwords := make([]string, 0)
