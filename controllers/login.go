@@ -23,6 +23,7 @@ import (
 	"github.com/beego/beego/v2/server/web/context"
 	"github.com/chai2010/gettext-go"
 
+	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
 )
 
@@ -76,7 +77,7 @@ func (lc *LoginController) Post() {
 		logs.Error("Login failed: username or password is empty")
 		goto ret
 	}
-	if d.Username != "hacluster" {
+	if d.Username != settings.PacemakerUname {
 		result.Action = false
 		result.Error = gettext.Gettext("username is not allowed to login")
 		logs.Error("Login failed: username is not allowed to login")

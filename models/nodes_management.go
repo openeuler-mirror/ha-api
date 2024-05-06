@@ -146,7 +146,7 @@ func GetClusterInfo() map[string]interface{} {
 func clusterSetup(addNodes ClusterSetData) map[string]interface{} {
 	clusterName := addNodes.Cluster_name
 	if clusterName == "" {
-		clusterName = "hacluster"
+		clusterName = settings.DefaultClusterName
 	}
 
 	nodeCmdStr := generateNodeCmdStr(addNodes.Data)
