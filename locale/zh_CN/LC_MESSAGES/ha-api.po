@@ -175,3 +175,9 @@ msgstr "配置告警日志失败，如需告警日志，请手动执行以下命
 
 msgid "Add node failed"
 msgstr "添加节点失败"
+
+msgid "Please reselect the cluster in the top operation area"
+msgstr "请重新在顶部操作区选择集群"
+
+msgid "Create alert_log success"
+msgstr "创建告警日志成功"
