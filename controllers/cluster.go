@@ -77,7 +77,7 @@ func (mcc *MultipleClustersController) Post() {
 	reqData := make(map[string]interface{})
 	//need to check whether we want to add or remove cluster
 	if err := json.Unmarshal(mcc.Ctx.Input.RequestBody, &reqData); err != nil {
-		result = make(map[string]interface{})
+		// result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
@@ -106,11 +106,11 @@ func (sc *Sync_configController) Post() {
 
 func (csc *ClusterSetupController) Post() {
 	logs.Debug("handle post request in ClustersController.")
-	result := map[string]interface{}{}
+	result := make(map[string]interface{})
 	//reqData := make(map[string]interface{})
 	var reqData models.ClusterData
 	if err := json.Unmarshal(csc.Ctx.Input.RequestBody, &reqData); err != nil {
-		result = make(map[string]interface{})
+		// result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {

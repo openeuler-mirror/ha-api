@@ -8,7 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
@@ -91,23 +94,22 @@ func NewClustersInfo(text map[string]interface{}) *ClustersInfo {
 }
 
 // Save updates the version, performs a backup, and saves the ClustersInfo to a file in JSON format.
-func (ci *ClustersInfo) Save() {
+func (ci *ClustersInfo) Save() error {
 	ci.Version++
 	ci.Backup()
 	saveConf := ci.UpdateText()
 	file, err := os.Create(settings.ClustersConfigFile)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
-		return
+		return err
 	}
 	defer file.Close()
 
 	enc := json.NewEncoder(file)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(saveConf); err != nil {
-		fmt.Println("Error encoding JSON:", err)
-		return
+		return err
 	}
+	return nil
 }
 
 // Backup creates a backup of the cluster information file with a timestamp.
@@ -244,12 +246,14 @@ func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{}
 	clusterParse["ip"] = ips
 	return clusterParse
 }
+func GetLocalConf() *ClustersInfo {
+	return getLocalConf()
+}
 
 // getLocalConf reads the local cluster configuration from a file and returns a ClustersInfo instance.
 func getLocalConf() *ClustersInfo {
-	localFile := readFile(settings.ClustersConfigFile)
-	localConf := NewClustersInfo(localFile)
-	return localConf
+	localConf := readFile(settings.ClustersConfigFile)
+	return NewClustersInfo(localConf)
 }
 
 func getRemoteNodes(clusterName string) interface{} {
@@ -440,17 +444,17 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		"error":  gettext.Gettext("add cluster failed")}
 }
 
-// ClusterSetup performs the setup of a cluster using the provided cluster information.
-func ClusterSetup(clusterSetInfo ClusterData) map[string]interface{} {
-	authInfo := make(map[string]interface{})
-	nodeList := make([]string, 0)
-	passwords := make([]string, 0)
+func ConvertClusterDataToSetupMap(clusterSetInfo ClusterData) map[string]interface{} {
+	return convertClusterDataToSetupMap(clusterSetInfo)
+}
 
-	setData := clusterSetInfo.Data
+// convertClusterDataToSetupMap convert ClusterData to setup map
+func convertClusterDataToSetupMap(clusterSetInfo ClusterData) map[string]interface{} {
+	clusterInfo := make(map[string]interface{})
+
+	nodesData := clusterSetInfo.Data
 	var data []map[string]interface{}
-	for _, node := range setData {
-		nodeList = append(nodeList, node.Name)
-		passwords = append(passwords, node.Password)
+	for _, node := range nodesData {
 		nodeMap := make(map[string]interface{})
 		nodeMap["name"] = node.Name
 		nodeMap["nodeid"] = node.NodeID
@@ -469,27 +473,46 @@ func ClusterSetup(clusterSetInfo ClusterData) map[string]interface{} {
 		data = append(data, nodeMap)
 	}
 
-	clusterInfo := make(map[string]interface{})
 	clusterInfo["cluster_name"] = clusterSetInfo.Cluster_name
 	clusterInfo["data"] = data
+	return clusterInfo
+}
 
+func getAuthInfoFromClusterData(clusterSetInfo ClusterData) map[string]interface{} {
+	authInfo := make(map[string]interface{})
+	nodeList := make([]string, 0)
+	passwords := make([]string, 0)
+
+	nodesData := clusterSetInfo.Data
+	for _, node := range nodesData {
+		nodeList = append(nodeList, node.Name)
+		passwords = append(passwords, node.Password)
+	}
 	authInfo["node_list"] = nodeList
 	authInfo["password"] = passwords
-	authRes := hostAuth(authInfo)
-	//this map is used for transitional use, and then deleted when clusterInfoParse and related functions adopt a structure
+	return authInfo
+}
 
+// ClusterSetup performs the setup of a cluster using the provided cluster information.
+func ClusterSetup(clusterSetInfo ClusterData) map[string]interface{} {
+	authInfo := getAuthInfoFromClusterData(clusterSetInfo)
+
+	// first: host auth
+	authRes := hostAuth(authInfo)
 	if !authRes["action"].(bool) {
 		return authRes
-	} else {
-		res := clusterSetup(clusterSetInfo)
-		if res["action"].(bool) {
-			localConf := getLocalConf()
-			localConf.AddCluster(clusterInfoParse(clusterInfo))
-			localConf.Save()
-			syncClusterConfFile(localConf)
-		}
-		return res
 	}
+	// second: cluster setup
+	res := clusterSetup(clusterSetInfo)
+	if res["action"].(bool) {
+		// third: cluster conf sync
+		localConf := getLocalConf()
+		clusterInfo := convertClusterDataToSetupMap(clusterSetInfo)
+		localConf.AddCluster(clusterInfoParse(clusterInfo))
+		localConf.Save()
+		syncClusterConfFile(localConf) //TODO:check sync
+	}
+	return res
 }
 
 func ClusterRemove(RemoveInfo RemoveData) *RemoveRet {
@@ -619,4 +642,31 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 		"clusters":   failedClusterList,
 		"detailInfo": detailInfos,
 	}
+}
+
+// UrlRedirect
+func UrlRedirect(clusterName string, uiPath string, requestMethod string, requestData interface{}) (map[string]interface{}, error) {
+	remoteNodes := getRemoteNodes(clusterName).([]interface{})
+	if len(remoteNodes) == 0 {
+		return nil, errors.New("no remote nodes")
+	}
+	for node := range remoteNodes {
+		url := ""
+		if strings.HasPrefix(uiPath, "/remote") {
+			url = "https://" + string(rune(node)) + ":" + port + uiPath
+		} else {
+			url = "https://" + string(rune(node)) + ":" + port + "/remote" + uiPath
+		}
+
+		resp, err := utils.SendRequest(url, requestMethod, requestData)
+		if err != nil {
+			return map[string]interface{}{"action": false, "NodeRequestFailed": gettext.Gettext("Request failed")}, err
+		}
+		respData, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var remoteClusterInfo map[string]interface{}
+		json.Unmarshal(respData, &remoteClusterInfo)
+		return remoteClusterInfo, nil // the surrounding loop is unconditionally terminated (SA4004)go-staticcheck
+	}
+	return map[string]interface{}{"action": false, "message": gettext.Gettext("Please reselect the cluster in the top operation area")}, errors.New("no remote nodes")
 }

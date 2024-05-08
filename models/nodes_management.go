@@ -155,16 +155,16 @@ func clusterSetup(cluster ClusterData) map[string]interface{} {
 	output, err := utils.RunCommand(cmd)
 	outputStr := string(output[:])
 	if err != nil {
-		return map[string]interface{}{"action": false, "error": gettext.Getdata("Create cluster failed"), "detailInfo": outputStr}
+		return map[string]interface{}{"action": false, "error": gettext.Gettext("Create cluster failed"), "detailInfo": outputStr}
 	}
 
 	_, err = utils.RunCommand(utils.CmdCreateAlert)
 	if err != nil {
-		return map[string]interface{}{"action": true, "message": gettext.Getdata("Create cluster success"),
-			"alertInfo": gettext.Getdata("Failed to configure the alarm function module. If you need an alarm log, please manually execute the following command: pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh")}
+		return map[string]interface{}{"action": true, "info": gettext.Gettext("Create cluster success"),
+			"alertInfo": gettext.Gettext("Failed to configure the alarm function module. If you need an alarm log, please manually execute the following command: pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh")}
 	}
 
-	return map[string]interface{}{"action": true, "message": gettext.Getdata("Create cluster success")}
+	return map[string]interface{}{"action": true, "info": gettext.Gettext("Create cluster success"), "alertInfo": gettext.Gettext("Create alert_log success")}
 }
 
 // generateNodeCmdStr generates the command string for adding nodes to the cluster.
@@ -282,7 +282,7 @@ func LocalAddNodes(addNodes AddNodesData) interface{} {
 		if err != nil {
 			return map[string]interface{}{
 				"action":     false,
-				"error":      gettext.Getdata("Add node failed"),
+				"error":      gettext.Gettext("Add node failed"),
 				"detailInfo": string(out),
 			}
 		}
