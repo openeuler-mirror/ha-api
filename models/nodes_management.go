@@ -21,18 +21,11 @@ type AuthInfo struct {
 	ip       []string
 }
 
-// getClusterName reads the cluster name from the corosync configuration file.
-// Returns a map indicating the result and the extracted cluster name, if available.
-func getClusterName() map[string]interface{} {
+func getLocalClusterName() (string, error) {
 	filename := settings.CorosyncConfFile
-	clusterName := ""
-	result := make(map[string]interface{})
-
 	file, err := os.Open(filename)
 	if err != nil {
-		result["action"] = false
-		result["error"] = "File " + filename + " doesn't exist!"
-		return result
+		return "", fmt.Errorf("open corosync conf failed")
 	}
 	defer file.Close()
 
@@ -41,25 +34,38 @@ func getClusterName() map[string]interface{} {
 		line := scanner.Text()
 		parts := strings.Split(line, ":")
 		if len(parts) >= 2 {
-			str1 := strings.TrimSpace(parts[0])
-			str2 := strings.TrimSpace(parts[1])
-			if str1 == "cluster_name" {
-				clusterName = str2
-				break
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			if key == "cluster_name" {
+				return value, nil
 			}
 		}
 	}
+	return "", fmt.Errorf("not found cluster name info in corosync conf")
+}
+
+// getClusterName reads the cluster name from the corosync configuration file.
+// Returns a map indicating the result and the extracted cluster name, if available.
+func getClusterName() map[string]interface{} {
+	result := map[string]interface{}{
+		"action":      false,
+		"clusterName": "",
+	}
+	localClusterName, err := getLocalClusterName()
+	if err != nil {
+		return result
+	}
 
 	result["action"] = true
-	result["clusterName"] = clusterName
+	result["clusterName"] = localClusterName
 	return result
 }
 
 // getClusterInfo retrieves cluster information, including cluster nodes and their properties.
 // Returns the cluster information in a structured map.
 func GetClusterInfo() map[string]interface{} {
-	_, currentNode := utils.RunCommand(utils.CmdHostName)
-	currentNodeStr := strings.ReplaceAll(fmt.Sprintf("%s", currentNode), "\n", "")
+	currentNode, _ := utils.RunCommand(utils.CmdHostName)
+	currentNodeStr := strings.ReplaceAll(string(currentNode), "\n", "")
 
 	if IsClusterExist() {
 		nodeList := getNodeList()

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 
 	"gitee.com/openeuler/ha-api/models"
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
@@ -67,7 +68,7 @@ type LocalClusterInfoController struct {
 	web.Controller
 }
 
-type IsClusterExist struct {
+type IsClusterExistController struct {
 	web.Controller
 }
 
@@ -90,7 +91,7 @@ func (mcc *MultipleClustersController) Post() {
 }
 
 func (sc *Sync_configController) Post() {
-	logs.Debug("handle post request in ClustersController.")
+	logs.Debug("handle post request in Sync_configController.")
 	result := map[string]interface{}{}
 	reqData := make(map[string]interface{})
 	if err := json.Unmarshal(sc.Ctx.Input.RequestBody, &reqData); err != nil {
@@ -105,7 +106,7 @@ func (sc *Sync_configController) Post() {
 }
 
 func (csc *ClusterSetupController) Post() {
-	logs.Debug("handle post request in ClustersController.")
+	logs.Debug("handle post request in ClusterSetupController.")
 	result := make(map[string]interface{})
 	//reqData := make(map[string]interface{})
 	var reqData models.ClusterData
@@ -123,39 +124,49 @@ func (csc *ClusterSetupController) Post() {
 
 func (cc *ClustersController) Get() {
 	logs.Debug("handle get request in ClustersController.")
-	result := models.GetClusterPropertiesInfo()
+	clusterName := cc.Ctx.Input.Param(":cluster_name")
+	result := make(map[string]interface{})
+	if !utils.IsLocalCluster(clusterName) {
+		result, _ = models.UrlRedirect(clusterName, cc.Ctx.Input.URL(), cc.Ctx.Request.Method, cc.Ctx.Input.RequestBody)
+	} else {
+		result = models.GetClusterPropertiesInfo()
+	}
+
 	cc.Data["json"] = &result
 	cc.ServeJSON()
 }
 
 func (csc *ClustersStatusController) Get() {
-	logs.Debug("handle get request in ClustersController.")
-	result := models.GetClusterInfo()
+	var result map[string]interface{}
+	logs.Debug("handle get request in ClustersStatusController.")
+	clusterName := csc.Ctx.Input.Param(":cluster_name")
+
+	if !utils.IsLocalCluster(clusterName) {
+		result, _ = models.UrlRedirect(clusterName, csc.Ctx.Input.URL(), csc.Ctx.Request.Method, csc.Ctx.Input.RequestBody)
+	} else {
+		result = models.GetClusterInfo()
+	}
+
 	csc.Data["json"] = &result
 	csc.ServeJSON()
 }
 
 func (lci *LocalClusterInfoController) Get() {
-	logs.Debug("handle get request in ClustersController.")
+	logs.Debug("handle get request in LocalClusterInfoController.")
 	result := models.LocalClusterInfo()
 	lci.Data["json"] = &result
 	lci.ServeJSON()
 }
 
-func (ice *IsClusterExist) Get() {
-	logs.Debug("handle get request in ClustersController.")
+func (ice *IsClusterExistController) Get() {
+	logs.Debug("handle get request in IsClusterExistController.")
 	result := models.IsClusterExist()
 	ice.Data["json"] = &result
 	ice.ServeJSON()
 }
 
-func (cc *ClustersController) Post() {
-	logs.Debug("handle post request in ClustersController.")
-	cc.ServeJSON()
-}
-
 func (lcd *LocalClusterDestroyController) Get() {
-	logs.Debug("handle post request in ClustersController.")
+	logs.Debug("handle post request in LocalClusterDestroyController.")
 	result := models.LocalClustersDestroy()
 	lcd.Data["json"] = &result
 	// return result of destroying cluster back to user.
@@ -163,14 +174,13 @@ func (lcd *LocalClusterDestroyController) Get() {
 }
 
 func (cd *ClusterDestroyController) Post() {
-	logs.Debug("handle post request in NodesController.")
+	logs.Debug("handle post request in ClusterDestroyController.")
 	//var Result models.AddNodesRet
-	result := map[string]interface{}{}
+	result := make(map[string]interface{})
 	ReqData := make(map[string]interface{})
 	body := cd.Ctx.Input.RequestBody
 	err := json.Unmarshal(body, &ReqData)
 	if err != nil {
-		result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
@@ -181,7 +191,7 @@ func (cd *ClusterDestroyController) Post() {
 }
 
 func (crc *ClusterRemoveController) Post() {
-	logs.Debug("handle post request in ClustersController.")
+	logs.Debug("handle post request in ClusterRemoveController.")
 	var Result models.RemoveRet
 	var ReqData models.RemoveData
 	body := crc.Ctx.Input.RequestBody
@@ -199,7 +209,7 @@ func (crc *ClusterRemoveController) Post() {
 }
 
 func (anc *AddNodesController) Post() {
-	logs.Debug("handle post request in NodesController.")
+	logs.Debug("handle post request in AddNodesController.")
 	//var Result models.AddNodesRet
 	result := map[string]interface{}{}
 	var ReqData models.AddNodesData
@@ -217,14 +227,13 @@ func (anc *AddNodesController) Post() {
 }
 
 func (lanc *LocalAddNodesController) Post() {
-	logs.Debug("handle post request in NodesController.")
+	logs.Debug("handle post request in LocalAddNodesController.")
 	//var Result models.AddNodesRet
-	result := map[string]interface{}{}
+	result := make(map[string]interface{})
 	var ReqData models.AddNodesData
 	body := lanc.Ctx.Input.RequestBody
 	err := json.Unmarshal(body, &ReqData)
 	if err != nil {
-		result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
@@ -236,15 +245,19 @@ func (lanc *LocalAddNodesController) Post() {
 
 func (cc *ClustersController) Put() {
 	logs.Debug("handle put request in ClustersController.")
-	result := map[string]interface{}{}
+	result := make(map[string]interface{})
+	clusterName := cc.Ctx.Input.Param(":cluster_name")
 
-	reqData := make(map[string]interface{})
-	if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
-		result = make(map[string]interface{})
-		result["action"] = false
-		result["error"] = gettext.Gettext("invalid input data")
+	if !utils.IsLocalCluster(clusterName) {
+		result, _ = models.UrlRedirect(clusterName, cc.Ctx.Input.URL(), cc.Ctx.Request.Method, cc.Ctx.Input.RequestBody)
 	} else {
-		result = models.UpdateClusterProperties(reqData)
+		reqData := make(map[string]interface{})
+		if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
+			result["action"] = false
+			result["error"] = gettext.Gettext("invalid input data")
+		} else {
+			result = models.UpdateClusterProperties(reqData)
+		}
 	}
 
 	cc.Data["json"] = &result

@@ -181,3 +181,12 @@ msgstr "请重新在顶部操作区选择集群"
 
 msgid "Create alert_log success"
 msgstr "创建告警日志成功"
+
+msgid "not found cluster name info in corosync conf"
+msgstr "集群配置文件中没找到集群名称信息"
+
+msgid "open corosync conf failed"
+msgstr "集群配置文件打开失败"
+
+msgid "Request remote Cluster info failed"
+msgstr "请求远程集群信息失败"
