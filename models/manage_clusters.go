@@ -648,25 +648,35 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 func UrlRedirect(clusterName string, uiPath string, requestMethod string, requestData interface{}) (map[string]interface{}, error) {
 	remoteNodes := getRemoteNodes(clusterName).([]interface{})
 	if len(remoteNodes) == 0 {
-		return nil, errors.New("no remote nodes")
+		return map[string]interface{}{
+			"action":  false,
+			"message": gettext.Gettext("Please reselect the cluster in the top operation area"),
+		}, errors.New("no remote nodes")
 	}
-	for node := range remoteNodes {
-		url := ""
-		if strings.HasPrefix(uiPath, "/remote") {
-			url = "https://" + string(rune(node)) + ":" + port + uiPath
-		} else {
-			url = "https://" + string(rune(node)) + ":" + port + "/remote" + uiPath
-		}
 
-		resp, err := utils.SendRequest(url, requestMethod, requestData)
-		if err != nil {
-			return map[string]interface{}{"action": false, "NodeRequestFailed": gettext.Gettext("Request failed")}, err
-		}
-		respData, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		var remoteClusterInfo map[string]interface{}
-		json.Unmarshal(respData, &remoteClusterInfo)
-		return remoteClusterInfo, nil // the surrounding loop is unconditionally terminated (SA4004)go-staticcheck
+	// the first remote node searched
+	node := remoteNodes[0]
+	url := generateRemoteRequestURL(node.(string), uiPath)
+	resp, err := utils.SendRequest(url, requestMethod, requestData)
+	if err != nil {
+		return map[string]interface{}{"action": false, "message": gettext.Gettext("Request remote Cluster info failed")}, err
 	}
-	return map[string]interface{}{"action": false, "message": gettext.Gettext("Please reselect the cluster in the top operation area")}, errors.New("no remote nodes")
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return map[string]interface{}{
+			"action":  false,
+			"message": gettext.Gettext("Please reselect the cluster in the top operation area"),
+		}, err
+	}
+	defer resp.Body.Close()
+	remoteClusterInfo := make(map[string]interface{})
+	json.Unmarshal(respData, &remoteClusterInfo)
+	return remoteClusterInfo, nil
+}
+
+func generateRemoteRequestURL(node string, uri string) string {
+	if strings.HasPrefix(uri, "/remote") {
+		return "http://" + node + ":" + port + uri
+	}
+	return "http://" + node + ":" + port + "/remote" + uri
 }

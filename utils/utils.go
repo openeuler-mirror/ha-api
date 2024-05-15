@@ -15,15 +15,18 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
+	"gitee.com/openeuler/ha-api/settings"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/spf13/viper"
 )
@@ -73,21 +76,18 @@ func SendRequest(url string, method string, data interface{}) (resp *http.Respon
 			},
 		},
 	}
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
 
 	switch method {
 	case "POST":
-		httpResp, err = client.Post(url, "application/json", bytes.NewReader(jsonData))
+		httpResp, err = client.Post(url, "application/json", bytes.NewReader(data.([]byte)))
 	case "GET":
-		httpResp, _ = client.Get(url)
+		httpResp, err = client.Get(url)
 	case "DELETE":
-		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(jsonData))
+		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(data.([]byte)))
 		httpResp, err = client.Do(req)
 	case "PUT":
-		req, _ := http.NewRequest("PUT", url, bytes.NewReader(jsonData))
+
+		req, _ := http.NewRequest("PUT", url, bytes.NewReader(data.([]byte)))
 		httpResp, err = client.Do(req)
 	default:
 		return nil, errors.New("unsupported method")
@@ -118,4 +118,38 @@ func ReadPortFromConfig() (string, error) {
 		}
 		return port, nil
 	}
+}
+
+func IsLocalCluster(clusterName string) bool {
+	localClusterName, err := getLocalClusterName()
+	if err != nil {
+		return false
+	}
+	if localClusterName != clusterName {
+		return false
+	}
+	return true
+}
+
+func getLocalClusterName() (string, error) {
+	filename := settings.CorosyncConfFile
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", fmt.Errorf("open corosync conf failed")
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, ":")
+		if len(parts) >= 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			if key == "cluster_name" {
+				return value, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("not found cluster name info in corosync conf")
 }
