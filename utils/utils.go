@@ -153,3 +153,12 @@ func getLocalClusterName() (string, error) {
 	}
 	return "", fmt.Errorf("not found cluster name info in corosync conf")
 }
+
+func Contains(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}

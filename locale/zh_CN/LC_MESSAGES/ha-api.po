@@ -2,6 +2,9 @@
 msgid "invalid input data"
 msgstr "输入无效"
 
+msgid "input validation failed"
+msgstr "输入不合法，请检查输入信息"
+
 msgid "Set alarm success"
 msgstr "设置告警成功"
 
@@ -79,6 +82,9 @@ msgstr "新密码为空"
 
 msgid "Change password success"
 msgstr "修改密码成功"
+
+msgid "Change password failed"
+msgstr "修改密码失败"
 
 msgid "Please make sure that Cluster nodes has been authenticated"
 msgstr "请确定集群节点已认证"
