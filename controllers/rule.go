@@ -9,19 +9,19 @@
  * See the Mulan PSL v2 for more details.
  * Author: bizhiyuan
  * Date: 2024-03-06 16:23:42
- * LastEditTime: 2024-03-06 16:23:55
+ * LastEditTime: 2024-05-21 16:23:55
  * Description:规则Controler层
  */
 
 package controllers
 
 import (
-	"encoding/json"
-
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 
 	"gitee.com/openeuler/ha-api/models"
+	"gitee.com/openeuler/ha-api/utils"
+	"gitee.com/openeuler/ha-api/validations"
 )
 
 type RuleController struct {
@@ -37,33 +37,43 @@ func (rc *RuleController) Get() {
 
 func (rc *RuleController) Post() {
 	logs.Debug("handle rule POST request")
-	data := make(map[string]string)
-	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+
+	result := utils.GeneralResponse{}
+	requestInput := new(validations.RuleS)
+
+	err := validations.UnmarshalAndValidation(rc.Ctx.Input.RequestBody, requestInput)
+	if err != nil {
 		rc.handleJsonError(err.Error(), false)
+		return
 	}
-	res := models.RuleAdd(data)
-	rc.Data["json"] = &res
+
+	result = models.RuleAdd(requestInput)
+	rc.Data["json"] = &result
 	rc.ServeJSON()
 }
 
 func (rc *RuleController) Delete() {
 	logs.Debug("handle rule DELETE request")
-	data := make(map[string][]string)
-	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+	requestInput := new(validations.DeleteRuleS)
+	if err := validations.UnmarshalAndValidation(rc.Ctx.Input.RequestBody, requestInput); err != nil {
 		rc.handleJsonError(err.Error(), false)
+		return
 	}
-	res := models.RulesDelete(data)
+
+	res := models.RulesDelete(requestInput)
 	rc.Data["json"] = &res
 	rc.ServeJSON()
 }
 
 func (rc *RuleController) Put() {
 	logs.Debug("handle rule PUT request")
-	data := make(map[string]string)
-	if err := json.Unmarshal(rc.Ctx.Input.RequestBody, &data); err != nil {
+	requestInput := new(validations.RuleS)
+	if err := validations.UnmarshalAndValidation(rc.Ctx.Input.RequestBody, requestInput); err != nil {
 		rc.handleJsonError(err.Error(), false)
+		return
 	}
-	res := models.RuleUpdate(data)
+
+	res := models.RuleUpdate(requestInput)
 	rc.Data["json"] = &res
 	rc.ServeJSON()
 }
