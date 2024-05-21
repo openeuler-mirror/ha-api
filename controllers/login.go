@@ -9,13 +9,12 @@
  * See the Mulan PSL v2 for more details.
  * Author: liqiuyu
  * Date: 2022-04-19 16:49:51
- * LastEditTime: 2022-04-19 17:37:49
+ * LastEditTime: 2024-05-21 14:00:49
  * Description: 登录控制器
  ******************************************************************************/
 package controllers
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/beego/beego/v2/core/logs"
@@ -23,8 +22,8 @@ import (
 	"github.com/beego/beego/v2/server/web/context"
 	"github.com/chai2010/gettext-go"
 
-	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
+	"gitee.com/openeuler/ha-api/validations"
 )
 
 func init() {
@@ -54,52 +53,32 @@ type LoginController struct {
 
 func (lc *LoginController) Post() {
 	logs.Debug("handle post request in LoginController.")
-	result := struct {
-		Action bool   `json:"action"`
-		Error  string `json:"error,omitempty"`
-		Info   string `json:"info,omitempty"`
-	}{true, "", ""}
+	resp := new(utils.Response)
+	requestInput := new(validations.UserS)
 
-	d := struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}{}
-
-	if err := json.Unmarshal(lc.Ctx.Input.RequestBody, &d); err != nil {
-		result.Action = false
-		result.Error = err.Error()
-		logs.Error("Login failed:", err)
-		goto ret
-	}
-	if d.Username == "" || d.Password == "" {
-		result.Action = false
-		result.Error = gettext.Gettext("username or password empty")
-		logs.Error("Login failed: username or password is empty")
-		goto ret
-	}
-	if d.Username != settings.PacemakerUname {
-		result.Action = false
-		result.Error = gettext.Gettext("username is not allowed to login")
-		logs.Error("Login failed: username is not allowed to login")
+	err := validations.UnmarshalAndValidation(lc.Ctx.Input.RequestBody, requestInput)
+	if err != nil {
+		resp.Action = false
+		resp.Error = err.Error()
 		goto ret
 	}
 
 	// check password
-	if utils.CheckAuth(d.Username, d.Password) {
+	if utils.CheckAuth(requestInput.UserName, requestInput.Password) {
 		// update session
-		lc.SetSession("username", d.Username)
-		lc.SetSession("password", d.Password)
+		lc.SetSession("username", requestInput.UserName)
+		lc.SetSession("password", requestInput.Password)
 
-		result.Action = true
-		result.Info = gettext.Gettext("Login success")
+		resp.Action = true
+		resp.Info = gettext.Gettext("Login success")
 	} else {
-		result.Action = false
-		result.Error = gettext.Gettext("Username or password error")
+		resp.Action = false
+		resp.Error = gettext.Gettext("Username or password error")
 		logs.Error("Login failed: username or password error")
 	}
 
 ret:
-	lc.Data["json"] = &result
+	lc.Data["json"] = &resp
 	lc.ServeJSON()
 }
 
@@ -111,13 +90,10 @@ func (lc *LogoutController) Post() {
 	// delete session
 	lc.DelSession("username")
 	lc.DelSession("password")
+	result := new(utils.Response)
 
-	result := struct {
-		Action bool   `json:"action"`
-		Error  string `json:"error,omitempty"`
-		Info   string `json:"info,omitempty"`
-	}{true, "", ""}
 	result.Info = gettext.Gettext("Logout success")
+	result.Action = true
 	logs.Info("Logout success")
 	lc.Data["json"] = &result
 	lc.ServeJSON()
@@ -130,32 +106,22 @@ type PasswordChangeController struct {
 func (lc *PasswordChangeController) Post() {
 	logs.Debug("handle post request in PasswordChangeController.")
 	var cmd string = ""
-	result := struct {
-		Action bool   `json:"action"`
-		Error  string `json:"error,omitempty"`
-		Info   string `json:"info,omitempty"`
-	}{false, "", ""}
 
-	data := struct {
-		Password string `json:"password"`
-	}{}
+	result := new(utils.Response)
+	requestInput := new(validations.PasswordS)
 
-	if err := json.Unmarshal(lc.Ctx.Input.RequestBody, &data); err != nil {
+	err := validations.UnmarshalAndValidation(lc.Ctx.Input.RequestBody, requestInput)
+	if err != nil {
 		result.Action = false
 		result.Error = err.Error()
 		goto ret
 	}
 
-	if data.Password == "" {
-		result.Action = false
-		result.Error = gettext.Gettext("The new password is empty")
-		goto ret
-	}
-	cmd = "echo 'hacluster:" + data.Password + "'|chpasswd >/dev/null 2>&1"
+	cmd = "echo 'hacluster:" + requestInput.Password + "'|chpasswd >/dev/null 2>&1"
 	if _, err := utils.RunCommand(cmd); err != nil {
 		logs.Error("run command error: ", err)
 		result.Action = false
-		result.Error = err.Error()
+		result.Error = gettext.Gettext("Change password failed")
 		goto ret
 	} else {
 		result.Action = true
