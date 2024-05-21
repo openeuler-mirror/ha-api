@@ -125,6 +125,12 @@ msgstr "更新规则失败，重复的约束已存在"
 msgid "Update rule success"
 msgstr "更新规则成功"
 
+msgid "Rule %s could not be found"
+msgstr "规则 %s 未找到"
+
+msgid "Update rule failed, rule %s not found"
+msgstr "更新规则失败，原id为%s的规则找不到"
+
 msgid "Execute query script command failed"
 msgstr "查询脚本命令执行失败"
 

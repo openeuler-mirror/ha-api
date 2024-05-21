@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"gitee.com/openeuler/ha-api/utils"
+	"gitee.com/openeuler/ha-api/validations"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
@@ -61,7 +62,6 @@ func RulesGet(rscName string) RuleGetResponse {
 			rule := ruleElem.SelectElement("rule")
 			if rule != nil {
 				// 降级返回
-				logs.Warn("RulesGet: rules are empty")
 				r := Rule{
 					Rsc:       rsc,
 					RuleId:    rule.SelectAttrValue("id", ""),
@@ -99,8 +99,8 @@ type RuleDeleteResponse struct {
 }
 
 // Todo:return list ?
-func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
-	ruleIdList := ruleids["ids"]
+func RulesDelete(ruleids *validations.DeleteRuleS) RuleDeleteResponse {
+	ruleIdList := ruleids.RuleIDs
 	var res []map[string]interface{}
 
 	for _, id := range ruleIdList {
@@ -109,7 +109,7 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 		if err != nil {
 			res = append(res, map[string]interface{}{
 				"id":    id,
-				"error": "编号为 " + id + "的规则找不到", // error信息特殊处理？
+				"error": fmt.Sprintf(gettext.Gettext("Rule %s could not be found"), id),
 			})
 		}
 	}
@@ -126,18 +126,18 @@ func RulesDelete(ruleids map[string][]string) RuleDeleteResponse {
 	}
 }
 
-func RuleAdd(data map[string]string) utils.GeneralResponse {
+func RuleAdd(data *validations.RuleS) utils.GeneralResponse {
 	var cmdAddRule string
-	if _, ok := data["ruleid"]; ok {
-		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, data["rsc"], data["score"], data["ruleid"])
+	if data.RuleID != "" {
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, data.Rsc, data.Score, data.RuleID)
 	} else {
-		cmdAddRule = fmt.Sprintf(utils.CmdRuleAdd, data["rsc"], data["score"])
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAdd, data.Rsc, data.Score)
 	}
 
-	if _, ok := data["value"]; ok {
-		cmdAddRule = cmdAddRule + " " + data["attribute"] + " " + data["operation"] + " " + data["value"]
+	if data.Value != "" {
+		cmdAddRule = cmdAddRule + " " + data.Attribute + " " + data.Operation + " " + data.Value
 	} else {
-		cmdAddRule = cmdAddRule + " " + data["operation"] + " " + data["attribute"]
+		cmdAddRule = cmdAddRule + " " + data.Operation + " " + data.Attribute
 	}
 	_, err := utils.RunCommand(cmdAddRule)
 	if err != nil {
@@ -148,41 +148,45 @@ func RuleAdd(data map[string]string) utils.GeneralResponse {
 		Action: true,
 		Info:   gettext.Gettext("Add rule success"),
 	}
-
 }
 
-func RuleUpdate(data map[string]string) utils.GeneralResponse {
+func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 	out, err := utils.RunCommand(utils.CmdQueryConstraints)
 	if err != nil {
 		return utils.HandleCmdError(err.Error(), false)
 	}
 
+	oldRule := new(validations.RuleS)
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(out); err != nil {
 		return utils.HandleXmlError(err.Error(), false)
 	}
-	r := make(map[string]string)
 	rules := doc.FindElements("//rsc_location/rule")
 	for _, ruleElem := range rules {
-		if ruleId := ruleElem.SelectAttrValue("id", ""); ruleId == data["ruleid"] {
-			r["ruleid"] = ruleElem.SelectAttrValue("id", "")
-			r["score"] = ruleElem.SelectAttrValue("score", "")
-			r["attribute"] = ruleElem.SelectElement("expression").SelectAttrValue("attribute", "")
-			r["operation"] = ruleElem.SelectElement("expression").SelectAttrValue("operation", "")
-			r["value"] = ruleElem.SelectElement("expression").SelectAttrValue("value", "")
+		ruleId := ruleElem.SelectAttrValue("id", "")
+		fmt.Println("ruleId: ", ruleId)
+		if ruleId == data.RuleID {
+			oldRule.RuleID = ruleElem.SelectAttrValue("id", "")
+			oldRule.Score = ruleElem.SelectAttrValue("score", "")
+			oldRule.Attribute = ruleElem.SelectElement("expression").SelectAttrValue("attribute", "")
+			oldRule.Operation = ruleElem.SelectElement("expression").SelectAttrValue("operation", "")
+			oldRule.Value = ruleElem.SelectElement("expression").SelectAttrValue("value", "")
 		}
 	}
 	// delete old rule
-	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, data["ruleid"])
+	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, data.RuleID)
+	fmt.Println(deleteRuleCmd)
 	_, err = utils.RunCommand(deleteRuleCmd)
 	if err != nil {
-		return utils.HandleCmdError("更新规则失败，原id为"+data["ruleid"]+"规则找不到", false)
+		return utils.HandleCmdError(
+			fmt.Sprintf(gettext.Gettext("Update rule failed, rule %s not found"), data.RuleID), false)
 	}
+
 	// add new rule
 	resp := RuleAdd(data)
 	if !resp.Action {
 		// recovery the update op
-		RuleAdd(r)
+		RuleAdd(oldRule)
 		return utils.HandleCmdError(gettext.Gettext("Update rule failed, duplicate constraint already exists"), false)
 	}
 
@@ -190,5 +194,4 @@ func RuleUpdate(data map[string]string) utils.GeneralResponse {
 		Action: true,
 		Info:   gettext.Gettext("Update rule success"),
 	}
-
 }
