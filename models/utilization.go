@@ -17,8 +17,6 @@ package models
 import (
 	"encoding/json"
 	"strings"
-
-	// "github.com/beego/beego/v2/core/logs"
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/chai2010/gettext-go"
 )
@@ -36,12 +34,6 @@ type GetUtilResult struct {
 type UtilResponseData struct {
 	NodeUtilization []UtilizationData `json:"NodeUtilization"`
 	ResUtilization  []UtilizationData `json:"ResUtilization"`
-}
-
-type UtilizationResult struct {
-	Action bool   `json:"action"`
-	Error  string `json:"error,omitempty"`
-	Info   string `json:"info,omitempty"`
 }
 
 func GetUtilization() GetUtilResult {
@@ -87,8 +79,8 @@ func GetOneTypeUtilization(Uti_type string) []UtilizationData {
 	return data
 }
 
-func SetUtilization(data []byte) UtilizationResult {
-	var result UtilizationResult
+func SetUtilization(data []byte) utils.GeneralResponse {
+	var result utils.GeneralResponse
 	if len(data) == 0 {
 		result.Action = false
 		result.Error = gettext.Gettext("No input data")
@@ -131,8 +123,8 @@ func SetUtilization(data []byte) UtilizationResult {
 	return result
 }
 
-func DelUtilization(data []byte) UtilizationResult {
-	var result UtilizationResult
+func DelUtilization(data []byte) utils.GeneralResponse {
+	var result utils.GeneralResponse
 	if len(data) == 0 {
 		result.Action = false
 		result.Error = gettext.Gettext("No input data")
