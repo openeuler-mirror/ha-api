@@ -106,7 +106,7 @@ func SetUtilization(data []byte) utils.GeneralResponse {
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
 		result.Action = true
-		result.Info = "利用率设置成功！"
+		result.Info = gettext.Gettext("Utilization set success")
 
 	} else {
 		result.Action = false
