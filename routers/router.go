@@ -74,6 +74,7 @@ func init() {
 
 		web.NSRouter("/:cluster_name/1/utilization", &controllers.UtilizationController{}),
 		web.NSRouter("/:cluster_name/1/tag", &controllers.TagController{}),
+		web.NSRouter("/:cluster_name/1/tag/:tag_name", &controllers.TagUpdateController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
 		web.NSRouter("/remotescripts", &controllers.ScriptsRemoteController{}),
@@ -118,6 +119,7 @@ func init() {
 
 		web.NSRouter("/:cluster_name/1/utilization", &controllers.UtilizationController{}),
 		web.NSRouter("/:cluster_name/1/tag", &controllers.TagController{}),
+		web.NSRouter("/:cluster_name/1/tag/:tag_name", &controllers.TagUpdateController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
 	)
