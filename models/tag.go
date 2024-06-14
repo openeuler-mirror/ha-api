@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"strings"
-
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/chai2010/gettext-go"
 )
@@ -124,3 +123,42 @@ func SetTag(data []byte) TagPostResule {
 	}
 	return result
 }
+
+func UpdateTag(tagName string, data []byte) TagPostResule {
+	var result TagPostResule
+	// json数据解析
+	if data == nil || len(data) == 0 {
+		result.Action = false
+		result.Error = gettext.Gettext("No input data")
+		return result
+	}
+	var TagData TagPostData
+	err := json.Unmarshal(data, &TagData)
+	if err != nil {
+		result.Action = false
+		result.Error = gettext.Gettext("Cannot convert data to json map")
+		return result
+	}
+	cmd_create := "pcs tag create " + string(tagName)
+	cmd_delete := "pcs tag delete " + string(tagName)
+	for _, res := range TagData.Tag_resource {
+		cmd_create = cmd_create + " " + string(res)
+	}
+	out1, err1 := utils.RunCommand(cmd_delete)
+	if err1 == nil {
+		out2, err2 := utils.RunCommand(cmd_create)
+		if err2 == nil {
+			result.Action = true
+			result.Info = gettext.Gettext("Update tag success")
+		} else {
+			result.Action = false
+			result.Error = string(out2)
+		}
+
+	} else {
+		result.Action = false
+		result.Error = string(out1)
+	}
+	return result
+}
+

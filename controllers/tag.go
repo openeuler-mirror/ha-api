@@ -2,7 +2,7 @@
  * @Author: bixiaoyan bixiaoyan@kylinos.cn
  * @Date: 2024-03-13 15:04:41
  * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
- * @LastEditTime: 2024-03-25 11:39:36
+ * @LastEditTime: 2024-06-14 15:03:57
  * @FilePath: /ha-api/controllers/tag.go
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -33,19 +33,30 @@ type TagController struct {
 }
 
 func (tc *TagController) Get() {
-
 	tc.Data["json"] = models.GetTag()
 	tc.ServeJSON() 
 }
 
 func (tc *TagController) Post() {
 	logs.Debug("handle Tag POST request")
-
 	jsonStr := tc.Ctx.Input.RequestBody
 	tc.Data["json"] = models.SetTag(jsonStr)
 	tc.ServeJSON()
 }
- 
+
+type TagUpdateController struct {
+	web.Controller
+}
+
+func (tuc *TagUpdateController) Post() {
+	logs.Debug("handle TagUpdate POST request")
+	jsonStr := tuc.Ctx.Input.RequestBody
+	tagName := tuc.Ctx.Input.Param(":tag_name")
+	tuc.Data["json"] = models.UpdateTag(tagName, jsonStr)
+	tuc.ServeJSON()
+}
+
+
 
  
   

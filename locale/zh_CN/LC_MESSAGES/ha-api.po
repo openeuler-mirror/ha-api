@@ -144,13 +144,16 @@ msgid "Generate script failed"
 msgstr "生成脚本失败"
 
 msgid "Tag get failed"
-msgstr "tag信息获取失败"
+msgstr "Tag信息获取失败"
 
 msgid "Parsing JSON failed"
 msgstr "JSON解析失败"
 
 msgid "Add tag success"
 msgstr "Tag设置成功"
+
+msgid "Update tag success"
+msgstr "Tag编辑成功"
 
 msgid "Node name error"
 msgstr "节点名称填写错误"
