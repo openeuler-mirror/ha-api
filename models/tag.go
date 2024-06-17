@@ -50,12 +50,6 @@ type TagGetResult struct {
 	Error   string    `json:"error,omitempty"`
 }
 
-type TagPostResule struct {
-	Action bool   `json:"action"`
-	Error  string `json:"error,omitempty"`
-	Info   string `json:"info,omitempty"`
-}
-
 func GetTag() TagGetResult {
 	resList := []string{}
 	cmd := "cibadmin --query --scope tags"
@@ -92,9 +86,9 @@ func GetTag() TagGetResult {
 	return TagGetResult{Action: true, Data: tagInfos, ResList: resList}
 }
 
-func SetTag(data []byte) TagPostResule {
+func SetTag(data []byte) utils.GeneralResponse {
 
-	var result TagPostResule
+	var result utils.GeneralResponse
 	// json数据解析
 	if data == nil || len(data) == 0 {
 		result.Action = false
@@ -124,8 +118,8 @@ func SetTag(data []byte) TagPostResule {
 	return result
 }
 
-func UpdateTag(tagName string, data []byte) TagPostResule {
-	var result TagPostResule
+func UpdateTag(tagName string, data []byte) utils.GeneralResponse {
+	var result utils.GeneralResponse
 	// json数据解析
 	if data == nil || len(data) == 0 {
 		result.Action = false
@@ -161,4 +155,43 @@ func UpdateTag(tagName string, data []byte) TagPostResule {
 	}
 	return result
 }
+
+func TagAction(tagName string, action string) utils.GeneralResponse {
+	var result utils.GeneralResponse
+	cmd := "pcs resource "
+	if action == "delete" {
+		return DeleteTag(tagName)
+	} else if action == "start" {
+		cmd = cmd + "enable " + tagName 
+	} else if action == "stop" {
+		cmd = cmd + "disable " + tagName
+	}
+	print(cmd)
+	out, err := utils.RunCommand(cmd)
+	if err == nil {
+			result.Action = true
+			result.Info = gettext.Gettext("Tag action success")
+	} else {
+		result.Action = false
+		result.Error = string(out)
+	}
+	return result
+}
+
+func DeleteTag(tagName string) utils.GeneralResponse {
+	var result utils.GeneralResponse
+	cmd := "pcs tag delete " + tagName 
+	out, err := utils.RunCommand(cmd)
+	if err == nil {
+		result.Action = true
+		result.Info = gettext.Gettext("Delete tag success")
+	} else {
+		result.Action = false
+		result.Error = string(out)
+	}
+	return result
+}
+
+
+
 

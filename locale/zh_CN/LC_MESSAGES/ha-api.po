@@ -152,6 +152,12 @@ msgstr "JSON解析失败"
 msgid "Add tag success"
 msgstr "Tag设置成功"
 
+msgid "Tag action success"
+msgstr "Tag操作执行成功"
+
+msgid "Delete tag success"
+msgstr "Tag删除成功"
+
 msgid "Update tag success"
 msgstr "Tag编辑成功"
 
