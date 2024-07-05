@@ -123,7 +123,14 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 				} else if score == "16000" {
 					//TODO implements func turnScoreToLevel
 					rscConstraint["level"] = "Slave 1"
+				} else if score == "15000" {
+					rscConstraint["level"] = "Slave 2"
+				} else if score == "14000" {
+					rscConstraint["level"] = "Slave 3"
+				} else if score == "13000" {
+					rscConstraint["level"] = "Slave 4"
 				}
+
 				resourceLocations = append(resourceLocations, rscConstraint)
 			}
 
@@ -1687,6 +1694,12 @@ func ResourceAction(rscID, action string, data []byte) error {
 				score = 20000
 			} else if mapItem["level"] == "Slave 1" {
 				score = 16000
+			} else if mapItem["level"] == "Slave 2" {
+				score = 15000
+			} else if mapItem["level"] == "Slave 3" {
+				score = 14000
+			} else if mapItem["level"] == "Slave 4" {
+				score = 13000
 			}
 			node := mapItem["node"].(string)
 			cmd := fmt.Sprintf(utils.CmdLocationAdd, rscID, node, strconv.Itoa(score))
