@@ -144,7 +144,8 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		"stonith-action", "placement-strategy", // new properties
 		"cluster-recheck-interval", "load-threshold",
 		"node-action-limit", "transition-delay", "stonith-max-attempts",
-		"enable-acl", "cluster-ipc-limit"}
+		"enable-acl", "cluster-ipc-limit", "stop-all-resources",
+		"priority-fencing-delay"}
 	sources := []map[string]string{
 		{
 			"name": "pacemaker-schedulerd",
@@ -249,6 +250,12 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 					}
 					if name == "cluster-ipc-limit" {
 						prop["value"] = "500"
+					}
+					if name == "priority-fencing-delay" {
+						prop["value"] = "0"
+					}
+					if name == "stop-all-resources" {
+						prop["value"] = "false"
 					}
 				}
 				propContent := make(map[string]interface{})
