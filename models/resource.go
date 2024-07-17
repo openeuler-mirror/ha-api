@@ -1628,6 +1628,14 @@ func ResourceAction(rscID, action string, data []byte) error {
 		cmd := fmt.Sprintf(utils.CmdCrmResource, rscID) + " --cleanup"
 		_, err := utils.RunCommand(cmd)
 		return err
+	case "unclone":
+		cmd := utils.CmdResourceUnclone + rscID
+		_, err := utils.RunCommand(cmd)
+		return err
+	case "ungroup":
+		cmd := utils.CmdResourceUngroup + rscID
+		_, err := utils.RunCommand(cmd)
+		return err
 	// desperated
 	case "migrate":
 		d := struct {

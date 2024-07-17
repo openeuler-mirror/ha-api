@@ -60,6 +60,8 @@ const (
 	CmdResourceStop            = "pcs resource disable "
 	CmdResourceStart           = "pcs resource enable "
 	CmdResourceCleanup         = "pcs resource cleanup"
+	CmdResourceUnclone         = "pcs resource unclone "
+	CmdResourceUngroup         = "pcs resource ungroup "
 	CmdResourceDelete          = "pcs resource delete %s"
 	CmdResourceDeleteForce     = CmdResourceDelete + " --force"
 	CmdResourceUpdateMeta      = "pcs resource update %s meta %s=%v"
