@@ -14,30 +14,31 @@
 
 // Package config is used to parse config.
 // Usage:
-//  import "github.com/beego/beego/v2/config"
+//
+//	import "github.com/beego/beego/v2/core/config"
+//
 // Examples.
 //
-//  cnf, err := config.NewConfig("ini", "config.conf")
+//	cnf, err := config.NewConfig("ini", "config.conf")
 //
-//  cnf APIS:
+//	cnf APIS:
 //
-//  cnf.Set(key, val string) error
-//  cnf.String(key string) string
-//  cnf.Strings(key string) []string
-//  cnf.Int(key string) (int, error)
-//  cnf.Int64(key string) (int64, error)
-//  cnf.Bool(key string) (bool, error)
-//  cnf.Float(key string) (float64, error)
-//  cnf.DefaultString(key string, defaultVal string) string
-//  cnf.DefaultStrings(key string, defaultVal []string) []string
-//  cnf.DefaultInt(key string, defaultVal int) int
-//  cnf.DefaultInt64(key string, defaultVal int64) int64
-//  cnf.DefaultBool(key string, defaultVal bool) bool
-//  cnf.DefaultFloat(key string, defaultVal float64) float64
-//  cnf.DIY(key string) (interface{}, error)
-//  cnf.GetSection(section string) (map[string]string, error)
-//  cnf.SaveConfigFile(filename string) error
-// More docs http://beego.me/docs/module/config.md
+//	cnf.Set(key, val string) error
+//	cnf.String(key string) string
+//	cnf.Strings(key string) []string
+//	cnf.Int(key string) (int, error)
+//	cnf.Int64(key string) (int64, error)
+//	cnf.Bool(key string) (bool, error)
+//	cnf.Float(key string) (float64, error)
+//	cnf.DefaultString(key string, defaultVal string) string
+//	cnf.DefaultStrings(key string, defaultVal []string) []string
+//	cnf.DefaultInt(key string, defaultVal int) int
+//	cnf.DefaultInt64(key string, defaultVal int64) int64
+//	cnf.DefaultBool(key string, defaultVal bool) bool
+//	cnf.DefaultFloat(key string, defaultVal float64) float64
+//	cnf.DIY(key string) (interface{}, error)
+//	cnf.GetSection(section string) (map[string]string, error)
+//	cnf.SaveConfigFile(filename string) error
 package config
 
 import (
@@ -53,20 +54,20 @@ import (
 
 // Configer defines how to get and set value from configuration raw data.
 type Configer interface {
-	// support section::key type in given key when using ini type.
+	// Set support section::key type in given key when using ini type.
 	Set(key, val string) error
 
-	// support section::key type in key string when using ini and json type; Int,Int64,Bool,Float,DIY are same.
+	// String support section::key type in key string when using ini and json type; Int,Int64,Bool,Float,DIY are same.
 	String(key string) (string, error)
-	// get string slice
+	// Strings get string slice
 	Strings(key string) ([]string, error)
 	Int(key string) (int, error)
 	Int64(key string) (int64, error)
 	Bool(key string) (bool, error)
 	Float(key string) (float64, error)
-	// support section::key type in key string when using ini and json type; Int,Int64,Bool,Float,DIY are same.
+	// DefaultString support section::key type in key string when using ini and json type; Int,Int64,Bool,Float,DIY are same.
 	DefaultString(key string, defaultVal string) string
-	// get string slice
+	// DefaultStrings get string slice
 	DefaultStrings(key string, defaultVal []string) []string
 	DefaultInt(key string, defaultVal int) int
 	DefaultInt64(key string, defaultVal int64) int64
@@ -165,6 +166,7 @@ func (c *BaseConfiger) DefaultBool(key string, defaultVal bool) bool {
 	}
 	return defaultVal
 }
+
 func (c *BaseConfiger) DefaultFloat(key string, defaultVal float64) float64 {
 	if res, err := c.Float(key); err == nil {
 		return res
@@ -186,11 +188,11 @@ func (c *BaseConfiger) Strings(key string) ([]string, error) {
 	return strings.Split(res, ";"), nil
 }
 
-func (c *BaseConfiger) Sub(key string) (Configer, error) {
+func (*BaseConfiger) Sub(string) (Configer, error) {
 	return nil, errors.New("unsupported operation")
 }
 
-func (c *BaseConfiger) OnChange(key string, fn func(value string)) {
+func (*BaseConfiger) OnChange(_ string, _ func(value string)) {
 	// do nothing
 }
 
@@ -248,6 +250,12 @@ func ExpandValueEnvForMap(m map[string]interface{}) map[string]interface{} {
 				value[k2] = ExpandValueEnv(v2)
 			}
 			m[k] = value
+		case map[interface{}]interface{}:
+			tmp := make(map[string]interface{}, len(value))
+			for k2, v2 := range value {
+				tmp[k2.(string)] = v2
+			}
+			m[k] = ExpandValueEnvForMap(tmp)
 		}
 	}
 	return m
@@ -260,6 +268,7 @@ func ExpandValueEnvForMap(m map[string]interface{}) map[string]interface{} {
 //
 // It accept value formats "${env}" , "${env||}}" , "${env||defaultValue}" , "defaultvalue".
 // Examples:
+//
 //	v1 := config.ExpandValueEnv("${GOPATH}")			// return the GOPATH environment variable.
 //	v2 := config.ExpandValueEnv("${GOAsta||/usr/local/go}")	// return the default value "/usr/local/go/".
 //	v3 := config.ExpandValueEnv("Astaxie")				// return the value "Astaxie".
@@ -370,5 +379,4 @@ func ToString(x interface{}) string {
 
 type DecodeOption func(options decodeOptions)
 
-type decodeOptions struct {
-}
+type decodeOptions struct{}

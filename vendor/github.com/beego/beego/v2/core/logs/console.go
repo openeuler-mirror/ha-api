@@ -20,7 +20,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/shiena/ansicolor"
 )
 
@@ -62,8 +61,7 @@ func (c *consoleWriter) Format(lm *LogMsg) string {
 		msg = strings.Replace(msg, levelPrefix[lm.Level], colors[lm.Level](levelPrefix[lm.Level]), 1)
 	}
 	h, _, _ := formatTimeHeader(lm.When)
-	bytes := append(append(h, msg...), '\n')
-	return string(bytes)
+	return string(append(h, msg...))
 }
 
 func (c *consoleWriter) SetFormatter(f LogFormatter) {
@@ -88,7 +86,6 @@ func newConsole() *consoleWriter {
 // Init initianlizes the console logger.
 // jsonConfig must be in the format '{"level":LevelTrace}'
 func (c *consoleWriter) Init(config string) error {
-
 	if len(config) == 0 {
 		return nil
 	}
@@ -97,7 +94,7 @@ func (c *consoleWriter) Init(config string) error {
 	if res == nil && len(c.Formatter) > 0 {
 		fmtr, ok := GetFormatter(c.Formatter)
 		if !ok {
-			return errors.New(fmt.Sprintf("the formatter with name: %s not found", c.Formatter))
+			return fmt.Errorf("the formatter with name: %s not found", c.Formatter)
 		}
 		c.formatter = fmtr
 	}
@@ -116,12 +113,10 @@ func (c *consoleWriter) WriteMsg(lm *LogMsg) error {
 
 // Destroy implementing method. empty.
 func (c *consoleWriter) Destroy() {
-
 }
 
 // Flush implementing method. empty.
 func (c *consoleWriter) Flush() {
-
 }
 
 func init() {

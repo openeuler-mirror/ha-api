@@ -29,7 +29,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/beego/beego/v2/core/logs"
-
 	"github.com/beego/beego/v2/server/web/context"
 )
 
@@ -40,12 +39,12 @@ func serverStaticRouter(ctx *context.Context) {
 		return
 	}
 
-	forbidden, filePath, fileInfo, err := lookupFile(ctx)
+	fbd, filePath, fileInfo, err := lookupFile(ctx)
 	if err == errNotStaticRequest {
 		return
 	}
 
-	if forbidden {
+	if fbd {
 		exception("403", ctx)
 		return
 	}
@@ -76,7 +75,7 @@ func serverStaticRouter(ctx *context.Context) {
 		return
 	}
 
-	var enableCompress = BConfig.EnableGzip && isStaticCompress(filePath)
+	enableCompress := BConfig.EnableGzip && isStaticCompress(filePath)
 	var acceptEncoding string
 	if enableCompress {
 		acceptEncoding = context.ParseEncoding(ctx.Request)

@@ -18,28 +18,30 @@
 // Usage:
 //
 // import(
-//   "log"
-//	 "net/http"
-//	 "os"
 //
-//   "github.com/beego/beego/v2/grace"
+//	  "log"
+//		 "net/http"
+//		 "os"
+//
+//	  "github.com/beego/beego/v2/server/web/grace"
+//
 // )
 //
-//  func handler(w http.ResponseWriter, r *http.Request) {
-//	  w.Write([]byte("WORLD!"))
-//  }
+//	 func handler(w http.ResponseWriter, r *http.Request) {
+//		  w.Write([]byte("WORLD!"))
+//	 }
 //
-//  func main() {
-//      mux := http.NewServeMux()
-//      mux.HandleFunc("/hello", handler)
+//	 func main() {
+//	     mux := http.NewServeMux()
+//	     mux.HandleFunc("/hello", handler)
 //
-//	    err := grace.ListenAndServe("localhost:8080", mux)
-//      if err != nil {
-//		   log.Println(err)
-//	    }
-//      log.Println("Server on 8080 stopped")
-//	     os.Exit(0)
-//    }
+//		    err := grace.ListenAndServe("localhost:8080", mux)
+//	     if err != nil {
+//			   log.Println(err)
+//		    }
+//	     log.Println("Server on 8080 stopped")
+//		     os.Exit(0)
+//	   }
 package grace
 
 import (
@@ -105,8 +107,17 @@ func init() {
 	}
 }
 
+// ServerOption configures how we set up the connection.
+type ServerOption func(*Server)
+
+func WithShutdownCallback(shutdownCallback func()) ServerOption {
+	return func(srv *Server) {
+		srv.shutdownCallbacks = append(srv.shutdownCallbacks, shutdownCallback)
+	}
+}
+
 // NewServer returns a new graceServer.
-func NewServer(addr string, handler http.Handler) (srv *Server) {
+func NewServer(addr string, handler http.Handler, opts ...ServerOption) (srv *Server) {
 	regLock.Lock()
 	defer regLock.Unlock()
 
@@ -146,6 +157,10 @@ func NewServer(addr string, handler http.Handler) (srv *Server) {
 		WriteTimeout:   DefaultWriteTimeOut,
 		MaxHeaderBytes: DefaultMaxHeaderBytes,
 		Handler:        handler,
+	}
+
+	for _, opt := range opts {
+		opt(srv)
 	}
 
 	runningServersOrder = append(runningServersOrder, addr)

@@ -16,15 +16,15 @@
 //
 // Usage:
 // import(
-//   "github.com/beego/beego/v2/session"
+//
+//	"github.com/beego/beego/v2/server/web/session"
+//
 // )
 //
-//	func init() {
-//      globalSessions, _ = session.NewManager("memory", `{"cookieName":"gosessionid", "enableSetCookie,omitempty": true, "gclifetime":3600, "maxLifetime": 3600, "secure": false, "cookieLifeTime": 3600, "providerConfig": ""}`)
-//		go globalSessions.GC()
-//	}
-//
-// more docs: http://beego.me/docs/module/session.md
+//		func init() {
+//	     globalSessions, _ = session.NewManager("memory", `{"cookieName":"gosessionid", "enableSetCookie,omitempty": true, "gclifetime":3600, "maxLifetime": 3600, "secure": false, "cookieLifeTime": 3600, "providerConfig": ""}`)
+//			go globalSessions.GC()
+//		}
 package session
 
 import (
@@ -70,14 +70,10 @@ var provides = make(map[string]Provider)
 var SLogger = NewSessionLog(os.Stderr)
 
 // Register makes a session provide available by the provided name.
-// If Register is called twice with the same name or if driver is nil,
-// it panics.
+// If provider is nil, it panic
 func Register(name string, provide Provider) {
 	if provide == nil {
 		panic("session: Register provide is nil")
-	}
-	if _, dup := provides[name]; dup {
-		panic("session: Register called twice for provider " + name)
 	}
 	provides[name] = provide
 }
@@ -89,24 +85,6 @@ func GetProvider(name string) (Provider, error) {
 		return nil, fmt.Errorf("session: unknown provide %q (forgotten import?)", name)
 	}
 	return provider, nil
-}
-
-// ManagerConfig define the session config
-type ManagerConfig struct {
-	CookieName              string `json:"cookieName"`
-	EnableSetCookie         bool   `json:"enableSetCookie,omitempty"`
-	Gclifetime              int64  `json:"gclifetime"`
-	Maxlifetime             int64  `json:"maxLifetime"`
-	DisableHTTPOnly         bool   `json:"disableHTTPOnly"`
-	Secure                  bool   `json:"secure"`
-	CookieLifeTime          int    `json:"cookieLifeTime"`
-	ProviderConfig          string `json:"providerConfig"`
-	Domain                  string `json:"domain"`
-	SessionIDLength         int64  `json:"sessionIDLength"`
-	EnableSidInHTTPHeader   bool   `json:"EnableSidInHTTPHeader"`
-	SessionNameInHTTPHeader string `json:"SessionNameInHTTPHeader"`
-	EnableSidInURLQuery     bool   `json:"EnableSidInURLQuery"`
-	SessionIDPrefix         string `json:"sessionIDPrefix"`
 }
 
 // Manager contains Provider and its configuration.
@@ -149,7 +127,7 @@ func NewManager(provideName string, cf *ManagerConfig) (*Manager, error) {
 		}
 	}
 
-	err := provider.SessionInit(nil, cf.Maxlifetime, cf.ProviderConfig)
+	err := provider.SessionInit(context.Background(), cf.Maxlifetime, cf.ProviderConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -213,12 +191,12 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	}
 
 	if sid != "" {
-		exists, err := manager.provider.SessionExist(nil, sid)
+		exists, err := manager.provider.SessionExist(context.Background(), sid)
 		if err != nil {
 			return nil, err
 		}
 		if exists {
-			return manager.provider.SessionRead(nil, sid)
+			return manager.provider.SessionRead(context.Background(), sid)
 		}
 	}
 
@@ -228,7 +206,7 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 		return nil, errs
 	}
 
-	session, err = manager.provider.SessionRead(nil, sid)
+	session, err = manager.provider.SessionRead(context.Background(), sid)
 	if err != nil {
 		return nil, err
 	}
@@ -239,6 +217,7 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 		HttpOnly: !manager.config.DisableHTTPOnly,
 		Secure:   manager.isSecure(r),
 		Domain:   manager.config.Domain,
+		SameSite: manager.config.CookieSameSite,
 	}
 	if manager.config.CookieLifeTime > 0 {
 		cookie.MaxAge = manager.config.CookieLifeTime
@@ -270,15 +249,18 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sid, _ := url.QueryUnescape(cookie.Value)
-	manager.provider.SessionDestroy(nil, sid)
+	manager.provider.SessionDestroy(context.Background(), sid)
 	if manager.config.EnableSetCookie {
 		expiration := time.Now()
-		cookie = &http.Cookie{Name: manager.config.CookieName,
+		cookie = &http.Cookie{
+			Name:     manager.config.CookieName,
 			Path:     "/",
 			HttpOnly: !manager.config.DisableHTTPOnly,
 			Expires:  expiration,
 			MaxAge:   -1,
-			Domain:   manager.config.Domain}
+			Domain:   manager.config.Domain,
+			SameSite: manager.config.CookieSameSite,
+		}
 
 		http.SetCookie(w, cookie)
 	}
@@ -286,7 +268,7 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 
 // GetSessionStore Get SessionStore by its id.
 func (manager *Manager) GetSessionStore(sid string) (sessions Store, err error) {
-	sessions, err = manager.provider.SessionRead(nil, sid)
+	sessions, err = manager.provider.SessionRead(context.Background(), sid)
 	return
 }
 
@@ -305,50 +287,47 @@ func (manager *Manager) SessionRegenerateID(w http.ResponseWriter, r *http.Reque
 	}
 
 	var session Store
-
 	cookie, err := r.Cookie(manager.config.CookieName)
 	if err != nil || cookie.Value == "" {
 		// delete old cookie
-		session, err = manager.provider.SessionRead(nil, sid)
+		session, err = manager.provider.SessionRead(context.Background(), sid)
 		if err != nil {
 			return nil, err
 		}
-		cookie = &http.Cookie{Name: manager.config.CookieName,
-			Value:    url.QueryEscape(sid),
-			Path:     "/",
-			HttpOnly: !manager.config.DisableHTTPOnly,
-			Secure:   manager.isSecure(r),
-			Domain:   manager.config.Domain,
+		cookie = &http.Cookie{
+			Name:  manager.config.CookieName,
+			Value: url.QueryEscape(sid),
 		}
 	} else {
 		oldsid, err := url.QueryUnescape(cookie.Value)
 		if err != nil {
 			return nil, err
 		}
-
-		session, err = manager.provider.SessionRegenerate(nil, oldsid, sid)
+		session, err = manager.provider.SessionRegenerate(context.Background(), oldsid, sid)
 		if err != nil {
 			return nil, err
 		}
-
 		cookie.Value = url.QueryEscape(sid)
-		cookie.HttpOnly = true
-		cookie.Path = "/"
 	}
 	if manager.config.CookieLifeTime > 0 {
 		cookie.MaxAge = manager.config.CookieLifeTime
 		cookie.Expires = time.Now().Add(time.Duration(manager.config.CookieLifeTime) * time.Second)
 	}
+
+	cookie.HttpOnly = !manager.config.DisableHTTPOnly
+	cookie.Path = "/"
+	cookie.Secure = manager.isSecure(r)
+	cookie.Domain = manager.config.Domain
+	cookie.SameSite = manager.config.CookieSameSite
+
 	if manager.config.EnableSetCookie {
 		http.SetCookie(w, cookie)
 	}
 	r.AddCookie(cookie)
-
 	if manager.config.EnableSidInHTTPHeader {
 		r.Header.Set(manager.config.SessionNameInHTTPHeader, sid)
 		w.Header().Set(manager.config.SessionNameInHTTPHeader, sid)
 	}
-
 	return session, nil
 }
 
