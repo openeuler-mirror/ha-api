@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -103,7 +102,7 @@ func init() {
 	beegoTplFuncMap["lt"] = lt // <
 	beegoTplFuncMap["ne"] = ne // !=
 
-	beegoTplFuncMap["urlfor"] = URLFor // build a URL to match a Controller and it's method
+	beegoTplFuncMap["urlfor"] = URLFor // build an URL to match a Controller and it's method
 }
 
 // AddFuncMap let user to register a func in the template.
@@ -202,9 +201,7 @@ func BuildTemplate(dir string, files ...string) error {
 		root:  dir,
 		files: make(map[string][]string),
 	}
-	err = Walk(fs, dir, func(path string, f os.FileInfo, err error) error {
-		return self.visit(path, f, err)
-	})
+	err = Walk(fs, dir, self.visit)
 	if err != nil {
 		fmt.Printf("Walk() returned %v\n", err)
 		return err
@@ -252,7 +249,7 @@ func getTplDeep(root string, fs http.FileSystem, file string, parent string, t *
 		panic("can't find template file:" + file)
 	}
 	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, [][]string{}, err
 	}
@@ -326,7 +323,7 @@ func _getTemplate(t0 *template.Template, root string, fs http.FileSystem, subMod
 					logs.Trace("template file parse error, not success open file:", err)
 					continue
 				}
-				data, err = ioutil.ReadAll(f)
+				data, err = io.ReadAll(f)
 				f.Close()
 				if err != nil {
 					logs.Trace("template file parse error, not success read file:", err)
@@ -351,7 +348,6 @@ func _getTemplate(t0 *template.Template, root string, fs http.FileSystem, subMod
 				}
 			}
 		}
-
 	}
 	return
 }
