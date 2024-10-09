@@ -1,7 +1,7 @@
 /******************************************************************************
  * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
  * ha-api is licensed under the Mulan PSL v2.
- * You can use this software accodring to the terms and conditions of the Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *     http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
@@ -47,7 +47,7 @@ func init() {
 
 		web.NSRouter("/:cluster_name/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
-		web.NSRouter("/:cluster_name/1/resources/meta_attributes/:catagory", &controllers.ResourceMetaAttributesController{}),
+		web.NSRouter("/:cluster_name/1/resources/meta_attributes/:category", &controllers.ResourceMetaAttributesController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID/relations/:relation", &controllers.ResourceRelationsController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID", &controllers.ResourceOpsById{}),
 
@@ -92,7 +92,7 @@ func init() {
 
 		web.NSRouter("/:cluster_name/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
-		web.NSRouter("/:cluster_name/1/resources/meta_attributes/:catagory", &controllers.ResourceMetaAttributesController{}),
+		web.NSRouter("/:cluster_name/1/resources/meta_attributes/:category", &controllers.ResourceMetaAttributesController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID/relations/:relation", &controllers.ResourceRelationsController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID", &controllers.ResourceOpsById{}),
 
