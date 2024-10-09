@@ -1,3 +1,11 @@
+/*
+ * @Author: bixiaoyan bixiaoyan@kylinos.cn
+ * @Date: 2024-03-21 17:02:57
+ * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
+ * @LastEditTime: 2024-10-09 15:40:11
+ * @FilePath: /ha-api/models/cluster_test.go
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 /******************************************************************************
  * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
  * ha-api is licensed under the Mulan PSL v2.
@@ -30,5 +38,25 @@ func TestUpdateClusterProperties(t *testing.T) {
 	res := UpdateClusterProperties(clusterPropJson)
 	if res["action"] != true {
 		t.Fatal("Update cluster properties failed")
+	}
+}
+
+func TestGetClusterStatus(t *testing.T) {
+	result := GetClusterStatus()
+	if result == -1 {
+		t.Fatal("Get cluster status failed")
+	}
+}
+
+func TestGetClusterProperties(t *testing.T) {
+	result, _ := getClusterProperties()
+	if result == nil {
+		t.Fatal("Get cluster properties failed")
+	}
+}
+func TestGetResourceStickiness(t *testing.T) {
+	result := getResourceStickiness()
+	if result == 0 {
+		t.Fatal("Get resource stickiness failed")
 	}
 }
