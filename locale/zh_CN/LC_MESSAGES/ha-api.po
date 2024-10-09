@@ -23,8 +23,11 @@ msgstr "无法将数据转换为JSON格式"
 msgid "Update cluster properties Success"
 msgstr "更新集群属性成功"
 
-msgid "Action on node Failed"
+msgid "Action on node failed"
 msgstr "节点操作失败"
+
+msgid "Action on node success"
+msgstr "节点操作成功"
 
 msgid "Change cluster success"
 msgstr "修改集群成功"

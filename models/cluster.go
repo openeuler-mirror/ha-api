@@ -385,11 +385,11 @@ func OperationClusterAction(action string) map[string]interface{} {
 	}
 	if action == "" {
 		result["action"] = false
-		result["error"] = gettext.Gettext("Action on node Failed")
+		result["error"] = gettext.Gettext("Action on node failed")
 		return result
 	} else {
 		result["action"] = true
-		result["error"] = gettext.Gettext("Action on node Failed")
+		result["info"] = gettext.Gettext("Action on node success")
 		return result
 	}
 }
