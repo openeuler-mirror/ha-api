@@ -79,8 +79,8 @@ type ResourceMetaAttributesController struct {
 }
 
 func (rc *ResourceMetaAttributesController) Get() {
-	catagory := rc.Ctx.Input.Param(":catagory")
-	result := models.GetResourceMetaAttributes(catagory)
+	category := rc.Ctx.Input.Param(":category")
+	result := models.GetResourceMetaAttributes(category)
 	rc.Data["json"] = &result
 	rc.ServeJSON()
 }
