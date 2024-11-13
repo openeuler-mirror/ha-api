@@ -694,7 +694,7 @@ Method：PUT
 
 ```
 {   "action":true,
-    "info":"Change node status succes"
+    "info":"Change node status success"
 }
 ```
 
