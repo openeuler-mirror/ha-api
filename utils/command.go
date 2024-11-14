@@ -86,7 +86,7 @@ const (
 	CmdOrderAdd                 = "pcs constraint order start %s then %s"
 	CmdListResourceStandards    = "crm_resource --list-standards"
 	CmdListOcfProviders         = "crm_resource --list-ocf-providers"
-	CmdListOcfResourceAgent     = "crm_resource --list-agents ocf: %s"
+	CmdListOcfResourceAgent     = "crm_resource --list-agents ocf:%s"
 	CmdListResourceAgent        = "crm_resource --list-agents %s"
 	CmdShowMetaData             = "crm_resource  --show-metadata %s:%s"
 	CmdShowMetaDataWithProvider = "crm_resource  --show-metadata %s:%s:%s"
