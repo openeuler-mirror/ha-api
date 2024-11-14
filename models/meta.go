@@ -120,7 +120,7 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	if rscProvider == "" {
 		cmd = fmt.Sprintf(utils.CmdShowMetaData, rscClass, rscType)
 	} else {
-		cmd = fmt.Sprintf(utils.CmdShowMetaDataWithProvider, rscProvider, rscClass, rscType)
+		cmd = fmt.Sprintf(utils.CmdShowMetaDataWithProvider, rscClass, rscProvider, rscType)
 	}
 	out, err := utils.RunCommand(cmd)
 	if err != nil {
