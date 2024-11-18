@@ -679,7 +679,7 @@ Response Example:
 
 ```
 {   "action":true,
-    "info":"Change node status succes"
+    "info":"Change node status success"
 }
 ```
 
@@ -2601,7 +2601,7 @@ Response Parameters:
 | sender                        | string                             | sender email                         |
 | smtp                          | string                             | email smtp                           |
 | flag                          | bool                               | switch flag                          |
-| receiver                      | array                              | reciever email list                  |
+| receiver                      | array                              | receiver email list                  |
 | password                      | string                             | email password                       |
 | port                          | string                             | email port                           |
 
@@ -2683,9 +2683,9 @@ TODO:
 
 ### 2.6 Heartbeat
 
-#### 2.6.1 Get Network Heartbeat Infomation
+#### 2.6.1 Get Network Heartbeat Information
 
-Description: get network heartbeat infomation
+Description: get network heartbeat information
 
 URI：/api/v1/haclusters/1/configs
 
@@ -3083,7 +3083,7 @@ Response Example:
 
 #### 2.9.1 Generate Script
 
-Description: gererate resource control script
+Description: generate resource control script
 
 URI：/api/v1/haclusters/1/scripts
 

@@ -23,7 +23,7 @@ Briefly, HA-api wraps many HA manager commands such as pcs, crm_xxx, cibamdin, a
 
 ```
 
-controllers: REST api processer needed by Beego framework.
+controllers: REST api processor needed by Beego framework.
 models: wraps HA cluster manager commands.
 routers: bind URLs and controllers.
 services: currently only session service.

@@ -1,6 +1,6 @@
 # Build from Source
 
-This document describes how to build HA-api managment backend from code.
+This document describes how to build HA-api management backend from code.
 
 ## Build
 

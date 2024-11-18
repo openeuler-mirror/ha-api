@@ -37,7 +37,7 @@ SELINUXTYPE=targeted
 
 ### install HA software
 
-The yum repositories is well configed by default after the OS is install, but you still need to check it. The file is `/etc/yum.repos.d/openEuler.repo` and the following repositories will be used:
+The yum repositories is well configured by default after the OS is install, but you still need to check it. The file is `/etc/yum.repos.d/openEuler.repo` and the following repositories will be used:
 
 ```
 [OS]
