@@ -1,7 +1,7 @@
 /******************************************************************************
  * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
  * ha-api is licensed under the Mulan PSL v2.
- * You can use this software accodring to the terms and conditions of the Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *     http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
@@ -30,7 +30,7 @@ func (rc *RootController) Get() {
 
 	// TODO: check session
 	if true {
-		// default find templete from views folder
+		// default find template from views folder
 		rc.TplName = "static/index.html"
 		return
 	}
@@ -42,6 +42,6 @@ type IndexController struct {
 }
 
 func (ic *IndexController) Get() {
-	// default find templete from views folder
+	// default find template from views folder
 	ic.TplName = "static/index.html"
 }
