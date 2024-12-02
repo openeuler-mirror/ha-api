@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
+ * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * See LICENSE file for more details.
+ * Author: Jason011125 <zic022@ucsd.edu>
+ * Date: Mon Aug 14 15:53:52 2023 +0800
+ */
 package models
 
 import (
