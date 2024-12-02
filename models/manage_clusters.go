@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"github.com/pkg/errors"
 
 	"gitee.com/openeuler/ha-api/settings"
@@ -71,6 +70,7 @@ type AuthRetA struct {
 	DetailInfo string `json:"detailInfo,omitempty"`
 	Message    string `json:"message,omitempty"`
 }
+
 
 // NewClustersInfo creates a new ClustersInfo instance using the provided text data.
 // If the text data is nil or empty, default values are initialized.
@@ -343,18 +343,16 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	authFailed := false
 	nodeList := authInfo["node_list"].([]string)
 	passwordList := authInfo["password"].([]string)
-
+	fmt.Println(nodeList,passwordList)
 	for i := 0; i < len(nodeList); i++ {
 		authCmd := fmt.Sprintf(utils.CmdHostAuthNode, nodeList[i], passwordList[i])
-
 		_, err := utils.RunCommand(authCmd)
-
 		if err != nil {
 			authFailed = true
 			break
 		}
 	}
-
+	
 	if authFailed {
 		return map[string]interface{}{
 			"action": false,
@@ -395,8 +393,15 @@ func hostAuthWithAddr(authInfo AuthInfo) AuthRetA {
 // Returns results indicating the success or failure of the operation.
 func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	authInfo := make(map[string]interface{})
-	authInfo["node_list"] = nodeInfo["node_name"].(string)
-	authInfo["password"] = nodeInfo["password"].(string)
+	nodeList := make([]string, 0)
+	passwords := make([]string, 0)
+
+	
+	nodeList = append(nodeList, nodeInfo["node_name"].(string))
+	passwords = append(passwords, nodeInfo["password"].(string))
+	
+	authInfo["node_list"] = nodeList
+	authInfo["password"] = passwords
 
 	authRes := hostAuth(authInfo)
 
