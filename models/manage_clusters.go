@@ -350,7 +350,6 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	authFailed := false
 	nodeList := authInfo["node_list"].([]string)
 	passwordList := authInfo["password"].([]string)
-	fmt.Println(nodeList,passwordList)
 	for i := 0; i < len(nodeList); i++ {
 		authCmd := fmt.Sprintf(utils.CmdHostAuthNode, nodeList[i], passwordList[i])
 		_, err := utils.RunCommand(authCmd)
@@ -416,7 +415,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 		return authRes
 	}
 
-	url := fmt.Sprintf("https://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
+	url := fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
 	resp, err := http.Get(url)
 	if err != nil {
 		return map[string]interface{}{
