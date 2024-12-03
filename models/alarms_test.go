@@ -1,10 +1,9 @@
 /*
-* @Author: bixiaoyan bixiaoyan@kylinos.cn
-* @Date: 2024-08-20 13:52:22
- * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
- * @LastEditTime: 2024-09-02 15:26:58
-* @FilePath: /ha-api/models/alarms_test.go
-* @Description: 高可用集群报警配置模块单元测试
+ * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
+ * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * See LICENSE file for more details.
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Mon Sep 2 15:58:49 2024 +0800
  */
 package models
 

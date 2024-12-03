@@ -1,11 +1,11 @@
 /*
- * @Author: bixiaoyan bixiaoyan@kylinos.cn
- * @Date: 2024-08-20 14:25:08
- * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
- * @LastEditTime: 2024-11-15 14:32:44
- * @FilePath: /ha-api/models/config_test.go
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
+ * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * See LICENSE file for more details.
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Fri Nov 15 16:03:14 2024 +0800
  */
+
 package models
 
 import "testing"

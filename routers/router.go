@@ -1,17 +1,10 @@
-/******************************************************************************
- * Copyright (c) KylinSoft Co., Ltd.2021-2022. All rights reserved.
- * ha-api is licensed under the Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *     http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN 'AS IS' BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
- * Author: liqiuyu
- * Date: 2024-03-19 11:19:33
- * LastEditTime: 2024-05-13 16:52:48
- * Description: 网页路由
- ******************************************************************************/
+/*
+ * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
+ * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * See LICENSE file for more details.
+ * Author: yangzhao_kl <yangzhao1@kylinos.cn>
+ * Date: Tue Jan 5 09:33:00 2021 +0800
+ */
 package routers
 
 import (
