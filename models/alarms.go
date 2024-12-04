@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: liqiuyu <liqiuyu@kylinos.cn>
  * Date: Mon Jan 18 11:44:18 2021 +0800
@@ -8,6 +8,8 @@
 package models
 
 import (
+	"fmt"
+
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
@@ -95,9 +97,9 @@ ret:
 	return result
 }
 
-func AlarmsSet(data map[string]string) map[string]interface{} {
+func AlarmsSet(data map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
-	var receiver string
+	var receiver []string
 
 	utils.RunCommand(utils.CmdDeleteAlert)
 	sender := ""
@@ -115,19 +117,19 @@ func AlarmsSet(data map[string]string) map[string]interface{} {
 			}
 		}
 		if _, ok := data["smtp"]; ok {
-			smtp = string(data["smtp"])
+			smtp = data["smtp"].(string)
 		}
 		if _, ok := data["sender"]; ok {
-			sender = string(data["sender"])
+			sender = data["sender"].(string)
 		}
 		if _, ok := data["password"]; ok {
-			password = string(data["password"])
+			password = data["password"].(string)
 		}
 		if _, ok := data["port"]; ok {
-			port = string(data["port"])
+			port = fmt.Sprintf("%d", data["port"])
 		}
 		if _, ok := data["receiver"]; ok {
-			receiver = data["receiver"]
+			receiver = data["receiver"].([]string)
 		}
 	}
 

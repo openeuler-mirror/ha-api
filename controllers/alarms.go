@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: liqiuyu <liqiuyu@kylinos.cn>
  * Date: Mon Jan 18 11:44:18 2021 +0800
@@ -28,7 +28,7 @@ func (ac *AlarmConfig) Get() {
 func (ac *AlarmConfig) Post() {
 	var result map[string]interface{}
 
-	reqData := make(map[string]string)
+	reqData := make(map[string]interface{})
 	if err := json.Unmarshal(ac.Ctx.Input.RequestBody, &reqData); err != nil {
 		result = make(map[string]interface{})
 		result["action"] = false
