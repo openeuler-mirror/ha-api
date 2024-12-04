@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: Jason011125 <zic022@ucsd.edu>
  * Date: Mon Aug 14 15:53:52 2023 +0800
@@ -53,19 +53,28 @@ func getLocalClusterName() (string, error) {
 
 // getClusterName reads the cluster name from the corosync configuration file.
 // Returns a map indicating the result and the extracted cluster name, if available.
-func getClusterName() map[string]interface{} {
-	result := map[string]interface{}{
-		"action":      false,
-		"clusterName": "",
-	}
+// func getClusterName() map[string]interface{} {
+// 	result := map[string]interface{}{
+// 		"action":      false,
+// 		"clusterName": "",
+// 	}
+// 	localClusterName, err := getLocalClusterName()
+// 	if err != nil {
+// 		return result
+// 	}
+
+//		result["action"] = true
+//		result["clusterName"] = localClusterName
+//		return result
+//	}
+func getClusterName() string {
+	clusterName := ""
 	localClusterName, err := getLocalClusterName()
 	if err != nil {
-		return result
+		return clusterName
 	}
 
-	result["action"] = true
-	result["clusterName"] = localClusterName
-	return result
+	return localClusterName
 }
 
 // getClusterInfo retrieves cluster information, including cluster nodes and their properties.
