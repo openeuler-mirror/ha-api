@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: Jason011125 <zic022@ucsd.edu>
  * Date: Mon Aug 14 15:53:52 2023 +0800
@@ -17,6 +17,7 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"github.com/pkg/errors"
 
 	"gitee.com/openeuler/ha-api/settings"
@@ -77,7 +78,6 @@ type AuthRetA struct {
 	DetailInfo string `json:"detailInfo,omitempty"`
 	Message    string `json:"message,omitempty"`
 }
-
 
 // NewClustersInfo creates a new ClustersInfo instance using the provided text data.
 // If the text data is nil or empty, default values are initialized.
@@ -358,7 +358,7 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 			break
 		}
 	}
-	
+
 	if authFailed {
 		return map[string]interface{}{
 			"action": false,
@@ -402,10 +402,9 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	nodeList := make([]string, 0)
 	passwords := make([]string, 0)
 
-	
 	nodeList = append(nodeList, nodeInfo["node_name"].(string))
 	passwords = append(passwords, nodeInfo["password"].(string))
-	
+
 	authInfo["node_list"] = nodeList
 	authInfo["password"] = passwords
 
@@ -414,7 +413,6 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	if !authRes["action"].(bool) {
 		return authRes
 	}
-
 	url := fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -434,8 +432,8 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 				"action": false,
 				"error":  gettext.Gettext("add cluster failed")}
 		}
-
 		localConf := getLocalConf()
+
 		if localConf.IsClusterNameInUse(NewClusterInfo["cluster_name"].(string)) {
 			return map[string]interface{}{
 				"action": false,
@@ -552,7 +550,7 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 	clusterName := AddNodesinfo.Cluster_name
 	localClusterName := getClusterName()
 
-	if localClusterName["clusterName"] == clusterName {
+	if localClusterName == clusterName {
 		return LocalAddNodes(AddNodesinfo)
 	}
 	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
