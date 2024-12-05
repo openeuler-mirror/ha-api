@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Tue Jan 5 09:33:00 2021 +0800
@@ -22,7 +22,7 @@ const (
 	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 	CmdCibQueryConfig               = "cibadmin --query --scope configuration"
 	CmdDeleteAlert                  = "pcs alert delete alert_Kylin"
-	CmdCreateAlert                  = "pcs alert create id=alert_log path=/usr/share/pacemaker/alerts/alert_log.sh"
+	CmdCreateAlert                  = "pcs alert create id=alert_Kylin path=/usr/share/pacemaker/alerts/alert_log.sh"
 	CmdAddAlert                     = "pcs alert recipient add alert_Kylin"
 	CmdUpdateResourceStickness      = "crm_attribute  -t rsc_defaults -n resource-stickiness -v "
 	CmdUpdateCrmConfig              = "crm_attribute -t crm_config -n "
