@@ -9,6 +9,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
@@ -110,22 +111,23 @@ func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
 	return nodeInfo, nil
 }
 
-func DoNodeAction(nodeID, action string) map[string]interface{} {
+func DoNodeAction(nodeID string, action string, data map[string]string) map[string]interface{} {
 	var cmd string
 	result := map[string]interface{}{}
-
+	nodeType := data["type"]
+	nodeRes := data["res"]
 	if action == "standby" {
 		cmd = utils.CmdNodeStandby + nodeID
 	} else if action == "unstandby" {
 		cmd = utils.CmdNodeUnStandby + nodeID
 	} else if action == "start" {
-		cmd = utils.CmdStartCluster + nodeID + " &sleep 5"
+		cmd = handleNodeAction(action, nodeID, nodeType, nodeRes)
 	} else if action == "stop" {
-		cmd = utils.CmdStopCluster + nodeID
+		cmd = handleNodeAction(action, nodeID, nodeType, nodeRes)
 	} else if action == "restart" {
-		cmd = utils.CmdStopCluster + nodeID + "||" + utils.CmdStopCluster + nodeID
+		cmd = utils.CmdStopCluster + nodeID + " && " + utils.CmdStopCluster + nodeID
 	}
-
+	// TODO --force
 	if _, err := utils.RunCommand(cmd); err != nil {
 		logs.Error("run command error: ", err)
 		result["action"] = false
@@ -135,4 +137,35 @@ func DoNodeAction(nodeID, action string) map[string]interface{} {
 	result["action"] = true
 	result["info"] = gettext.Gettext("Change node status success")
 	return result
+}
+
+// handleNodeAction 根据节点类型和操作生成相应的命令
+func handleNodeAction(action string, nodeType, nodeID, nodeRes string) string {
+	commands := map[string]map[string]string{
+		"start": {
+			"primitive": fmt.Sprintf("pcs cluster start %s", nodeID),
+			"remote":    fmt.Sprintf("pcs resource enable %s", nodeID),
+			"guest":     fmt.Sprintf("pcs resource enable %s", nodeRes),
+		},
+		"stop": {
+			"primitive": fmt.Sprintf("pcs cluster stop %s", nodeID),
+			"remote":    fmt.Sprintf("pcs resource disable %s", nodeID),
+			"guest":     fmt.Sprintf("pcs resource disable %s", nodeRes),
+		},
+	}
+	sleepStr := utils.DefaultSleep
+
+	if _, ok := commands[action]; !ok {
+		return fmt.Sprintf("invalid action: %s", action)
+	}
+
+	if _, ok := commands[action][nodeType]; !ok {
+		return fmt.Sprintf("invalid node type: %s for action: %s", nodeType, action)
+	}
+
+	if action == "stop" && (nodeType == "remote" || nodeType == "guest") {
+		sleepStr = ""
+	}
+	cmd := commands[action][nodeType] + sleepStr
+	return cmd
 }
