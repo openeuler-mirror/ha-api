@@ -24,3 +24,33 @@ func TestGetNodeIDInfo(t *testing.T) {
 		t.Fatal("Get Node ID Info failed")
 	}
 }
+
+func TestHandleNodeAction(t *testing.T) {
+	cmd := handleNodeAction("start", "primitive", "test", "")
+	if cmd != "pcs cluster start test &sleep 5" {
+		t.Fatal("Handle Node Action test1 failed")
+	}
+
+	cmd = handleNodeAction("stop", "primitive", "test", "")
+	if cmd != "pcs cluster stop test &sleep 5" {
+		t.Fatal("Handle Node Action test2 failed")
+	}
+
+	cmd = handleNodeAction("start", "remote", "test", "")
+	if cmd != "pcs resource enable test &sleep 5" {
+		t.Fatal("Handle Node Action test3 failed")
+	}
+
+	cmd = handleNodeAction("stop", "remote", "test", "")
+	if cmd != "pcs resource disable test" {
+		t.Fatal("Handle Node Action test4 failed")
+	}
+	cmd = handleNodeAction("start", "guest", "test", "res")
+	if cmd != "pcs resource enable res &sleep 5" {
+		t.Fatal("Handle Node Action test3 failed")
+	}
+	cmd = handleNodeAction("stop", "guest", "test", "res")
+	if cmd != "pcs resource disable res" {
+		t.Fatal("Handle Node Action test5 failed")
+	}
+}
