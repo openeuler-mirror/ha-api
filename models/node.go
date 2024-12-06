@@ -100,7 +100,6 @@ func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
 	out, err := utils.RunCommand(cmd)
 
 	ips := strings.Split(strings.TrimSpace(string(out)), "\n")
-	logs.Debug(ips)
 
 	if err != nil || len(ips) == 0 {
 		return nil, err

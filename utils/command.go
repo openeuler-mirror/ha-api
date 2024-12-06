@@ -19,6 +19,7 @@ const (
 	CmdClusterStatus                = "crm_mon -1"
 	CmdClusterStatusAsXML           = CmdClusterStatus + " --as-xml"
 	CmdHostName                     = "hostname"
+	CmdGetCurrentNodeName           = "cat /etc/hostname"
 	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 	CmdCibQueryConfig               = "cibadmin --query --scope configuration"
 	CmdDeleteAlert                  = "pcs alert delete alert_Kylin"
@@ -88,6 +89,7 @@ const (
 
 	CmdGenLog          = "/usr/share/heartbeat-gui/ha-api/loggen.sh"
 	CmdPacemakerAgents = "pcs resource agents ocf:pacemaker"
+	DefaultSleep       = " &sleep 5"
 )
 
 // RunCommand runs the command and get the result
