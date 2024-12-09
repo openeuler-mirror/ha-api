@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Thu Jan 14 13:33:38 2021 +0800
@@ -9,7 +9,9 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/chai2010/gettext-go"
@@ -174,4 +176,27 @@ func EditHeartbeatInfo(jsonData []byte) error {
 
 ret:
 	return errors.New(gettext.Gettext("Change cluster failed"))
+}
+
+func DeletLinks(linkIds string) error {
+	cmd := fmt.Sprintf(utils.CmdDeleteLinks, linkIds)
+	_, err := utils.RunCommand(cmd)
+	return err
+}
+
+func AddLink(linkIds string) error {
+	cmd := fmt.Sprintf(utils.CmdAddLink, linkIds)
+	_, err := utils.RunCommand(cmd)
+	return err
+}
+
+func GenerateLinkStr(data map[string]string) string {
+	var linkStr strings.Builder
+	for k, v := range data {
+		linkStr.WriteString(" ")
+		linkStr.WriteString(k)
+		linkStr.WriteString("=")
+		linkStr.WriteString(v)
+	}
+	return linkStr.String()[1:]
 }
