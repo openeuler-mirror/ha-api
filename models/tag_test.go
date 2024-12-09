@@ -2,7 +2,7 @@
  * @Author: bixiaoyan bixiaoyan@kylinos.cn
  * @Date: 2024-12-05 15:28:13
  * @LastEditors: bixiaoyan bixiaoyan@kylinos.cn
- * @LastEditTime: 2024-12-09 11:28:15
+ * @LastEditTime: 2024-12-09 14:15:37
  * @FilePath: /ha-api/models/tag_test.go
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -76,5 +76,40 @@ func TestUpdateTag(t *testing.T) {
 		require.NoError(t, err, "Marshal expected map not return an error")
 
 		assert.JSONEq(t, string(expectedJson), string(resultJson), "Update tag success")
+	}
+}
+
+func TestTagAction(t *testing.T) {
+	testCases := []struct {
+		inputTagName string
+		inputAction  string
+		expected     map[string]interface{}
+	}{
+		{
+			`tag1`,
+			"start",
+			map[string]interface{}{"action": true, "info": "Tag action success"},
+		},
+		{
+			`tag1`,
+			"stop",
+			map[string]interface{}{"action": true, "info": "Tag action success"},
+		},
+		{
+			`tag1`,
+			"delete",
+			map[string]interface{}{"action": true, "info": "Tag action success"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		result := TagAction(testCase.inputTagName, testCase.inputAction)
+		resultJson, err := json.Marshal(result)
+		require.NoError(t, err, "Marshal not return an error")
+
+		expectedJson, err := json.Marshal(testCase.expected)
+		require.NoError(t, err, "Marshal expected map not return an error")
+
+		assert.JSONEq(t, string(expectedJson), string(resultJson), "Tag action success")
 	}
 }
