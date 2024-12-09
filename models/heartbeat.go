@@ -8,12 +8,16 @@
 package models
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
+	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/chai2010/gettext-go"
 
 	"errors"
@@ -95,7 +99,6 @@ func GetHeartBeatConfig() (interface{}, error) {
 		return nil, err
 	}
 	return rst, nil
-
 }
 
 func EditHeartbeatInfo(jsonData []byte) error {
@@ -199,4 +202,76 @@ func GenerateLinkStr(data map[string]string) string {
 		linkStr.WriteString(v)
 	}
 	return linkStr.String()[1:]
+}
+
+// HBInfo represents the heartbeat information structure
+type HBInfo struct {
+	Data        []map[string]string `json:"data"`
+	ClusterName string              `json:"cluster_name"`
+}
+
+// ExtractHBInfo reorganizes heartbeat information format
+func ExtractHBInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
+	var hbDictList []map[string]string
+	var ids []string
+
+	if len(hbInfo) == 0 {
+		return nil, nil
+	}
+	var numIds []string
+	for key := range hbInfo[0] {
+		if strings.HasPrefix(key, "ring") {
+			numIds = append(numIds, key[4:5]) // ring0-ring7
+		}
+	}
+
+	for _, id := range numIds {
+		hbDict := map[string]string{}
+		for _, nodeInfo := range hbInfo {
+			nodeName := nodeInfo["name"]
+			ringAddr := nodeInfo["ring"+id+"_addr"]
+			if ringAddr != "" {
+				hbDict[nodeName] = nodeInfo["ring"+id+"_addr"]
+			}
+		}
+		hbDictList = append(hbDictList, hbDict)
+	}
+	return hbDictList, ids
+}
+
+func ExtractNetInfoFromConf() (map[string][]string, []string) {
+	linksInfo := make(map[string][]string)
+	hosts := []string{}
+
+	file, err := os.Open(settings.CorosyncConfFile)
+	if err != nil {
+		logs.Error("Error opening file: %v", err)
+		return linksInfo, hosts
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "ring") && !strings.Contains(line, "disk") {
+			id := strings.TrimSpace(line)[4:5]
+			parts := strings.Fields(line)
+			if len(parts) > 1 {
+				ip := parts[1]
+				linksInfo[id] = append(linksInfo[id], ip)
+			}
+		}
+		if strings.Contains(line, "name:") && !strings.Contains(line, "cluster_name") {
+			parts := strings.Fields(line)
+			if len(parts) > 1 {
+				hosts = append(hosts, parts[1])
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		logs.Error("Error reading file: %v", err)
+	}
+
+	return linksInfo, hosts
 }
