@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -210,8 +211,8 @@ type HBInfo struct {
 	ClusterName string              `json:"cluster_name"`
 }
 
-// ExtractHBInfo reorganizes heartbeat information format
-func ExtractHBInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
+// ExtractHbInfo reorganizes heartbeat information format
+func ExtractHbInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
 	var hbDictList []map[string]string
 	var ids []string
 
@@ -239,7 +240,8 @@ func ExtractHBInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
 	return hbDictList, ids
 }
 
-func ExtractNetInfoFromConf() (map[string][]string, []string) {
+// get net heartbeat info from corosync conf
+func ExtractHbInfoFromConf() (map[string][]string, []string) {
 	linksInfo := make(map[string][]string)
 	hosts := []string{}
 
@@ -274,4 +276,71 @@ func ExtractNetInfoFromConf() (map[string][]string, []string) {
 	}
 
 	return linksInfo, hosts
+}
+
+func GetRingIdFromIPOnline(ipAddress string) (int, error) {
+	// IPv4 check
+	if !isValidIPv4(ipAddress) {
+		return -1, fmt.Errorf("%s is not an IPv4 address", ipAddress)
+	}
+
+	output, err := utils.RunCommand(utils.CmdHbStatus)
+	if err != nil {
+		return -1, err
+	}
+
+	// Parse the output
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "LINK") {
+			linkID := strings.Fields(line)[1]
+			ipStr := strings.Split(strings.Split(line, "udp (")[1], ")")[0]
+			ips := strings.Split(ipStr, "->")
+			for _, ip := range ips {
+				if strings.TrimSpace(ip) == ipAddress {
+					id, err := strconv.Atoi(linkID)
+					if err != nil {
+						return -1, err
+					}
+					return id, nil
+				}
+			}
+		}
+	}
+
+	return -1, fmt.Errorf("unable to find the link for the corresponding IP information")
+}
+
+// getRingIDFromIPOffline attempts to get the heartbeat ID from an IP address using an offline method.
+func GetRingIdFromIPOffline(ipAddress string) (int, error) {
+	file, err := os.Open(settings.CorosyncConfFile)
+	if err != nil {
+		return -1, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "ring") && strings.Contains(line, ipAddress) {
+			idStr := strings.Split(strings.TrimSpace(line), "_")[0]
+			id, err := strconv.Atoi(idStr[len(idStr)-1:])
+			if err != nil {
+				return -1, err
+			}
+			return id, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return -1, err
+	}
+
+	return -1, fmt.Errorf("unable to find the link for the corresponding IP information")
+}
+
+// isValidIPv4 checks if the given string is a valid IPv4 address.
+func isValidIPv4(ip string) bool {
+	return net.ParseIP(ip) != nil && strings.Contains(ip, ".")
 }
