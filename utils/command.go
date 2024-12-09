@@ -87,9 +87,13 @@ const (
 	CmdCrmResource              = "crm_resource --resource %s"
 	CmdQueryResourceAsXml       = "crm_resource --resource %s --query-xml"
 
-	CmdGenLog          = "/usr/share/heartbeat-gui/ha-api/loggen.sh"
-	CmdPacemakerAgents = "pcs resource agents ocf:pacemaker"
-	DefaultSleep       = " &sleep 5"
+	CmdGenLog              = "/usr/share/heartbeat-gui/ha-api/loggen.sh"
+	CmdPacemakerAgents     = "pcs resource agents ocf:pacemaker"
+	DefaultSleep           = " &sleep 5"
+	CmdDeleteLinks         = "pcs cluster link delete %s"
+	CmdAddLink             = "pcs cluster link add %s"
+	CmdAddLinkForce        = "pcs cluster link add %s --force"
+	CmdAddLinksWithLinkNum = "pcs cluster link add %s  options linknumber=%s --force"
 )
 
 // RunCommand runs the command and get the result
