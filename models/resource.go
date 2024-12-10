@@ -121,26 +121,12 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		for _, colocation := range root.FindElements("./rsc_colocation") {
 			rsc := colocation.SelectAttr("rsc").Value
 			rscWith := colocation.SelectAttr("with-rsc").Value
+			score := colocation.SelectAttrValue("score", "")
 
-			if rsc == rscID {
-				score := colocation.SelectAttrValue("score", "")
-				switch score {
-				case "INFINITY":
-					sameNodes = append(sameNodes, rscWith)
-				case "-INFINITY":
-					diffNodes = append(diffNodes, rscWith)
-				}
-			}
-
-			//TODO find better way to solve the rsc and with-rsc
-			if rscWith == rscID {
-				score := colocation.SelectAttrValue("score", "")
-				switch score {
-				case "INFINITY":
-					sameNodes = append(sameNodes, rsc)
-				case "-INFINITY":
-					diffNodes = append(diffNodes, rsc)
-				}
+			if (rsc == rscID && score == "INFINITY") || (rscWith == rscID && score == "INFINITY") {
+				sameNodes = append(sameNodes, getOtherRsc(rsc, rscWith))
+			} else if (rsc == rscID && score == "-INFINITY") || (rscWith == rscID && score == "-INFINITY") {
+				diffNodes = append(diffNodes, getOtherRsc(rsc, rscWith))
 			}
 		}
 		retData["same_node"] = sameNodes
@@ -167,6 +153,13 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		retData["after_rscs"] = after
 	}
 	return retData, nil
+}
+
+func getOtherRsc(rsc, rscWith string) string {
+	if rsc == "" {
+		return rscWith
+	}
+	return rsc
 }
 
 func getLevelFromScore(score string) string {
