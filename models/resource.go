@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Fri Jan 8 20:56:40 2021 +0800
@@ -104,26 +104,11 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 			if rsc == rscID {
 				rscConstraint := map[string]string{}
 				score := resourceLocation.SelectAttrValue("score", "")
-				if score == "-INFINITY" || score == "-infinity" {
-					continue
-				}
-				if score == "INFINITY" || score == "infinity" {
+				if score == "-INFINITY" || score == "-infinity" || score == "INFINITY" || score == "infinity" {
 					continue
 				}
 				rscConstraint["node"] = resourceLocation.SelectAttrValue("node", "")
-				if score == "20000" {
-					rscConstraint["level"] = "Master Node"
-				} else if score == "16000" {
-					//TODO implements func turnScoreToLevel
-					rscConstraint["level"] = "Slave 1"
-				} else if score == "15000" {
-					rscConstraint["level"] = "Slave 2"
-				} else if score == "14000" {
-					rscConstraint["level"] = "Slave 3"
-				} else if score == "13000" {
-					rscConstraint["level"] = "Slave 4"
-				}
-
+				rscConstraint["level"] = getLevelFromScore(score)
 				resourceLocations = append(resourceLocations, rscConstraint)
 			}
 
@@ -182,6 +167,23 @@ func GetResourceConstraints(rscID, relation string) (map[string]interface{}, err
 		retData["after_rscs"] = after
 	}
 	return retData, nil
+}
+
+func getLevelFromScore(score string) string {
+	switch score {
+	case "20000":
+		return "Master Node"
+	case "16000":
+		return "Slave 1"
+	case "15000":
+		return "Slave 2"
+	case "14000":
+		return "Slave 3"
+	case "13000":
+		return "Slave 4"
+	default:
+		return ""
+	}
 }
 
 func GetResourceFailedMessage() map[string]map[string]string {
