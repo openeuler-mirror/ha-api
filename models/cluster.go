@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Fri Jan 8 20:56:40 2021 +0800
@@ -366,6 +366,12 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 
 func OperationClusterAction(action string) map[string]interface{} {
 	result := map[string]interface{}{}
+	if action == "" {
+		result["action"] = false
+		result["error"] = gettext.Gettext("Action on node failed")
+		return result
+	}
+
 	if action == "start" {
 		utils.RunCommand(utils.CmdStartCluster)
 	}
@@ -376,15 +382,10 @@ func OperationClusterAction(action string) map[string]interface{} {
 		utils.RunCommand(utils.CmdStopClusterLocal)
 		utils.RunCommand(utils.CmdStartCluster)
 	}
-	if action == "" {
-		result["action"] = false
-		result["error"] = gettext.Gettext("Action on node failed")
-		return result
-	} else {
-		result["action"] = true
-		result["info"] = gettext.Gettext("Action on node success")
-		return result
-	}
+
+	result["action"] = true
+	result["info"] = gettext.Gettext("Action on node success")
+	return result
 }
 
 func getResourceStickiness() int {

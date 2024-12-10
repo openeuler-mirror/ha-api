@@ -194,6 +194,13 @@ func AddLink(linkIds string) error {
 	return err
 }
 
+func EditLinks(hbInfo map[string]string, linkId string) error {
+	hbInfoStr := GenerateLinkStr(hbInfo)
+	cmd := fmt.Sprintf(utils.CmdUpdateLinkForce, hbInfoStr, linkId)
+	_, err := utils.RunCommand(cmd)
+	return err
+}
+
 func GenerateLinkStr(data map[string]string) string {
 	var linkStr strings.Builder
 	for k, v := range data {
