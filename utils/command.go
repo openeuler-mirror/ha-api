@@ -95,6 +95,7 @@ const (
 	CmdAddLinkForce        = "pcs cluster link add %s --force"
 	CmdAddLinksWithLinkNum = "pcs cluster link add %s  options linknumber=%s --force"
 	CmdHbStatus            = "corosync-cfgtool -n"
+	CmdHbStatusS           = "corosync-cfgtool -s"
 	CmdUpdateLink          = "pcs cluster link update %s %s"
 	CmdUpdateLinkForce     = CmdUpdateLink + " --force"
 )

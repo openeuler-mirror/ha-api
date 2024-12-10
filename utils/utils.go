@@ -163,3 +163,31 @@ func Values(m map[string]string) []string {
 	}
 	return values
 }
+
+func RemoveByValue[T comparable](slice []T, value T) []T {
+	var newSlice []T
+	for _, v := range slice {
+		if v != value {
+			newSlice = append(newSlice, v)
+		}
+	}
+	return newSlice
+}
+
+func Pop[T any](slice []T) (T, []T) {
+	if len(slice) == 0 {
+		var zero T
+		return zero, slice
+	}
+	last := slice[len(slice)-1]
+	return last, slice[:len(slice)-1]
+}
+
+func PopFirst[T any](slice []T) (T, []T) {
+	if len(slice) == 0 {
+		var zero T
+		return zero, slice
+	}
+	first := slice[0]
+	return first, slice[1:]
+}
