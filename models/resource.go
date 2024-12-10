@@ -61,8 +61,19 @@ func GetResourceInfo() map[string]interface{} {
 }
 
 func GetResourceCategory(rscID string) string {
-	// TODO:
-	return ""
+	ct := ""
+	cmd_str := "crm_resource --resource " + rscID + " --query-xml"
+	out, err := utils.RunCommand(cmd_str)
+	if err != nil {
+		return ""
+	}
+	xml := strings.Split(string(out), ":\n")[1]
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		return ""
+	}
+	ct = doc.Root().Tag
+	return ct
 }
 
 func GetResourceType(rscID string) string {
