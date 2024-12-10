@@ -344,3 +344,61 @@ func GetRingIdFromIPOffline(ipAddress string) (int, error) {
 func isValidIPv4(ip string) bool {
 	return net.ParseIP(ip) != nil && strings.Contains(ip, ".")
 }
+
+func DeleteHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+	hbData := hbInfo.Data
+	minLinkNum := 1
+	hbInfoList, _ := ExtractHbInfo(hbData)
+	status := GetClusterStatus()
+	currentLocalHbIds := GetCurrentLinkIds()
+	var linkId int
+	var linkIdSet []string
+	if len(currentLocalHbIds) <= minLinkNum || len(currentLocalHbIds) <= len(hbInfoList) {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("At least one heartbeat needs to be preserved and cannot be deleted further."),
+		}
+	}
+
+	for _, hbInfo := range hbInfoList {
+		ip := utils.Values(hbInfo)
+		if status == 0 {
+			linkId, _ = GetRingIdFromIPOnline(ip[0])
+		} else {
+			linkId, _ = GetRingIdFromIPOnline(ip[0])
+		}
+
+		if linkId == -1 {
+			linkId, _ = GetRingIdFromIPOnline(ip[0])
+			if linkId == -1 {
+				return utils.GeneralResponse{
+					Action: false,
+					Error:  gettext.Gettext("Exception occurred while deleting the heartbeat. Please check the logs and the original heartbeat status."),
+				}
+			}
+		}
+		linkIdSet = append(linkIdSet, strconv.Itoa(linkId))
+	}
+	linkIdSetStr := strings.Join(linkIdSet, " ")
+	cmd := fmt.Sprintf(utils.CmdDeleteLinks, linkIdSetStr)
+	if _, err := utils.RunCommand(cmd); err != nil {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("Deletion heartbeat failed, the heartbeat ID does not exist"),
+		}
+	}
+
+	return utils.GeneralResponse{
+		Action: true,
+		Error:  gettext.Gettext("Delete heartbeat success"),
+	}
+}
+
+func GetCurrentLinkIds() []string {
+	linksInfo, _ := ExtractHbInfoFromConf()
+	ids := make([]string, 0, len(linksInfo))
+	for k := range linksInfo {
+		ids = append(ids, k)
+	}
+	return ids
+}
