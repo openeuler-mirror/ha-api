@@ -375,7 +375,7 @@ func DeleteHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 	}
 
 	for _, hbInfo := range hbInfoList {
-		ip := utils.Values(hbInfo)
+		ip := utils.Values[string, string](hbInfo)
 		if status == 0 {
 			linkId, _ = GetRingIdFromIPOnline(ip[0])
 		} else {
