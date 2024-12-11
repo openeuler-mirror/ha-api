@@ -408,6 +408,68 @@ func DeleteHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 	}
 }
 
+func AddHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+	specialLinkId := "7"
+	MaxLinkCount := 7
+	hbIds := GetCurrentLinkIds()
+	if utils.Contains(hbIds, specialLinkId) {
+		utils.RemoveByValue(hbIds, specialLinkId)
+	}
+	if len(hbIds) >= MaxLinkCount {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("The maximum number of heartbeats in the cluster has been reached and cannot be added further."),
+		}
+	}
+	clusterStatus := GetClusterStatus()
+	if clusterStatus == 0 {
+		connectedNetLinksId := GetConnectedNetLinksId()
+		if len(connectedNetLinksId) < 1 {
+			return utils.GeneralResponse{
+				Action: false,
+				Error:  gettext.Gettext("All network heartbeats currently in a disconnected state and cannot continue to add heartbeat."),
+			}
+		}
+	}
+	hbInfoList, _ := ExtractHbInfo(hbInfo.Data)
+	for _, hbInfo := range hbInfoList {
+		if err := AddLink(hbInfo, ""); err != nil {
+			return utils.GeneralResponse{
+				Action: false,
+				Error:  gettext.Gettext("Exception occurred while adding heartbeats, either the IP was conflicted with the original heartbeat"),
+			}
+		}
+
+	}
+	return utils.GeneralResponse{
+		Action: true,
+		Error:  gettext.Gettext("Add heartbeat success"),
+	}
+}
+
+func GetConnectedNetLinksId() []string {
+	out, err := utils.RunCommand(utils.CmdHbStatusS)
+	if err != nil {
+		return nil
+	}
+	var ConnectedLinkIds []string
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	found := false
+	for _, line := range lines {
+		if strings.Contains(line, "LINK ID") {
+			id := strings.Split(strings.TrimSpace(line), " ")[2]
+			ConnectedLinkIds = append(ConnectedLinkIds, id)
+			found = true
+		}
+		if found && (strings.Contains(line, "disk") || strings.Contains(line, "disconnected")) {
+			_, ConnectedLinkIds = utils.Pop(ConnectedLinkIds)
+			found = false
+		}
+	}
+	return ConnectedLinkIds
+}
+
 func GetCurrentLinkIds() []string {
 	linksInfo, _ := ExtractHbInfoFromConf()
 	ids := make([]string, 0, len(linksInfo))
