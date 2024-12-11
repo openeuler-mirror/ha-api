@@ -188,8 +188,15 @@ func DeletLinks(linkIds string) error {
 	return err
 }
 
-func AddLink(linkIds string) error {
-	cmd := fmt.Sprintf(utils.CmdAddLink, linkIds)
+func AddLink(hbInfo map[string]string, linkId string) error {
+	hbInfoStr := GenerateLinkStr(hbInfo)
+	var cmd string
+	if linkId == "" {
+		cmd = fmt.Sprintf(utils.CmdAddLinkForce, hbInfoStr)
+	} else {
+		cmd = fmt.Sprintf(utils.CmdAddLinksWithLinkNum, hbInfoStr, linkId)
+	}
+
 	_, err := utils.RunCommand(cmd)
 	return err
 }

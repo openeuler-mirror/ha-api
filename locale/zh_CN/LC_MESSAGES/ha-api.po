@@ -217,3 +217,15 @@ msgstr "请求远程集群信息失败"
 
 msgid "Utilization set success"
 msgstr "利用率添加成功"
+
+msgid "At least one heartbeat needs to be preserved and cannot be deleted further."
+msgstr "至少需要保留一路心跳, 无法继续删除心跳"
+
+msgid "Delete heartbeat success"
+msgstr "心跳删除成功"
+
+msgid "Exception occurred while deleting the heartbeat. Please check the logs and the original heartbeat status."
+msgstr "心跳删除出现异常,请检查日志以及原心跳状态"
+
+msgid "Deletion heartbeat failed, the heartbeat ID does not exist"
+msgstr "心跳删除失败, 该心跳ID不存在, 请检查日志"
