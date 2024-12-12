@@ -229,3 +229,27 @@ msgstr "心跳删除出现异常,请检查日志以及原心跳状态"
 
 msgid "Deletion heartbeat failed, the heartbeat ID does not exist"
 msgstr "心跳删除失败, 该心跳ID不存在, 请检查日志"
+
+msgid "The maximum number of heartbeats in the cluster has been reached and cannot be added further."
+msgstr "集群心跳路数已达到最大支持路数，无法继续添加"
+
+msgid "All network heartbeats currently in a disconnected state and cannot continue to add heartbeat."
+msgstr "集群当前所有网络心跳都处于断开状态，无法继续添加"
+
+msgid "Exception occurred while adding heartbeats, either the IP was conflicted with the original heartbeat"
+msgstr "心跳添加出现异常, 新添加心跳IP或和原心跳冲突"
+
+msgid "Add heartbeat success"
+msgstr "心跳添加成功"
+
+msgid "The cluster has not been created."
+msgstr "集群未创建，请先创建集群"
+
+msgid "The heartbeat to be edited exceeds the maximum number of heartbeats"
+msgstr "要编辑的心跳路数超过了集群支持的网络心跳路数容量"
+
+msgid "Edit heartbeat success"
+msgstr "心跳编辑成功"
+
+msgid "Failed to synchronize corosync.conf file"
+msgstr "同步corosync配置文件失败"

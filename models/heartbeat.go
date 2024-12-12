@@ -474,6 +474,79 @@ func SyncCorosyncConf() error {
 	return err
 }
 
+func EditHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+	maxNum := 7
+	// 当前环境中的心跳信息
+	linksInfo, _ := ExtractHbInfoFromConf()
+	hbIds := utils.Keys[string, []string](linksInfo)
+	if len(hbIds) == 0 {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("The cluster has not been created."),
+		}
+	}
+	// 要进行编辑的心跳的信息
+	hbInfoList, idsEdited := ExtractHbInfo(hbInfo.Data)
+	idsNum := len(hbInfoList)
+	if idsNum > maxNum {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("The heartbeat to be edited exceeds the maximum number of heartbeats"),
+		}
+	}
+	clusterStatus := GetClusterStatus()
+	if clusterStatus == 0 {
+		connectedNetIds := GetConnectedNetLinksId()
+		leftConnectedIds := utils.DifferenceSlice(connectedNetIds, idsEdited)
+		if len(hbInfoList) < len(linksInfo) && len(leftConnectedIds) > 0 {
+			var linksStr strings.Builder
+			for _, id := range idsEdited {
+				linksStr.WriteString(" ")
+				linksStr.WriteString(id)
+			}
+			// 基于心跳编号删除要编辑的心跳
+			DeletLinks(linksStr.String())
+
+			// 添加新的心跳内容
+			for _, x := range hbInfoList {
+				AddLink(x, "")
+			}
+			return utils.GeneralResponse{
+				Action: true,
+				Info:   gettext.Gettext("Edit heartbeat success"),
+			}
+		}
+	}
+	utils.RunCommand(utils.CmdStopCluster + " --force")
+
+	// 修改配置文件
+	conf, _ := utils.GetCorosyncConfig()
+	for _, nodeInfo := range hbInfo.Data {
+		for _, node := range conf.NodeList {
+			if nodeInfo["name"] == node["name"] {
+				for _, id := range idsEdited {
+					ringStr := "ring" + id + "_addr"
+					node[ringStr] = nodeInfo[ringStr]
+				}
+			}
+		}
+	}
+	utils.SetCorosyncConfig(conf, settings.CorosyncConfFile)
+	if err := SyncCorosyncConf(); err != nil {
+		return utils.GeneralResponse{
+			Action: false,
+			Info:   gettext.Gettext("Failed to synchronize corosync.conf file"),
+		}
+	}
+	// 重新启动集群
+	utils.RunCommand(utils.CmdStartCluster)
+
+	return utils.GeneralResponse{
+		Action: true,
+		Info:   gettext.Gettext("Edit heartbeat success"),
+	}
+}
+
 func GetCurrentLinkIds() []string {
 	linksInfo, _ := ExtractHbInfoFromConf()
 	ids := make([]string, 0, len(linksInfo))
