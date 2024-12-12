@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"reflect"
-	"sort"
 	"testing"
 )
 
@@ -14,33 +12,7 @@ func TestKeys(t *testing.T) {
 	}
 	keys := Keys[string, int](m)
 	expectedKeys := []string{"key1", "key2", "key3"}
-	sort.Strings(keys)
-	sort.Strings(expectedKeys)
-	if !reflect.DeepEqual(keys, expectedKeys) {
-		t.Errorf("Keys() = %v, want %v", keys, expectedKeys)
-	}
-
-	// 创建一个map来记录期望值出现的次数
-	expectedCount := make(map[string]int)
-	for _, v := range expectedKeys {
-		expectedCount[v]++
-	}
-
-	// 检查返回的slice中的每个值是否都在期望的slice中
-	for _, v := range keys {
-		if count, ok := expectedCount[v]; !ok || count == 0 {
-			t.Errorf("Keys() contains unexpected value %v", v)
-		}
-		expectedCount[v]--
-	}
-
-	// 检查期望的slice中的每个值是否都被找到了
-	for _, count := range expectedCount {
-		if count != 0 {
-			t.Errorf("Keys() is missing value")
-		}
-	}
-
+	assertSliceElements[string](t, keys, expectedKeys)
 }
 
 func TestValues(t *testing.T) {
@@ -50,28 +22,39 @@ func TestValues(t *testing.T) {
 		"key3": 1,
 	}
 
-	values := Values2[string, int](testMap)
+	values := Values[string, int](testMap)
 
-	expectedKeys := []int{1, 2, 1}
+	expectedValues := []int{1, 2, 1}
+	assertSliceElements[int](t, values, expectedValues)
+}
 
-	// 创建一个map来记录期望值出现的次数
-	expectedCount := make(map[int]int)
-	for _, v := range expectedKeys {
+func TestDifferenceSlice(t *testing.T) {
+	mainSlice := []int{1, 2, 3, 4, 5}
+	subtractSlice := []int{3, 4, 6}
+	expectedSlice := []int{1, 2, 5}
+	diffSlice := DifferenceSlice(mainSlice, subtractSlice)
+
+	assertSliceElements[int](t, diffSlice, expectedSlice)
+}
+
+func assertSliceElements[K comparable](t *testing.T, actual, expected []K) {
+	t.Helper()
+
+	expectedCount := make(map[K]int)
+	for _, v := range expected {
 		expectedCount[v]++
 	}
 
-	// 检查返回的slice中的每个值是否都在期望的slice中
-	for _, v := range values {
+	for _, v := range actual {
 		if count, ok := expectedCount[v]; !ok || count == 0 {
-			t.Errorf("Values() contains unexpected value %v", v)
+			t.Errorf("Slice contains unexpected value %v", v)
 		}
 		expectedCount[v]--
 	}
 
-	// 检查期望的slice中的每个值是否都被找到了
 	for _, count := range expectedCount {
 		if count != 0 {
-			t.Errorf("Values() is missing value")
+			t.Errorf("Slice is missing value")
 		}
 	}
 }
