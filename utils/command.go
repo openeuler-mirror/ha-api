@@ -33,7 +33,7 @@ const (
 	CmdQueryConstraints             = "cibadmin --query --scope constraints"
 	CmdQueryResourcesById           = "cibadmin --query --scope resources|grep 'id=\"%s\"'"
 
-	CmdStartCluster             = "pcs cluster start "
+	CmdStartCluster             = "pcs cluster start --all "
 	CmdStopClusterLocal         = "pcs cluster stop "
 	CmdStopCluster              = "pcs cluster stop --all"
 	CmdSetupCluster             = "pcs cluster setup hacluster"
@@ -98,6 +98,7 @@ const (
 	CmdHbStatusS           = "corosync-cfgtool -s"
 	CmdUpdateLink          = "pcs cluster link update %s %s"
 	CmdUpdateLinkForce     = CmdUpdateLink + " --force"
+	CmdSyncCorosyncConf    = "pcs cluster sync"
 )
 
 // RunCommand runs the command and get the result
