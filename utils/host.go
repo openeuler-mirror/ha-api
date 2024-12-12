@@ -20,7 +20,7 @@ import (
 )
 
 func GetNodeList() ([]map[string]string, error) {
-	config, err := getCorosyncConfig()
+	config, err := GetCorosyncConfig()
 	if err != nil {
 		return nil, errors.New("read config from /etc/corosync/corosync.conf failed")
 	}
@@ -39,7 +39,7 @@ type CorosyncConfig struct {
 	Logging  map[string]interface{}
 }
 
-func getCorosyncConfig() (CorosyncConfig, error) {
+func GetCorosyncConfig() (CorosyncConfig, error) {
 	var result CorosyncConfig
 	f, err := os.Open(settings.CorosyncConfFile)
 	if err != nil {
@@ -169,7 +169,7 @@ func getCorosyncConfig() (CorosyncConfig, error) {
 	return result, nil
 }
 
-func setCorosyncConfig(conf CorosyncConfig, confFile string) error {
+func SetCorosyncConfig(conf CorosyncConfig, confFile string) error {
 	var sb strings.Builder
 	// Write totem section
 	sb.WriteString("totem {\n")

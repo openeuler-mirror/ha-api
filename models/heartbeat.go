@@ -228,7 +228,6 @@ type HBInfo struct {
 // ExtractHbInfo reorganizes heartbeat information format
 func ExtractHbInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
 	var hbDictList []map[string]string
-	var ids []string
 
 	if len(hbInfo) == 0 {
 		return nil, nil
@@ -251,7 +250,7 @@ func ExtractHbInfo(hbInfo []map[string]string) ([]map[string]string, []string) {
 		}
 		hbDictList = append(hbDictList, hbDict)
 	}
-	return hbDictList, ids
+	return hbDictList, numIds
 }
 
 // get net heartbeat info from corosync conf
@@ -468,6 +467,11 @@ func GetConnectedNetLinksId() []string {
 		}
 	}
 	return ConnectedLinkIds
+}
+
+func SyncCorosyncConf() error {
+	_, err := utils.RunCommand(utils.CmdSyncCorosyncConf)
+	return err
 }
 
 func GetCurrentLinkIds() []string {
