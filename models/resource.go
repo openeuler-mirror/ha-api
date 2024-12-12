@@ -559,6 +559,10 @@ func CreateResource(data []byte) map[string]interface{} {
 			}
 		}
 	}
+	if _, exists := jsonMap["selfFlag"].(string); exists {
+		var emptySlice []byte
+		ResourceAction(rscId, "start", emptySlice)
+	}
 	return map[string]interface{}{"action": true, "info": "Add " + cate + " resource success"}
 
 }
