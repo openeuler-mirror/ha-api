@@ -199,3 +199,20 @@ func PopFirst[T any](slice []T) (T, []T) {
 	first := slice[0]
 	return first, slice[1:]
 }
+
+// 计算两个切片的差集
+func DifferenceSlice[T comparable](mainSlice, subtractSlice []T) []T {
+	subtractSet := make(map[T]struct{})
+	for _, item := range subtractSlice {
+		subtractSet[item] = struct{}{}
+	}
+
+	var diffSlice []T
+	for _, item := range mainSlice {
+		if _, found := subtractSet[item]; !found {
+			diffSlice = append(diffSlice, item)
+		}
+	}
+
+	return diffSlice
+}
