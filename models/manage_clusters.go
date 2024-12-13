@@ -219,6 +219,24 @@ func (ci *ClustersInfo) GetClusterNameOfNode(nodeName string) string {
 	return ""
 }
 
+func ClusterInfo() map[string]interface{} {
+	localConf := getLocalConf()
+	clusterSum := len(localConf.Clusters)
+
+	if clusterSum == 0 {
+		return map[string]interface{}{
+			"action":       false,
+			"cluster_list": []interface{}{},
+		}
+	} else {
+		return checkClusterExist()
+	}
+}
+
+func checkClusterExist() map[string]interface{} {
+	panic("unimplemented")
+}
+
 // localClusterInfo retrieves the cluster information locally and returns it as a map.
 // If no cluster exists, an empty map is returned.
 func LocalClusterInfo() map[string]interface{} {
@@ -350,6 +368,7 @@ func hostAuth(authInfo map[string]interface{}) map[string]interface{} {
 	authFailed := false
 	nodeList := authInfo["node_list"].([]string)
 	passwordList := authInfo["password"].([]string)
+	fmt.Println(nodeList, passwordList)
 	for i := 0; i < len(nodeList); i++ {
 		authCmd := fmt.Sprintf(utils.CmdHostAuthNode, nodeList[i], passwordList[i])
 		_, err := utils.RunCommand(authCmd)
@@ -413,6 +432,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	if !authRes["action"].(bool) {
 		return authRes
 	}
+	fmt.Println("send get cluster info request")
 	url := fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", authInfo["node_list"], port)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -432,7 +452,9 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 				"action": false,
 				"error":  gettext.Gettext("add cluster failed")}
 		}
+		fmt.Println(NewClusterInfo)
 		localConf := getLocalConf()
+		fmt.Println(localConf)
 
 		if localConf.IsClusterNameInUse(NewClusterInfo["cluster_name"].(string)) {
 			return map[string]interface{}{
