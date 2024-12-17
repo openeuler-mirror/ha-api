@@ -81,87 +81,51 @@ func getClusterName() string {
 // Returns the cluster information in a structured map.
 func GetClusterInfo() map[string]interface{} {
 	currentNode, _ := utils.RunCommand(utils.CmdHostName)
-	currentNodeStr := strings.ReplaceAll(string(currentNode), "\n", "")
-
-	if IsClusterExist() {
-		nodeList := getNodeList()
-		nodes := make([]map[string]interface{}, 0)
-
-		index := 0
-		for index < len(nodeList) {
-			if nodeList[index] == "node {" {
-				index++
-				nodeInfo := make(map[string]interface{})
-				nodeInfo["ring_addr"] = make([]map[string]string, 0)
-
-				for index < len(nodeList) && nodeList[index] != "node {" {
-					//d := make(map[string]string)
-					d := make(map[string]interface{})
-					n := strings.Split(nodeList[index], ":")
-					d[n[0]] = strings.TrimSpace(n[1])
-					for k, v := range d {
-						nodeInfo[k] = v
-					}
-					index++
-				}
-
-				count := 0
-				for count < 2 {
-					for k, v := range nodeInfo {
-						if k != "nodeid" && k != "name" && k != "ring_addr" {
-							if isIPv4(v.(string)) {
-								ringAddr := map[string]string{
-									"ring": k,
-									"ip":   v.(string),
-								}
-								nodeInfo["ring_addr"] = append(nodeInfo["ring_addr"].([]map[string]string), ringAddr)
-							} else {
-								nodeInfo["ring_addr"] = append(nodeInfo["ring_addr"].([]map[string]string), map[string]string{})
-							}
-							delete(nodeInfo, k)
-						}
-					}
-					count++
-				}
-
-				nodes = append(nodes, nodeInfo)
-			} else {
-				index++
-			}
-		}
-		for _, node := range nodes {
-			nodeID, ok := node["nodeid"].(string)
-			if !ok {
-				fmt.Println("Invalid nodeid format")
-				continue
-			}
-
-			convertedID, err := strconv.Atoi(nodeID)
-			if err != nil {
-				fmt.Println("Failed to convert nodeid:", err)
-				continue
-			}
-
-			node["nodeid"] = convertedID
-		}
-		data := map[string]interface{}{
-			"action":        true,
-			"cluster_exist": true,
-			"cluster_name":  getClusterName(),
-			"currentNode":   currentNodeStr,
-			"data":          nodes,
-		}
-		return data
-	} else {
+	currentNodeContent := strings.ReplaceAll(string(currentNode), "\n", "")
+	clusterName := getClusterName()
+	if !IsClusterExist() {
 		data := map[string]interface{}{
 			"action":        false,
 			"cluster_exist": false,
-			"cluster_name":  getClusterName(),
-			"currentNode":   currentNodeStr,
+			"cluster_name":  clusterName,
+			"currentNode":   currentNodeContent,
 			"error":         "Cluster not established!",
 		}
 		return data
 	}
+
+	nodesInfo, _ := utils.GetNodeList()
+
+	nodes := make([]map[string]interface{}, 0)
+	for _, node := range nodesInfo {
+		nodeInfo := make(map[string]interface{}, 0)
+		nodeInfo["nodeid"], _ = strconv.Atoi(node["nodeid"])
+		nodeInfo["name"] = node["name"]
+		// 字段转化处理:
+		// {ring0_addr:192.168.1.1, ring1_addr:192.168.1.2}  -> [{ring:ring0_addr, ip:192.168.1.1}, {ring:ring1_addr, ip:192.168.1.2}]
+		ringAddr := make([]map[string]string, 0)
+		for k, v := range node {
+			if strings.HasPrefix(k, "ring") {
+				ringInfo := make(map[string]string, 0)
+				ringInfo["ring"] = k
+				ringInfo["ip"] = ""
+				if isIPv4(v) {
+					ringInfo["ip"] = v
+				}
+				ringAddr = append(ringAddr, ringInfo)
+			}
+		}
+		nodeInfo["ring_addr"] = ringAddr
+		nodes = append(nodes, nodeInfo)
+	}
+	data := map[string]interface{}{
+		"action":        true,
+		"cluster_exist": true,
+		"cluster_name":  clusterName,
+		"currentNode":   currentNodeContent,
+		"data":          nodes,
+	}
+	return data
 }
 
 // clusterSetup sets up a cluster with the provided node information.
