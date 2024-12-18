@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,14 +41,16 @@ type Cluster struct {
 	ClusterName string
 	Nodes       []string
 	Nodeid      []int
-	Ip          []map[string]string
+	Ip          []map[string]interface{}
 }
 
+// 集群添加接口
 type ClusterData struct {
 	Cluster_name string
 	Data         []NodeData
 }
 
+// 节点添加接口数据
 type NodeData struct {
 	NodeID   int            `json:"nodeid"`
 	Name     string         `json:"name"`
@@ -311,7 +314,7 @@ func handleExistClusterConf(realNodeNum, confNodeSum int, clusterConf Cluster, c
 	panic("unimplemented")
 }
 
-// localClusterInfo retrieves the cluster information locally and returns it as a map.
+// localClusterInfo retrieves the corosync cluster information locally and returns it as a map.
 // If no cluster exists, an empty map is returned.
 func LocalClusterInfo() Cluster {
 	allInfo := GetClusterInfo()
@@ -332,14 +335,19 @@ func clusterInfoParse(clusterInfo map[string]interface{}) Cluster {
 
 	nodes := make([]string, 0)
 	nodeIDs := make([]int, 0)
-	ips := make([]map[string]string, 0)
+	ips := make([]map[string]interface{}, 0)
 	nodesInfo := clusterInfo["data"].([]map[string]interface{})
 	for _, nodeInfo := range nodesInfo {
-		nodes = append(nodes, nodeInfo["name"].(string))
-		nodeIDs = append(nodeIDs, nodeInfo["nodeid"].(int))
-		ip := make(map[string]string)
-		for _, item := range nodeInfo["ring_addr"].([](map[string]string)) {
-			ip[item["ring"]] = item["ip"]
+		ip := make(map[string]interface{})
+		for k, v := range nodeInfo {
+			if k == "name" {
+				nodes = append(nodes, v.(string))
+			} else if k == "nodeid" {
+				id, _ := strconv.Atoi(v.(string))
+				nodeIDs = append(nodeIDs, id)
+			} else {
+				ip[k] = v
+			}
 		}
 		ips = append(ips, ip)
 	}
@@ -349,6 +357,7 @@ func clusterInfoParse(clusterInfo map[string]interface{}) Cluster {
 	clusterParse.Ip = ips
 	return clusterParse
 }
+
 func GetLocalConf() *ClustersInfo {
 	return getLocalConf()
 }
