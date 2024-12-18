@@ -83,49 +83,110 @@ func GetClusterInfo() map[string]interface{} {
 	currentNode, _ := utils.RunCommand(utils.CmdHostName)
 	currentNodeContent := strings.ReplaceAll(string(currentNode), "\n", "")
 	clusterName := getClusterName()
+	var errorInfo string
+	var data map[string]interface{}
+	var nodesInfo []map[string]string
+	var err error
+	processedNodesInfo := make([]map[string]interface{}, 0)
+
 	if !IsClusterExist() {
-		data := map[string]interface{}{
-			"action":        false,
-			"cluster_exist": false,
-			"cluster_name":  clusterName,
-			"currentNode":   currentNodeContent,
-			"error":         "Cluster not established!",
-		}
-		return data
+		errorInfo = "Cluster not established!"
+		goto ret
 	}
 
-	nodesInfo, _ := utils.GetNodeList()
+	nodesInfo, err = utils.GetNodeList()
+	if err != nil {
+		errorInfo = "Cluster not established!"
+		goto ret
+	}
 
-	nodes := make([]map[string]interface{}, 0)
 	for _, node := range nodesInfo {
-		nodeInfo := make(map[string]interface{}, 0)
-		nodeInfo["nodeid"], _ = strconv.Atoi(node["nodeid"])
-		nodeInfo["name"] = node["name"]
-		// 字段转化处理:
-		// {ring0_addr:192.168.1.1, ring1_addr:192.168.1.2}  -> [{ring:ring0_addr, ip:192.168.1.1}, {ring:ring1_addr, ip:192.168.1.2}]
-		ringAddr := make([]map[string]string, 0)
+		newNode := make(map[string]interface{})
 		for k, v := range node {
-			if strings.HasPrefix(k, "ring") {
-				ringInfo := make(map[string]string, 0)
-				ringInfo["ring"] = k
-				ringInfo["ip"] = ""
-				if isIPv4(v) {
-					ringInfo["ip"] = v
-				}
-				ringAddr = append(ringAddr, ringInfo)
-			}
+			newNode[k] = v
 		}
-		nodeInfo["ring_addr"] = ringAddr
-		nodes = append(nodes, nodeInfo)
+		newNode["type"] = "primitive"
+		processedNodesInfo = append(processedNodesInfo, newNode)
 	}
-	data := map[string]interface{}{
+
+	// add node status
+	updateNodeStatus(processedNodesInfo, currentNodeContent)
+
+	data = map[string]interface{}{
 		"action":        true,
 		"cluster_exist": true,
 		"cluster_name":  clusterName,
 		"currentNode":   currentNodeContent,
-		"data":          nodes,
+		"data":          processedNodesInfo,
 	}
 	return data
+
+ret:
+	return map[string]interface{}{
+		"action":        false,
+		"cluster_exist": false,
+		"cluster_name":  clusterName,
+		"currentNode":   currentNodeContent,
+		"error":         errorInfo,
+	}
+}
+
+// add node status to clusterInfo
+func updateNodeStatus(nodesInfo []map[string]interface{}, currentNode string) error {
+	cmd := utils.CmdHbStatus
+	out, err := utils.RunCommand(cmd)
+	if err != nil {
+		// Get node status when cluster stoped
+		for _, node := range nodesInfo {
+			node["status"] = make(map[string]string, 0)
+			for k := range node {
+				if strings.HasPrefix(k, "ring") {
+					if currentNode == node["name"] {
+						node["status"].(map[string]string)[k] = "localhost"
+					}
+					node["status"].(map[string]string)[k] = "down"
+				}
+			}
+		}
+
+	} else {
+		// Get node status when cluster started
+		lines := strings.Split(string(out), "\n")
+		var ringIds []string
+		for _, line := range lines {
+			if strings.Contains(line, "LINK") && !strings.Contains(line, "disk") {
+				parts := strings.Split(strings.TrimSpace(line), " ")
+				ringIds = append(ringIds, parts[1])
+			}
+		}
+		for _, node := range nodesInfo {
+			node["status"] = make(map[string]string, 0)
+			for _, id := range ringIds {
+				ringIdKey := "ring" + id + "_addr"
+				// current node
+				if currentNode == node["name"] {
+					if _, exists := node[ringIdKey]; exists {
+						node["status"].(map[string]string)[ringIdKey] = "localhost"
+					}
+					continue
+				}
+				// other node in clusters
+				outStr := string(out)
+				if ringIp, exists := node[ringIdKey]; exists {
+					remoteKeyStr := "->" + ringIp.(string) + ") enabled connected"
+					localKeyStr := ringIp.(string) + "->"
+					if strings.Contains(outStr, remoteKeyStr) {
+						node["status"].(map[string]string)[ringIdKey] = "up"
+					} else if strings.Contains(outStr, localKeyStr) {
+						node["status"].(map[string]string)[ringIdKey] = "localhost"
+					} else {
+						node["status"].(map[string]string)[ringIdKey] = "down"
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // clusterSetup sets up a cluster with the provided node information.
