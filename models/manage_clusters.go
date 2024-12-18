@@ -16,8 +16,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/pkg/errors"
 
 	"gitee.com/openeuler/ha-api/settings"
@@ -31,7 +33,14 @@ var port, _ = utils.ReadPortFromConfig()
 type ClustersInfo struct {
 	Text     map[string]interface{}
 	Version  int
-	Clusters []interface{}
+	Clusters []Cluster
+}
+
+type Cluster struct {
+	ClusterName string
+	Nodes       []string
+	Nodeid      []int
+	Ip          []map[string]string
 }
 
 type ClusterData struct {
@@ -89,12 +98,12 @@ func NewClustersInfo(text map[string]interface{}) *ClustersInfo {
 	if len(text) == 0 {
 		c.Text = make(map[string]interface{})
 		c.Version = 0
-		c.Clusters = make([]interface{}, 0)
+		c.Clusters = make([]Cluster, 0)
 		c.Text["version"] = c.Version
 		c.Text["clusters"] = c.Clusters
 	} else {
 		c.Version = int(text["version"].(float64))
-		c.Clusters = text["clusters"].([]interface{})
+		c.Clusters = text["clusters"].([]Cluster)
 	}
 
 	return c
@@ -149,15 +158,14 @@ func (ci *ClustersInfo) UpdateText() map[string]interface{} {
 }
 
 // AddCluster adds cluster information to the Clusters field.
-func (ci *ClustersInfo) AddCluster(clusterInfo map[string]interface{}) {
+func (ci *ClustersInfo) AddCluster(clusterInfo Cluster) {
 	ci.Clusters = append(ci.Clusters, clusterInfo)
 }
 
 // IsClusterNameInUse checks if a cluster name is already in use.
 func (ci *ClustersInfo) IsClusterNameInUse(clusterName string) bool {
 	for _, c := range ci.Clusters {
-		cV := c.(map[string]interface{})
-		if cV["cluster_name"].(string) == clusterName {
+		if c.ClusterName == clusterName {
 			return true
 		}
 	}
@@ -172,8 +180,7 @@ func (ci *ClustersInfo) SetVersion(version int) {
 // DeleteCluster deletes the Cluster from ClustersInfo.
 func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
 	for i, c := range ci.Clusters {
-		cV := c.(map[string]interface{})
-		if cV["cluster_name"] == clusterNameJson {
+		if c.ClusterName == clusterNameJson {
 			ci.Clusters = append(ci.Clusters[:i], ci.Clusters[i+1:]...)
 			return true
 		}
@@ -181,38 +188,32 @@ func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
 	return false
 }
 
-func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo map[string]interface{}) {
+func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo Cluster) {
 	for _, c := range ci.Clusters {
-		if c.(map[string]interface{})["name"] == clusterNameJson {
-			c.(map[string]interface{})["nodes"] = clusterInfo["nodes"]
-			c.(map[string]interface{})["nodeid"] = clusterInfo["nodeid"]
-			c.(map[string]interface{})["ip"] = clusterInfo["ip"]
+		if c.ClusterName == clusterNameJson {
+			c.Nodes = clusterInfo.Nodes
+			c.Nodeid = clusterInfo.Nodeid
+			c.Ip = clusterInfo.Ip
 		}
 	}
 }
 
 // GetNodes  gets nodes information
-func (ci *ClustersInfo) GetNodes(clusterNameJson string) []interface{} {
+func (ci *ClustersInfo) GetNodes(clusterNameJson string) []string {
 	for _, c := range ci.Clusters {
-		cV := c.(map[string]interface{})
-		if cV["cluster_name"] == clusterNameJson {
-			nodes, ok := cV["nodes"].([]interface{})
-			if ok {
-				return nodes
-			} else {
-				return []interface{}{}
-			}
+		if c.ClusterName == clusterNameJson {
+			return c.Nodes
 		}
 	}
-	return []interface{}{}
+	return []string{}
 }
 
 func (ci *ClustersInfo) GetClusterNameOfNode(nodeName string) string {
 	for _, cluster := range ci.Clusters {
-		nodes := cluster.(map[string]interface{})["nodes"]
-		for _, node := range nodes.([]string) {
+		nodes := cluster.Nodes
+		for _, node := range nodes {
 			if node == nodeName {
-				return cluster.(map[string]interface{})["cluster_name"].(string)
+				return cluster.ClusterName
 			}
 		}
 	}
@@ -229,29 +230,106 @@ func ClusterInfo() map[string]interface{} {
 			"cluster_list": []interface{}{},
 		}
 	} else {
-		return checkClusterExist()
+		return map[string]interface{}{
+			"action":       false,
+			"cluster_list": checkClusterExist(),
+		}
 	}
 }
 
-func checkClusterExist() map[string]interface{} {
+func checkClusterExist() []Cluster {
+	localConf := getLocalConf()
+	var wg sync.WaitGroup
+	if len(localConf.Clusters) > 0 {
+		for _, cluster := range localConf.Clusters {
+			wg.Add(1)
+			go func(cluster Cluster) {
+				defer wg.Done()
+				checkOneClusterExist(localConf, cluster, &wg)
+			}(cluster)
+		}
+		wg.Wait()
+	}
+	return localConf.Clusters
+}
+
+type checkClusterExistRes struct {
+	Action      bool    `json:"action"`
+	ClusterName string  `json:"cluster_name"`
+	ClusterConf Cluster `json:"cluster_conf"`
+}
+
+func checkOneClusterExist(localConf *ClustersInfo, cluster Cluster, wg *sync.WaitGroup) {
+	defer wg.Done()
+	connectNode := 0
+	confNodeSum := len(cluster.Nodes)
+	realNodeNum := 0
+	var clusterConf Cluster
+	for _, node := range cluster.Nodes {
+		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
+		resp, err := http.Get(url)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logs.Info("Error reading response body: %v", err)
+				continue
+			}
+			var resInfo checkClusterExistRes
+			err = json.Unmarshal(body, &resInfo)
+			if err != nil {
+				logs.Info("Error Unmarshal response json: %v", err)
+				continue
+			}
+			if resInfo.Action {
+				if resInfo.ClusterName == cluster.ClusterName {
+					connectNode++
+					clusterConf = resInfo.ClusterConf
+					realNodeNum = len(clusterConf.Nodes)
+					logs.Info("Node %s information check passed.", node)
+
+				} else {
+					confNodeSum--
+					logs.Info("Node %s information check failed: inconsistent cluster name.", node)
+				}
+
+			} else {
+				confNodeSum--
+				logs.Info("Node %s information check failed: cluster not exist", node)
+			}
+		} else {
+			logs.Info("Get %s failed: status is %d.", url, resp.StatusCode)
+		}
+	}
+	handleExistClusterConf(realNodeNum, confNodeSum, clusterConf, cluster, localConf, cluster.ClusterName)
+}
+
+func handleExistClusterConf(realNodeNum, confNodeSum int, clusterConf Cluster, cluster Cluster, localConf *ClustersInfo, s string) {
 	panic("unimplemented")
 }
 
 // localClusterInfo retrieves the cluster information locally and returns it as a map.
 // If no cluster exists, an empty map is returned.
-func LocalClusterInfo() map[string]interface{} {
+func LocalClusterInfo() Cluster {
 	allInfo := GetClusterInfo()
 	if allInfo["cluster_exist"] == true {
 		clusterInfo := clusterInfoParse(allInfo)
 		return clusterInfo
 	}
-	return make(map[string]interface{})
+	var EmptyCluster Cluster
+	return EmptyCluster
 }
 
 // clusterInfoParse takes cluster information as input and parses it into a map of string to interface
-func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{} {
-	clusterParse := make(map[string]interface{})
-	clusterParse["cluster_name"] = clusterInfo["cluster_name"]
+func clusterInfoParse(clusterInfo map[string]interface{}) Cluster {
+	var clusterParse Cluster
+	if clusterName, ok := clusterInfo["cluster_name"].(string); ok {
+		clusterParse.ClusterName = clusterName
+	}
+
 	nodes := make([]string, 0)
 	nodeIDs := make([]int, 0)
 	ips := make([]map[string]string, 0)
@@ -266,9 +344,9 @@ func clusterInfoParse(clusterInfo map[string]interface{}) map[string]interface{}
 		ips = append(ips, ip)
 	}
 
-	clusterParse["nodes"] = nodes
-	clusterParse["nodeid"] = nodeIDs
-	clusterParse["ip"] = ips
+	clusterParse.Nodes = nodes
+	clusterParse.Nodeid = nodeIDs
+	clusterParse.Ip = ips
 	return clusterParse
 }
 func GetLocalConf() *ClustersInfo {
@@ -338,13 +416,13 @@ func syncClusterConfFile(conf *ClustersInfo) {
 	clusterInfo := LocalClusterInfo()
 
 	// If the current node has no cluster config, save the provided config
-	if len(clusterInfo) == 0 {
+	if clusterInfo.ClusterName == "" {
 		conf.Save()
 		return
 	}
 
 	// Sync config file with all nodes in the cluster
-	nodeList := clusterInfo["nodes"].([]string)
+	nodeList := clusterInfo.Nodes
 	for _, node := range nodeList {
 		// Node-to-node config file sync operation
 		url := fmt.Sprintf("http://%s:%s/remote/api/v1/sync_config", node, port)
@@ -420,7 +498,6 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	authInfo := make(map[string]interface{})
 	nodeList := make([]string, 0)
 	passwords := make([]string, 0)
-
 	nodeList = append(nodeList, nodeInfo["node_name"].(string))
 	passwords = append(passwords, nodeInfo["password"].(string))
 
@@ -443,7 +520,7 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		var NewClusterInfo map[string]interface{}
+		var NewClusterInfo Cluster
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		err = json.Unmarshal(body, &NewClusterInfo)
@@ -452,11 +529,9 @@ func ClusterAdd(nodeInfo map[string]interface{}) map[string]interface{} {
 				"action": false,
 				"error":  gettext.Gettext("add cluster failed")}
 		}
-		fmt.Println(NewClusterInfo)
 		localConf := getLocalConf()
-		fmt.Println(localConf)
 
-		if localConf.IsClusterNameInUse(NewClusterInfo["cluster_name"].(string)) {
+		if localConf.IsClusterNameInUse(NewClusterInfo.ClusterName) {
 			return map[string]interface{}{
 				"action": false,
 				"error":  gettext.Gettext("The cluster already exists, please do not add it again")}
@@ -591,10 +666,10 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				httpResp, _ = utils.SendRequest(url, "GET", nil)
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
-				var remoteClusterInfo map[string]interface{}
+				var remoteClusterInfo Cluster
 				json.Unmarshal(httpRespData, &remoteClusterInfo)
 
-				localConf.UpdateCluster(remoteClusterInfo["cluster_name"].(string), remoteClusterInfo)
+				localConf.UpdateCluster(remoteClusterInfo.ClusterName, remoteClusterInfo)
 				localConf.Save()
 				syncClusterConfFile(localConf)
 
@@ -618,10 +693,10 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 	detailInfos := make([]string, 0)
 	clusters := clustersJSON["cluster_name"].([]interface{})
 	for _, desCluster := range clusters {
-		nodeList := make([]interface{}, 0)
+		nodeList := make([]string, 0)
 		for _, cluster := range clusterList {
-			if desCluster == cluster.(map[string]interface{})["cluster_name"] {
-				nodeList = cluster.(map[string]interface{})["nodes"].([]interface{})
+			if desCluster == cluster.ClusterName {
+				nodeList = cluster.Nodes
 			}
 		}
 		des := false
