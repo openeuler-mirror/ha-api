@@ -15,7 +15,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -38,10 +37,10 @@ type ClustersInfo struct {
 }
 
 type Cluster struct {
-	ClusterName string
-	Nodes       []string
-	Nodeid      []int
-	Ip          []map[string]interface{}
+	ClusterName string                   `json:"cluster_name"`
+	Nodes       []string                 `json:"nodes"`
+	Nodeid      []string                 `json:"nodeid"`
+	Ip          []map[string]interface{} `json:"ip"`
 }
 
 // 集群添加接口
@@ -106,10 +105,44 @@ func NewClustersInfo(text map[string]interface{}) *ClustersInfo {
 		c.Text["clusters"] = c.Clusters
 	} else {
 		c.Version = int(text["version"].(float64))
-		c.Clusters = text["clusters"].([]Cluster)
+		clustersInterface, ok := text["clusters"].([]interface{})
+		if !ok {
+			logs.Error("clusters is not a slice of interface{}")
+		}
+		for _, clusterInterface := range clustersInterface {
+			clusterMap, ok := clusterInterface.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			cluster, err := MapToCluster(clusterMap)
+			if err != nil {
+				continue
+			}
+			c.Clusters = append(c.Clusters, cluster)
+		}
 	}
 
 	return c
+}
+
+// mapToStruct 将map转换为指定的结构体
+func MapToCluster(m map[string]interface{}) (Cluster, error) {
+	// 将map转换为JSON字符串
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		return Cluster{}, err
+	}
+
+	// 将JSON字符串解码到Cluster结构体
+	var cluster Cluster
+	err = json.Unmarshal(bytes, &cluster)
+	if err != nil {
+		logs.Error("json.Unmarshal failed: %s", err.Error())
+		return Cluster{}, err
+	}
+
+	return cluster, nil
 }
 
 // Save updates the version, performs a backup, and saves the ClustersInfo to a file in JSON format.
@@ -334,7 +367,7 @@ func clusterInfoParse(clusterInfo map[string]interface{}) Cluster {
 	}
 
 	nodes := make([]string, 0)
-	nodeIDs := make([]int, 0)
+	nodeIDs := make([]string, 0)
 	ips := make([]map[string]interface{}, 0)
 	nodesInfo := clusterInfo["data"].([]map[string]interface{})
 	for _, nodeInfo := range nodesInfo {
@@ -343,8 +376,7 @@ func clusterInfoParse(clusterInfo map[string]interface{}) Cluster {
 			if k == "name" {
 				nodes = append(nodes, v.(string))
 			} else if k == "nodeid" {
-				id, _ := strconv.Atoi(v.(string))
-				nodeIDs = append(nodeIDs, id)
+				nodeIDs = append(nodeIDs, v.(string))
 			} else {
 				ip[k] = v
 			}
