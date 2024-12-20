@@ -225,11 +225,13 @@ func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
 }
 
 func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo Cluster) {
-	for _, c := range ci.Clusters {
+	for i, c := range ci.Clusters {
 		if c.ClusterName == clusterNameJson {
-			c.Nodes = clusterInfo.Nodes
-			c.Nodeid = clusterInfo.Nodeid
-			c.Ip = clusterInfo.Ip
+			ci.Clusters[i].Nodes = clusterInfo.Nodes
+			ci.Clusters[i].Nodeid = clusterInfo.Nodeid
+			fmt.Printf("Before assignment: c = %+v\n", c)
+			ci.Clusters[i].Ip = clusterInfo.Ip
+			fmt.Printf("After assignment: c = %+v\n", c)
 		}
 	}
 }
