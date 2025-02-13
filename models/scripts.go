@@ -62,7 +62,6 @@ func GenerateLocalScript(data map[string]string) error {
 		`#!/bin/sh
 #
 # Author:	Kylin
-# License:      GNU General Public License (GPL) 
 #
 #	usage: $0 {start|stop|status|monitor|validate-all|meta-data}
 #  OCF parameters:
