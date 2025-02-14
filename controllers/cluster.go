@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: Jason011125 <zic022@ucsd.edu>
  * Date: Mon Aug 14 13:38:45 2023 +0800
@@ -153,7 +153,7 @@ func (lci *LocalClusterInfoController) Get() {
 
 func (ice *IsClusterExistController) Get() {
 	logs.Debug("handle get request in IsClusterExistController.")
-	result := models.IsClusterExist()
+	result := models.CheckIsClusterExist()
 	ice.Data["json"] = &result
 	ice.ServeJSON()
 }

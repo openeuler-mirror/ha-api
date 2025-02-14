@@ -345,6 +345,36 @@ func checkOneClusterExist(localConf *ClustersInfo, cluster Cluster, wg *sync.Wai
 	handleExistClusterConf(realNodeNum, confNodeSum, clusterConf, cluster, localConf, cluster.ClusterName)
 }
 
+func CheckIsClusterExist() map[string]interface{} {
+	result := map[string]interface{}{}
+	_, err := os.Stat(settings.CorosyncConfFile)
+	if err == nil {
+		cmd := "cat /etc/corosync/corosync.conf | grep \"cluster_name\""
+		out, err := utils.RunCommand(cmd)
+		var clusterName string
+		if err != nil {
+			result["action"] = false
+			result["error"] = "Get cluster name failed"
+			return result
+		} else {
+			clusterName = strings.Split(string(out), ": ")[1]
+			clusterName = strings.ReplaceAll(clusterName, "\n", "")
+
+		}
+
+		allInfo := GetClusterInfo()
+		if allInfo["cluster_exist"] == true {
+			clusterInfo := clusterInfoParse(allInfo)
+			result["action"] = true
+			result["cluster_name"] = clusterName
+			result["cluster_conf"] = clusterInfo
+			return result
+
+		}
+	}
+	result["action"] = false
+	return result
+}
 func handleExistClusterConf(realNodeNum, confNodeSum int, clusterConf Cluster, cluster Cluster, localConf *ClustersInfo, s string) {
 	panic("unimplemented")
 }
