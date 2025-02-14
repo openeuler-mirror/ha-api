@@ -8,11 +8,13 @@
 package controllers
 
 import (
+	"encoding/json"
 	"strings"
 
 	"gitee.com/openeuler/ha-api/models"
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/server/web"
+	"github.com/chai2010/gettext-go"
 )
 
 type NodesController struct {
@@ -68,8 +70,14 @@ type NodeActionController struct {
 func (nac *NodeActionController) Put() {
 	nodeID := nac.Ctx.Input.Param(":nodeID")
 	action := nac.Ctx.Input.Param(":action")
-	result := models.DoNodeAction(nodeID, action)
-
+	reqData := make(map[string]string)
+	result := map[string]interface{}{}
+	if err := json.Unmarshal(nac.Ctx.Input.RequestBody, &reqData); err != nil {
+		result["action"] = false
+		result["error"] = gettext.Gettext("invalid input data")
+	} else {
+		result = models.DoNodeAction(nodeID, action, reqData)
+	}
 	nac.Data["json"] = &result
 	nac.ServeJSON()
 }
