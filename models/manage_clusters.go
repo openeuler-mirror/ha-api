@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -375,8 +376,80 @@ func CheckIsClusterExist() map[string]interface{} {
 	result["action"] = false
 	return result
 }
-func handleExistClusterConf(realNodeNum, confNodeSum int, clusterConf Cluster, cluster Cluster, localConf *ClustersInfo, s string) {
-	panic("unimplemented")
+
+func handleExistClusterConf(realNodeNum, confNodeSum int, clusterConf Cluster, cluster Cluster, localConf *ClustersInfo, clusterName string) {
+	if realNodeNum != 0 && realNodeNum >= confNodeSum {
+		if !reflect.DeepEqual(cluster, clusterConf) || IsNotSet(clusterConf) {
+			localConf.UpdateCluster(cluster.ClusterName, clusterConf)
+			localConf.Save()
+			syncClusterConfFile(localConf)
+		}
+	} else if confNodeSum == 0 {
+		localConf.DeleteCluster(clusterName)
+		localConf.Save()
+		syncClusterConfFile(localConf)
+	} else if IsNotSet(clusterConf) {
+		clusterStatus := checkClusterStatus(clusterConf)
+		if clusterStatus == false {
+			localConf.DeleteCluster(clusterName)
+			localConf.Save()
+			syncClusterConfFile(localConf)
+		}
+	}
+
+}
+
+func IsNotSet(v interface{}) bool {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	for i := 0; i < rv.NumField(); i++ {
+		fieldValue := rv.Field(i)
+		if !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
+			return false
+		}
+	}
+	return true
+}
+func checkClusterStatus(clusterConf Cluster) bool {
+	nodeList := clusterConf.Nodes
+	clusterName := clusterConf.ClusterName
+	nodeSum := len(nodeList)
+	clusterExist := true
+	connectNode := 0
+	for _, node := range nodeList {
+		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
+		resp, err := http.Get(url)
+		if err != nil {
+			continue
+		}
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logs.Info("Error reading response body: %v", err)
+				continue
+			}
+			var resInfo checkClusterExistRes
+			err = json.Unmarshal(body, &resInfo)
+			if err != nil {
+				logs.Info("Error Unmarshal response json: %v", err)
+				continue
+			}
+			connectNode = connectNode + 1
+			if resInfo.Action == true {
+				if resInfo.ClusterName != clusterName {
+					clusterExist = false
+				}
+			} else {
+				clusterExist = false
+			}
+		}
+	}
+	if connectNode == nodeSum && clusterExist == false {
+		return false
+	}
+	return true
 }
 
 // localClusterInfo retrieves the corosync cluster information locally and returns it as a map.
