@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Tue Jan 5 09:33:00 2021 +0800
@@ -29,6 +29,7 @@ func init() {
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 		web.NSRouter("/user", &controllers.PasswordChangeController{}),
+		web.NSRouter("/managec/cluster_overview", &controllers.ClusterOverviewController{}),
 		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
 		//web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/managec/cluster_setup", &controllers.ClusterSetupController{}),

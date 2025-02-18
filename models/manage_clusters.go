@@ -276,6 +276,151 @@ func ClusterInfo() map[string]interface{} {
 	}
 }
 
+func ClusterOverview() map[string]interface{} {
+	_ = ClusterInfo()
+	clusterExist := false
+	localClusterName := ""
+	clusterExistInfo := CheckIsClusterExist()
+	if clusterExistInfo["action"] == true {
+		clusterExist = true
+		localClusterName = clusterExistInfo["cluster_name"].(string)
+	}
+	localConf := getLocalConf()
+	clusters := localConf.Clusters
+	clusterSum := len(clusters)
+	if clusterSum == 0 {
+		return map[string]interface{}{
+			"action":             false,
+			"cluster_exist":      clusterExist,
+			"local_cluster_name": localClusterName,
+			"cluster_data":       []interface{}{},
+		}
+	}
+	var wg sync.WaitGroup
+	if len(localConf.Clusters) > 0 {
+
+		for _, cluster := range localConf.Clusters {
+			// ips := []IP
+			// for _, ipInfo := range cluster.Ip {
+			// 	oneNodeIp := make(map[string]interface{})
+			// 	for k, v := range ipInfo {
+			// 		if k != "type" && k != "status" {
+			// 			oneNodeIp[k] = v
+			// 		}
+			// 	}
+			// 	ips = append(ips, oneNodeIp)
+			// }
+			// ips := []*IP{}
+			// for _, ipInfo := range cluster.Ip {
+			// 	ip := newIP()
+			// 	for k, v := range ipInfo {
+			// 		if strings.HasPrefix(k, "ring") && strings.HasSuffix(k, "_addr") {
+			// 			ringNum := k[4 : len(k)-5]
+
+			// 			if addr, ok := v.(string); ok {
+			// 				ip.Addrs[ringNum] = addr
+			// 			}
+			// 		}
+			// 	}
+			// 	ips = append(ips, ip)
+			// }
+			ips := extractIPs(cluster)
+
+			wg.Add(1)
+			go func(cluster Cluster) {
+				defer wg.Done()
+				oneClusterOverview(cluster, localConf, ips, &wg)
+			}(cluster)
+		}
+		wg.Wait()
+	}
+	return map[string]interface{}{
+		"action":             true,
+		"cluster_exist":      clusterExist,
+		"local_cluster_name": localClusterName,
+		"cluster_data":       []interface{}{},
+	}
+}
+
+func extractIPs(clusters Cluster) []IP {
+	var ips []IP
+	for _, ipEntry := range clusters.Ip {
+		newIP := IP{Addrs: make(map[string]string)}
+		for key, value := range ipEntry {
+			if strings.HasPrefix(key, "ring") {
+				ringNum := key[4 : len(key)-5]
+				newIP.Addrs["ring"+ringNum] = value.(string)
+			}
+		}
+		ips = append(ips, newIP)
+	}
+	return ips
+}
+
+func oneClusterOverview(cluster Cluster, localconf *ClustersInfo, ips []IP, wg *sync.WaitGroup) oneClusterOverviewRes {
+	var singleClusterInfo oneClusterOverviewRes
+	singleClusterInfo.ClusterName = cluster.ClusterName
+	singleClusterInfo.NodeSum = len(cluster.Nodes)
+	nodeList := cluster.Nodes
+	connectNode := 0
+	clusterConnect := false
+	for _, node := range nodeList {
+		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/local_cluster_overview"), node)
+		resp, err := http.Get(url)
+		if err != nil {
+			// 连接失败异常捕获部分
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			clusterConnect = true
+			connectNode = connectNode + 1
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				logs.Info("Error reading response body: %v", err)
+				continue
+			}
+			var resInfo localClusterOverviewRes
+			err = json.Unmarshal(body, &resInfo)
+			if err != nil {
+				logs.Info("Error Unmarshal response json: %v", err)
+				continue
+			}
+			if resInfo.Action {
+				if resInfo.ClusterStart {
+					var oneClusterOverviewRes oneClusterOverviewRes
+					oneClusterOverviewRes.ClusterName = resInfo.Data.ClusterName
+					oneClusterOverviewRes.NodeSum = resInfo.Data.NodeSum
+					oneClusterOverviewRes.ResourceList = resInfo.Data.ResourceList
+					oneClusterOverviewRes.ClusterOnline = resInfo.Data.ClusterOnline
+					oneClusterOverviewRes.Ip = ips
+					return oneClusterOverviewRes
+				} else {
+					connectNode = connectNode - 1
+				}
+			}
+		}
+	}
+	if connectNode == 0 {
+		var singleNodeInfo Node
+		for _, node := range nodeList {
+			singleNodeInfo.Name = node
+			singleNodeInfo.Online = "false"
+			singleClusterInfo.NodeList = append(singleClusterInfo.NodeList, singleNodeInfo)
+		}
+		if clusterConnect == false {
+			singleClusterInfo.ClusterOnline = "false"
+		} else {
+			singleClusterInfo.ClusterOnline = "stop"
+		}
+		singleClusterInfo.Ip = ips
+		var EmptyResourceList []Resource
+		singleClusterInfo.ResourceList = EmptyResourceList
+		return singleClusterInfo
+	}
+	return singleClusterInfo
+}
+
 func checkClusterExist() []Cluster {
 	localConf := getLocalConf()
 	var wg sync.WaitGroup
@@ -296,6 +441,43 @@ type checkClusterExistRes struct {
 	Action      bool    `json:"action"`
 	ClusterName string  `json:"cluster_name"`
 	ClusterConf Cluster `json:"cluster_conf"`
+}
+
+type localClusterOverviewRes struct {
+	Action       bool                     `json:"action"`
+	ClusterStart bool                     `json:"cluster_start"`
+	Data         localClusterOverviewData `json:"data"`
+}
+
+type Node struct {
+	Name   string `json:"name"`
+	Online string `json:"online"`
+}
+
+type Resource struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+type localClusterOverviewData struct {
+	ClusterName   string     `json:"cluster_name"`
+	NodeSum       int        `json:"node_sum"`
+	NodeList      []Node     `json:"node_list"`
+	ResourceList  []Resource `json:"resource_list"`
+	ClusterOnline string     `json:"cluster_online"`
+}
+
+type oneClusterOverviewRes struct {
+	ClusterName   string     `json:"cluster_name"`
+	NodeSum       int        `json:"node_sum"`
+	NodeList      []Node     `json:"node_list"`
+	ResourceList  []Resource `json:"resource_list"`
+	ClusterOnline string     `json:"cluster_online"`
+	Ip            []IP       `json:"ip"`
+}
+
+type IP struct {
+	Addrs map[string]string `json: "-"`
 }
 
 func checkOneClusterExist(localConf *ClustersInfo, cluster Cluster, wg *sync.WaitGroup) {
