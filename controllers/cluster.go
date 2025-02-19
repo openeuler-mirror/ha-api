@@ -29,6 +29,10 @@ type Sync_configController struct {
 	web.Controller
 }
 
+type ClusterOverviewController struct {
+	web.Controller
+}
+
 type ClusterSetupController struct {
 	web.Controller
 }
@@ -65,6 +69,12 @@ type IsClusterExistController struct {
 	web.Controller
 }
 
+func (coc *ClusterOverviewController) Get() {
+	logs.Debug("handle get request in ClusterOverviewController.")
+	result := models.ClusterOverview()
+	coc.Data["json"] = &result
+	coc.ServeJSON()
+}
 func (mcc *MultipleClustersController) Post() {
 	logs.Debug("Handle post request in MultipleClustersController.")
 	result := map[string]interface{}{}
