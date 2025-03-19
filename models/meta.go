@@ -151,19 +151,20 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 			parameters["longdesc"] = ""
 		}
 		prop = append(prop, parameters)
-		if rscClass == "stonith" {
-			pcmkHostList := map[string]interface{}{}
-			content := map[string]string{"default": "", "type": "string"}
-			pcmkHostList["content"] = content
-			pcmkHostList["longdesc"] = "A list of machines controlled by this device."
-			pcmkHostList["name"] = "pcmk_host_list"
-			pcmkHostList["required"] = "1"
-			pcmkHostList["shortdesc"] = ""
-			pcmkHostList["unique"] = ""
-			pcmkHostList["value"] = ""
-			prop = append(prop, pcmkHostList)
-		}
 	}
+	if rscClass == "stonith" {
+		pcmkHostList := map[string]interface{}{}
+		content := map[string]string{"default": "", "type": "string"}
+		pcmkHostList["content"] = content
+		pcmkHostList["longdesc"] = "A list of machines controlled by this device."
+		pcmkHostList["name"] = "pcmk_host_list"
+		pcmkHostList["required"] = "1"
+		pcmkHostList["shortdesc"] = ""
+		pcmkHostList["unique"] = ""
+		pcmkHostList["value"] = ""
+		prop = append(prop, pcmkHostList)
+	}
+	
 	actionElems := eRoot.FindElements("./actions/action")
 	for _, actionElem := range actionElems {
 		act := map[string]string{}
