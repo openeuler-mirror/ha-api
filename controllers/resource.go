@@ -143,3 +143,23 @@ func (rrc *ResourceRelationsController) Get() {
 	rrc.Data["json"] = &result
 	rrc.ServeJSON()
 }
+
+func (rrc *ResourceRelationsController) Put() {
+	logs.Debug("handle resource relation PUT request")
+	rscID := rrc.Ctx.Input.Param(":rscID")
+	action := rrc.Ctx.Input.Param(":action")
+	data := rrc.Ctx.Input.RequestBody
+
+	result := map[string]interface{}{}
+	if err := models.ResourceAction(rscID, action, data); err != nil {
+		result["action"] = false
+		result["error"] = err.Error()
+	} else {
+		result["action"] = true
+		result["info"] = gettext.Gettext("Action on resource success")
+	}
+
+	rrc.Data["json"] = &result
+	rrc.ServeJSON()
+}
+
