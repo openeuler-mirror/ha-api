@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -204,9 +205,13 @@ func GetResourceFailedMessage() map[string]map[string]string {
 	} else {
 		for _, failure := range failures {
 			infoFail := map[string]string{}
-			rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
-			rscIdm := strings.Split(rscIdf, "_start_")[0]
-			rscId := strings.Split(rscIdm, "_start_")[0]
+			// 提取rscID
+			// rscIdf := strings.Split(failure.SelectAttr("op_key").Value, "_stop_")[0]
+			// rscIdm := strings.Split(rscIdf, "_start_")[0]
+			// rscId := strings.Split(rscIdm, "_start_")[0]
+			rscId := extractRscID(failure.SelectAttr("op_key").Value)
+
+			// 处理失败项信息
 			node := failure.SelectAttrValue("node", "")
 			exitreason := failure.SelectAttr("exitreason").Value
 			infoFail["node"] = node
@@ -215,6 +220,20 @@ func GetResourceFailedMessage() map[string]map[string]string {
 		}
 	}
 	return failInfo
+}
+
+var rscIDRegex = regexp.MustCompile(`(_stop_|_start_|_monitor_|_demote_|_promote_)`)
+
+func extractRscID(opKey string) string {
+	if opKey == "" {
+		return ""
+	}
+	loc := rscIDRegex.FindStringIndex(opKey)
+	if loc != nil && len(loc) >= 2 {
+		start := loc[0]
+		return opKey[0:start]
+	}
+	return opKey
 }
 
 func GetResourceMetaAttributes(category string) map[string]interface{} {
@@ -1023,7 +1042,7 @@ func GetAllConstraints() map[string]interface{} {
 		}
 	}
 
-	failureInfo := GetResourceFailedMessage()
+	// failureInfo := GetResourceFailedMessage()
 
 	constraintMaps := []map[string]interface{}{}
 	for rscId := range data {
@@ -1031,13 +1050,13 @@ func GetAllConstraints() map[string]interface{} {
 		constraint["id"] = rscId
 		rscIDFirst := strings.Split(rscId, ":")[0]
 		if _, ok := rscStatus[rscId]; !ok {
-			if _, ok := failureInfo[rscIDFirst]; !ok {
+			if _, ok := failInfo[rscIDFirst]; !ok {
 				constraint["status"] = "Stopped"
 				constraint["status_message"] = ""
 				constraint["running_node"] = []string{}
 			} else if strings.HasSuffix(rscId, "-clone") {
 				constraint["status"] = "Failed"
-				constraint["status_message"] = failureInfo[rscIDFirst]["exitreason"] + " on " + failureInfo[rscIDFirst]["node"]
+				constraint["status_message"] = failInfo[rscIDFirst]["exitreason"] + " on " + failInfo[rscIDFirst]["node"]
 				constraint["running_node"] = []string{}
 			}
 		} else {
@@ -1052,6 +1071,28 @@ func GetAllConstraints() map[string]interface{} {
 			constraint["status_message"] = ""
 			constraint["status"] = rscInfo["status"]
 			constraint["running_node"] = rscInfo["running_node"]
+			haveRunningNode := false
+			if runningNodes, ok := constraint["running_node"].([]string); ok {
+				for _, node := range runningNodes {
+					if node != "" {
+						haveRunningNode = true
+						break
+					}
+				}
+			}
+			if status, ok := constraint["status"].(string); ok {
+				if !haveRunningNode && status != "Failed" && status != "Unmanaged" {
+					constraint["status"] = "Not Running"
+				}
+			}
+			if status, ok := constraint["status"].(string); ok {
+				if runningNodes, ok := constraint["running_node"].([]string); ok {
+					if status == "Failed" && len(runningNodes) > 0 {
+						constraint["status"] = "Running but failed"
+					}
+				}
+			}
+
 		}
 
 		colocation := map[string]interface{}{}
@@ -1395,18 +1436,30 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 	return rscInfo
 }
 
+var failInfo = GetResourceFailedMessage()
+var clusterPro = GetClusterPropertiesInfo()
+
 func GetResourceStatus(rscInfo *etree.Element) string {
 	rscId := rscInfo.SelectAttr("id").Value
-	failInfo := GetResourceFailedMessage()
+
+	if data, _ := clusterPro["data"].(map[string]interface{}); data != nil {
+		if params, _ := data["parameters"].(map[string]interface{}); params != nil {
+			if mode, _ := params["maintenance-mode"].(map[string]interface{}); mode != nil {
+				if value, ok := mode["value"].(string); ok && strings.EqualFold(value, "true") {
+					return "Unmanaged"
+				}
+			}
+		}
+	}
 	if _, ok := failInfo[rscId]; ok {
-		return "Failed"
+		return GetRscStatusWithFailedInfo(rscInfo)
 	}
 
 	if rscInfo.SelectAttr("managed").Value == "false" {
 		return "Unmanaged"
 	}
 	if rscInfo.SelectAttr("failed").Value == "true" {
-		return "Failed"
+		return getRscStatusWithFailed(rscInfo)
 	}
 	if role := rscInfo.SelectAttr("role"); role != nil {
 		if role.Value == "Started" {
@@ -1417,12 +1470,108 @@ func GetResourceStatus(rscInfo *etree.Element) string {
 		}
 
 	}
+	if disabled := rscInfo.SelectAttr("disabled"); disabled != nil {
+		if disabled.Value == "true" {
+			return "Not Running"
+		}
+	}
 	return "Running"
+}
+
+func GetRscStatusWithFailedInfo(rscInfo *etree.Element) string {
+	if rscInfo.SelectAttr("role").Value == "true" && rscInfo.SelectAttr("failed").Value == "true" {
+		return "Failed"
+	}
+	if role := rscInfo.SelectAttr("role"); role != nil {
+		switch strings.TrimSpace(role.Value) {
+		case "Started":
+			return "Running but failed"
+		case "Stopped":
+			return "Failed"
+		}
+	}
+	return "Failed"
+}
+
+func getRscStatusWithFailed(rscInfo *etree.Element) string {
+	if rscInfo.SelectAttr("blocked").Value == "true" {
+		return "Failed"
+	}
+	if role := rscInfo.SelectAttr("role"); role != nil {
+		if strings.TrimSpace(role.Value) == "Started" {
+			return "Running but failed"
+		}
+	}
+	return "Failed"
+}
+
+type ResourceParams struct {
+	ID       string
+	Managed  string
+	Failed   string
+	Role     string
+	Disabled string
+}
+
+func getCloneSubrscPriStatus(rscInfo *etree.Element) string {
+	// failInfo := GetResourceFailedMessage()
+	params := ResourceParams{
+		ID:       rscInfo.SelectAttrValue("id", ""),
+		Managed:  rscInfo.SelectAttrValue("managed", ""),
+		Failed:   rscInfo.SelectAttrValue("failed", ""),
+		Role:     rscInfo.SelectAttrValue("role", ""),
+		Disabled: rscInfo.SelectAttrValue("disabled", ""),
+	}
+	if _, ok := failInfo[params.ID]; ok {
+		return GetCloneSubrscStatusWithFailedInfo(rscInfo, params.ID, failInfo)
+	}
+	if params.Managed == "false" {
+		return "Unmanaged"
+	}
+	if params.Failed == "true" {
+		return getRscStatusWithFailed(rscInfo)
+	}
+	switch params.Role {
+	case "Started":
+		return "Running"
+	case "Stopped":
+		return "Not Running"
+	}
+	if params.Disabled == "true" {
+		return "Not Running"
+	}
+	return "Running"
+
+}
+
+func GetCloneSubrscStatusWithFailedInfo(rscInfo *etree.Element, rscId string, failInfo map[string]map[string]string) string {
+	// failedNode = failInfo["rscId"]["node"]
+	if failedRscId, ok := failInfo[rscId]; ok {
+		// if !ok{
+		// 	return "Failed"
+		// }
+		if failedNode, ok := failedRscId["node"]; ok {
+			if role := rscInfo.SelectAttr("role"); role != nil {
+				if rscInfo.SelectAttr("blocked").Value == "true" && rscInfo.SelectAttr("falied").Value == "true" {
+					return "Failed"
+				}
+				if rscInfo.SelectAttr("role").Value == "Started" {
+					node := rscInfo.SelectAttr("node")
+					rscRunningNode := node.Element().SelectAttr("name").Value
+					if failedNode != rscRunningNode {
+						return "Running"
+					}
+					return "Running but failed"
+				}
+			}
+		}
+	}
+	return "Failed"
 }
 
 func GetSubResources(rscId string) map[string]interface{} {
 	rscStatus := GetAllResourceStatus()
-	failInfo := GetResourceFailedMessage() // failure run information
+	// failInfo := GetResourceFailedMessage() // failure run information
 	rscInfo := map[string]interface{}{}
 
 	out, err := utils.RunCommand(utils.CmdQueryResources)
@@ -1509,7 +1658,12 @@ func GetSubResources(rscId string) map[string]interface{} {
 				// judgment failure message
 				if subFailInfo, ok := failInfo[subRscId]; ok {
 					subRsc["status_message"] = subFailInfo["exitreason"] + " on " + subFailInfo["node"]
-					subRsc["status"] = "Failed"
+					if subRsc["status"] == "Running but failed" || subRsc["status"] == "Running" {
+						// do nothing
+					} else {
+						subRsc["status"] = "Failed"
+					}
+
 					if subRscStatus, ok := rscStatus[subRscId]; ok {
 						subRsc["running_node"] = subRscStatus["running_node"]
 					} else {
@@ -1551,7 +1705,12 @@ func GetSubResources(rscId string) map[string]interface{} {
 					// judgment failure message
 					if priFail, ok := failInfo[primitiveId]; ok {
 						primitiveInfo["status_message"] = priFail["exitreason"] + " on " + priFail["node"]
-						primitiveInfo["status"] = "Failed"
+						if primitiveInfo["status"] == "Running but failed" || primitiveInfo["status"] == "Unmanaged" {
+							// do nothing
+						} else {
+							primitiveInfo["status"] = "Failed"
+						}
+
 						if priRscStatus, ok := rscStatus[primitiveId]; ok {
 							if _, ok := priRscStatus["running_node"]; ok {
 								primitiveInfo["running_node"] = priRscStatus["running_node"]
