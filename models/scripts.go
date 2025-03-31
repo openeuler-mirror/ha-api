@@ -239,7 +239,7 @@ func GenerateScript(data map[string]string) ScriptResponse {
 		utils.LogTraceWithMsg(err, "get hostname failed")
 		return ScriptResponse{
 			GeneralResponse: utils.GeneralResponse{
-				Action: true,
+				Action: false,
 				Error:  gettext.Gettext("get hostname failed"),
 			},
 		}
@@ -300,20 +300,23 @@ func GenerateScript(data map[string]string) ScriptResponse {
 				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}
-			retMap["action"] = retMap["action"].(bool)
-			if retMap["action"].(bool) {
-				result[nodeName] = gettext.Gettext("Generate script success")
-			} else {
+			// actionVal, exist := retMap["action"]
+			if retMap != nil {
 				result[nodeName] = gettext.Gettext("Generate script failed")
+			} else {
+				result[nodeName] = gettext.Gettext("Generate script success")
 			}
+			// if !exist || (exist && !actionVal.(bool)) {
+			// 	result[nodeName] = gettext.Gettext("Generate script failed")
+			// } else {
+			// 	result[nodeName] = gettext.Gettext("Generate script success")
+			// }
 		}
 	}
-
 	return ScriptResponse{
 		Data: result,
 		GeneralResponse: utils.GeneralResponse{
-			Action: len(result) == 0,
+			Action: true,
 		},
 	}
-
 }
