@@ -71,11 +71,14 @@ func AlarmsGet() map[string]interface{} {
 
 		cmdStr := "/usr/bin/pwd_decode" + string(password)
 		out, _ := utils.RunCommand(cmdStr)
-		mailPassword := string(out)
+		mailPassword := ""
+		if string(out) != "the parameter is less\n" {
+				mailPassword = string(out)
+		}
 
 		data["sender"] = sender
 		data["smtp"] = smtp
-		data["lag"] = switCh
+		data["flag"] = switCh
 		data["receiver"] = recipients
 		data["password"] = mailPassword
 		data["port"] = port
