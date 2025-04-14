@@ -8,12 +8,15 @@
 package controllers
 
 import (
+	"fmt"
+
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
 
 	"encoding/json"
 
 	"gitee.com/openeuler/ha-api/models"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 type AlarmConfig struct {
@@ -27,15 +30,24 @@ func (ac *AlarmConfig) Get() {
 
 func (ac *AlarmConfig) Post() {
 	var result map[string]interface{}
-
-	reqData := make(map[string]interface{})
+	var reqData models.AlarmData
+	// reqData := make(map[string]interface{})
 	if err := json.Unmarshal(ac.Ctx.Input.RequestBody, &reqData); err != nil {
+		fmt.Println(err)
 		result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
 		result = models.AlarmsSet(reqData)
 	}
+	ac.Data["json"] = &result
+	ac.ServeJSON()
+}
+
+func (ac *AlarmConfig) Put() {
+	var result utils.GeneralResponse
+	result = models.AlarmsTest()
+
 	ac.Data["json"] = &result
 	ac.ServeJSON()
 }
