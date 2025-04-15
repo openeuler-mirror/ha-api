@@ -22,7 +22,7 @@ import (
 )
 
 // GetResourceInfo
-func GetResourceInfo() map[string]interface{} {
+var GetResourceInfo = func() map[string]interface{} {
 	result := make(map[string]interface{})
 	clusterStatus := GetClusterStatus()
 	if clusterStatus != 0 {
@@ -220,6 +220,35 @@ func GetResourceFailedMessage() map[string]map[string]string {
 		}
 	}
 	return failInfo
+}
+
+func GetResourceFailedList() []string {
+	out, err := utils.RunCommand(utils.CmdClusterStatusAsXML)
+	var failList []string
+	if err != nil {
+		return failList
+	}
+	doc := etree.NewDocument()
+	if err = doc.ReadFromBytes(out); err != nil {
+		return failList
+	}
+	failures := doc.FindElements("/crm_mon/failures/failure")
+	if len(failures) == 0 {
+		return failList
+	} else {
+
+		seen := make(map[string]struct{}, len(failures))
+		failList := make([]string, 0, len(failures))
+
+		for _, failure := range failures {
+			rscId := extractRscID(failure.SelectAttr("op_key").Value)
+			if _, exists := seen[rscId]; !exists {
+				seen[rscId] = struct{}{}
+				failList = append(failList, rscId)
+			}
+		}
+		return failList
+	}
 }
 
 var rscIDRegex = regexp.MustCompile(`(_stop_|_start_|_monitor_|_demote_|_promote_)`)
@@ -886,7 +915,7 @@ func DeleteCloneAttrib(rscId string) error {
 	return nil
 }
 
-func GetMetaAndInst(rscId string) map[string][]string {
+var GetMetaAndInst = func(rscId string) map[string][]string {
 	cmdStr := fmt.Sprintf(utils.CmdQueryResourceAsXml, rscId)
 	out, err := utils.RunCommand(cmdStr)
 	if err != nil {
@@ -1436,10 +1465,15 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 	return rscInfo
 }
 
-var failInfo = GetResourceFailedMessage()
-var clusterPro = GetClusterPropertiesInfo()
+var failInfo map[string]map[string]string
+
+var clusterPro map[string]interface{}
 
 func GetResourceStatus(rscInfo *etree.Element) string {
+	// 在获取集群资源时为全局变量failInfo、clusterPro赋值，避免操作过程多次查询对响应时长造成影响
+	failInfo = GetResourceFailedMessage()
+	clusterPro = GetClusterPropertiesInfo()
+
 	rscId := rscInfo.SelectAttr("id").Value
 
 	if data, _ := clusterPro["data"].(map[string]interface{}); data != nil {
