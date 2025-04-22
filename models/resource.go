@@ -729,7 +729,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 	if _, ok := data["instance_attributes"]; ok {
 		instAttri := data["instance_attributes"].(map[string]interface{})
 		for k, v := range instAttri {
-			instStr = instStr + k + "=" + v.(string) + " "
+			instStr += fmt.Sprintf("%s=%s ", k, convertToString(v))
 		}
 
 		if instStr != "" {
@@ -831,6 +831,28 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 		}
 	}
 	return nil
+}
+
+func convertToString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+
+	switch val := v.(type) {
+	case string:
+		return val
+	case bool:
+		return strconv.FormatBool(val)
+	case fmt.Stringer: // 优先使用类型的 String() 方法
+		return val.String()
+	default:
+		// 尝试 JSON 序列化（自动处理数字/数组/对象等）
+		if jsonData, err := json.Marshal(v); err == nil {
+			return string(jsonData)
+		}
+		// 最终回退方案
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func GetAllOps(rscId string) []string {
