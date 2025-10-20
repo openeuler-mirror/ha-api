@@ -38,6 +38,7 @@ func init() {
 		web.NSRouter("/managec/add_nodes", &controllers.AddNodesController{}),
 		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
 		web.NSRouter("/managec/is_cluster_exist", &controllers.IsClusterExistController{}),
+		web.NSRouter("/managec/edit_hb_info", &controllers.HeartBeatController{}),
 
 		web.NSRouter("/:cluster_name/1/resources", &controllers.ResourceController{}),
 		web.NSRouter("/:cluster_name/1/resources/:rscID/:action", &controllers.ResourceActionController{}),
@@ -78,6 +79,7 @@ func init() {
 	nr := web.NewNamespace("/remote/api/v1",
 		web.NSRouter("/sync_config", &controllers.Sync_configController{}),
 		web.NSRouter("/nodes/add_nodes", &controllers.LocalAddNodesController{}),
+		web.NSRouter("/nodes/edit_hb_info", &controllers.LocalHeartBeatController{}),
 		web.NSRouter("/managec/local_cluster_info", &controllers.LocalClusterInfoController{}),
 		web.NSRouter("/destroy_cluster", &controllers.LocalClusterDestroyController{}),
 

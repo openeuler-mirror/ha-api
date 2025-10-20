@@ -17,6 +17,21 @@ type HeartBeatController struct {
 	web.Controller
 }
 
+func (lhbc *LocalHeartBeatController) Delete() {
+	var reqData models.HeartbeatRequest
+	var result utils.GeneralResponse
+	if err := json.Unmarshal(lhbc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result.Action = false
+		result.Error = gettext.Gettext("invalid input data")
+		lhbc.Data["json"] = &result
+		lhbc.ServeJSON()
+	}
+
+	result = models.DeleteHeartbeat(reqData)
+	lhbc.Data["json"] = &result
+	lhbc.ServeJSON()
+}
+
 func (hbc *HeartBeatController) Get() {
 	result := map[string]interface{}{}
 
