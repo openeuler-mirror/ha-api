@@ -358,40 +358,66 @@ func isValidIPv4(ip string) bool {
 	return net.ParseIP(ip) != nil && strings.Contains(ip, ".")
 }
 
-func DeleteHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+// 承接编辑心跳、删除心跳请求数据
+type HeartbeatRequest struct {
+	ClusterName string      `json:"cluster_name"`
+	Data        []HeartData `json:"data"`
+}
+
+type HeartData struct {
+	Name     string       `json:"name"`
+	RingData []RingDetail `json:"ring_data"` // 包含 ring_name 和 ip
+}
+
+type RingDetail struct {
+	RingName string `json:"ring_name"`
+	IP       string `json:"ip"`
+}
+
+func DeleteHeartbeat(hbInfo HeartbeatRequest) utils.GeneralResponse {
 	hbData := hbInfo.Data
+	if len(hbData) == 0 {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("input validation failed"),
+		}
+	}
+
 	minLinkNum := 1
-	hbInfoList, _ := ExtractHbInfo(hbData)
-	status := GetClusterStatus()
 	currentLocalHbIds := GetCurrentLinkIds()
-	var linkId int
-	var linkIdSet []string
-	if len(currentLocalHbIds) <= minLinkNum || len(currentLocalHbIds) <= len(hbInfoList) {
+	ringData := hbData[0].RingData
+	// 至少要保留一路心跳
+	if len(currentLocalHbIds) <= minLinkNum || len(currentLocalHbIds) <= len(ringData) {
 		return utils.GeneralResponse{
 			Action: false,
 			Error:  gettext.Gettext("At least one heartbeat needs to be preserved and cannot be deleted further."),
 		}
 	}
+	var linkId int
+	var linkIdSet []string
 
-	for _, hbInfo := range hbInfoList {
-		ip := utils.Values[string, string](hbInfo)
+	status := GetClusterStatus()
+	for _, ring := range ringData {
+		ip := ring.IP
 		if status == 0 {
-			linkId, _ = GetRingIdFromIPOnline(ip[0])
+			linkId, _ = GetRingIdFromIPOnline(ip)
+			if linkId == -1 {
+				linkId, _ = GetRingIdFromIPOffline(ip)
+			}
 		} else {
-			linkId, _ = GetRingIdFromIPOnline(ip[0])
+			linkId, _ = GetRingIdFromIPOffline(ip)
 		}
 
 		if linkId == -1 {
-			linkId, _ = GetRingIdFromIPOnline(ip[0])
-			if linkId == -1 {
-				return utils.GeneralResponse{
-					Action: false,
-					Error:  gettext.Gettext("Exception occurred while deleting the heartbeat. Please check the logs and the original heartbeat status."),
-				}
+			return utils.GeneralResponse{
+				Action: false,
+				Error:  gettext.Gettext("Exception occurred while deleting the heartbeat. Please check the logs and the original heartbeat status."),
 			}
 		}
+
 		linkIdSet = append(linkIdSet, strconv.Itoa(linkId))
 	}
+
 	linkIdSetStr := strings.Join(linkIdSet, " ")
 	cmd := fmt.Sprintf(utils.CmdDeleteLinks, linkIdSetStr)
 	if _, err := utils.RunCommand(cmd); err != nil {
@@ -401,9 +427,18 @@ func DeleteHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 		}
 	}
 
+	//更新并同步配置文件
+	localCluster := LocalClusterInfo()
+	if err := UpdateClusterConfFile(localCluster); err != nil {
+		return utils.GeneralResponse{
+			Action: false,
+			Info:   gettext.Gettext("Failed to synchronize Cluster file"),
+		}
+	}
+
 	return utils.GeneralResponse{
 		Action: true,
-		Error:  gettext.Gettext("Delete heartbeat success"),
+		Info:   gettext.Gettext("Delete heartbeat success"),
 	}
 }
 
