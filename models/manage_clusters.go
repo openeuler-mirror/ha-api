@@ -1114,3 +1114,16 @@ func generateRemoteRequestURL(node string, uri string) string {
 	}
 	return "http://" + node + ":" + port + "/remote" + uri
 }
+
+// 更新并同步本地集群配置文件
+func UpdateClusterConfFile(cluster Cluster) error {
+	// localCluster := LocalClusterInfo()
+	clusterName := cluster.ClusterName
+	localClusters := getLocalConf()
+	localClusters.UpdateCluster(clusterName, cluster)
+	if err := localClusters.Save(); err != nil {
+		return fmt.Errorf("update config to ClustersInfo failed: %w", err)
+	}
+	syncClusterConfFile(localClusters)
+	return nil
+}
