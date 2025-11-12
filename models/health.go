@@ -30,3 +30,14 @@ func getIndexValue(resName, indexName string) string {
 		return ""
 	}
 }
+
+// 更新属性为green
+func attrdUpdateGreen(indexName string) {
+	res := "crm_node -l | awk -F ' ' '{print $2}'"
+	nodes, _ := utils.RunCommand(res)
+	nodesName := strings.Split(strings.TrimSuffix(string(nodes), "\n"), "\n")
+	for _, nodeName := range nodesName {
+		attrd := ATTRD_UPDATER + "\"" + indexName + "\"" + " -U  \"green\" --node " + nodeName
+		_, _ = utils.RunCommand(attrd)
+	}
+}
