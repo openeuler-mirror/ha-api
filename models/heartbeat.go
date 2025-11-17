@@ -2,23 +2,26 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: yangzhao_kl <yangzhao1@kylinos.cn>
- * Date: Thu Jan 14 13:33:38 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package models
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/chai2010/gettext-go"
 
 	"errors"
@@ -163,7 +166,7 @@ func EditHeartbeatInfo(jsonData []byte) error {
 		if _, err := utils.RunCommand(utils.CmdStopCluster); err != nil {
 			goto ret
 		}
-		if _, err := utils.RunCommand(utils.CmdDestroyCluster); err != nil {
+		if _, err := utils.RunCommand(utils.CmdDestroyClusterForce); err != nil {
 			goto ret
 		}
 		if _, err := utils.RunCommand(cmd); err != nil {
@@ -182,7 +185,7 @@ ret:
 	return errors.New(gettext.Gettext("Change cluster failed"))
 }
 
-func DeletLinks(linkIds string) error {
+func DeleteLinks(linkIds string) error {
 	cmd := fmt.Sprintf(utils.CmdDeleteLinks, linkIds)
 	_, err := utils.RunCommand(cmd)
 	return err
@@ -260,7 +263,7 @@ func ExtractHbInfoFromConf() (map[string][]string, []string) {
 
 	file, err := os.Open(settings.CorosyncConfFile)
 	if err != nil {
-		logs.Error("Error opening file: %v", err)
+		slog.Error(fmt.Sprintf("Error opening file: %v", err))
 		return linksInfo, hosts
 	}
 	defer file.Close()
@@ -285,7 +288,7 @@ func ExtractHbInfoFromConf() (map[string][]string, []string) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		logs.Error("Error reading file: %v", err)
+		slog.Error(fmt.Sprintf("Error reading file: %v", err))
 	}
 
 	return linksInfo, hosts
@@ -356,6 +359,16 @@ func GetRingIdFromIPOffline(ipAddress string) (int, error) {
 // isValidIPv4 checks if the given string is a valid IPv4 address.
 func isValidIPv4(ip string) bool {
 	return net.ParseIP(ip) != nil && strings.Contains(ip, ".")
+}
+
+type AddHeartbeatRequest struct {
+	ClusterName string         `json:"cluster_name"`
+	Data        []AddHeartData `json:"data"`
+}
+
+type AddHeartData struct {
+	Name     string   `json:"name"`
+	RingData []string `json:"ring_data"` // IP 列表
 }
 
 // 承接编辑心跳、删除心跳请求数据
@@ -442,9 +455,31 @@ func DeleteHeartbeat(hbInfo HeartbeatRequest) utils.GeneralResponse {
 	}
 }
 
-func AddHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+// 将添加心跳的信息重新组织
+func generateHbInfoList(addHbData []AddHeartData) []map[string]string {
+	var res []map[string]string
+	for i, _ := range addHbData[0].RingData {
+		ringInfo := map[string]string{}
+		for j, hbData := range addHbData {
+			nodeName := hbData.Name
+			ringInfo[nodeName] = addHbData[j].RingData[i]
+		}
+		res = append(res, ringInfo)
+	}
+	return res
+}
+
+func AddHeartbeat(hbInfo AddHeartbeatRequest) utils.GeneralResponse {
 	specialLinkId := "7"
 	MaxLinkCount := 7
+	hbData := hbInfo.Data
+	if len(hbData) == 0 {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("input validation failed"),
+		}
+	}
+
 	hbIds := GetCurrentLinkIds()
 	if utils.Contains(hbIds, specialLinkId) {
 		utils.RemoveByValue(hbIds, specialLinkId)
@@ -465,7 +500,7 @@ func AddHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 			}
 		}
 	}
-	hbInfoList, _ := ExtractHbInfo(hbInfo.Data)
+	hbInfoList := generateHbInfoList(hbInfo.Data)
 	for _, hbInfo := range hbInfoList {
 		if err := AddLink(hbInfo, ""); err != nil {
 			return utils.GeneralResponse{
@@ -473,11 +508,19 @@ func AddHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 				Error:  gettext.Gettext("Exception occurred while adding heartbeats, either the IP was conflicted with the original heartbeat"),
 			}
 		}
+	}
 
+	//更新并同步配置文件
+	localCluster := LocalClusterInfo()
+	if err := UpdateClusterConfFile(localCluster); err != nil {
+		return utils.GeneralResponse{
+			Action: false,
+			Info:   gettext.Gettext("Failed to synchronize Cluster file"),
+		}
 	}
 	return utils.GeneralResponse{
 		Action: true,
-		Error:  gettext.Gettext("Add heartbeat success"),
+		Info:   gettext.Gettext("Add heartbeat success"),
 	}
 }
 
@@ -509,19 +552,41 @@ func SyncCorosyncConf() error {
 	return err
 }
 
-func EditHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
+func EditHeartbeat(hbInfo HeartbeatRequest) utils.GeneralResponse {
 	maxNum := 7
-	// 当前环境中的心跳信息
-	linksInfo, _ := ExtractHbInfoFromConf()
-	hbIds := utils.Keys[string, []string](linksInfo)
+	hbData := hbInfo.Data
+	var conf utils.CorosyncConfig
+	if len(hbData) == 0 {
+		return utils.GeneralResponse{
+			Action: false,
+			Error:  gettext.Gettext("input validation failed"),
+		}
+	}
+	ringData := hbData[0].RingData
+
+	// 目前真实的心跳标号情况
+	hbIds := GetCurrentLinkIds()
 	if len(hbIds) == 0 {
 		return utils.GeneralResponse{
 			Action: false,
 			Error:  gettext.Gettext("The cluster has not been created."),
 		}
 	}
-	// 要进行编辑的心跳的信息
-	hbInfoList, idsEdited := ExtractHbInfo(hbInfo.Data)
+
+	// 要编辑的心跳的信息
+	var idsEdited []string
+	var hbInfoList []map[string]string
+	for i, ring := range ringData { // 心跳
+		ids := ring.RingName[4:5]
+		idsEdited = append(idsEdited, ids)
+		ringInfo := map[string]string{}
+		for j, _ := range hbData { // 节点
+			nodeName := hbData[j].Name
+			ringInfo[nodeName] = hbData[j].RingData[i].IP
+		}
+		hbInfoList = append(hbInfoList, ringInfo)
+	}
+
 	idsNum := len(hbInfoList)
 	if idsNum > maxNum {
 		return utils.GeneralResponse{
@@ -530,51 +595,61 @@ func EditHeartbeat(hbInfo HBInfo) utils.GeneralResponse {
 		}
 	}
 	clusterStatus := GetClusterStatus()
+	// 启动走 pcs cluster link 方案
 	if clusterStatus == 0 {
 		connectedNetIds := GetConnectedNetLinksId()
 		leftConnectedIds := utils.DifferenceSlice(connectedNetIds, idsEdited)
-		if len(hbInfoList) < len(linksInfo) && len(leftConnectedIds) > 0 {
+		if len(hbInfoList) < len(hbIds) && len(leftConnectedIds) > 0 {
 			var linksStr strings.Builder
 			for _, id := range idsEdited {
 				linksStr.WriteString(" ")
 				linksStr.WriteString(id)
 			}
 			// 基于心跳编号删除要编辑的心跳
-			DeletLinks(linksStr.String())
+			DeleteLinks(linksStr.String())
 
 			// 添加新的心跳内容
 			for _, x := range hbInfoList {
 				AddLink(x, "")
 			}
-			return utils.GeneralResponse{
-				Action: true,
-				Info:   gettext.Gettext("Edit heartbeat success"),
-			}
+			goto ret
 		}
 	}
+
+	// 集群未启动走修改配置文件的方案
 	utils.RunCommand(utils.CmdStopCluster + " --force")
 
 	// 修改配置文件
-	conf, _ := utils.GetCorosyncConfig()
-	for _, nodeInfo := range hbInfo.Data {
+	conf, _ = utils.GetCorosyncConfig()
+	for _, nodeInfo := range hbData {
 		for _, node := range conf.NodeList {
-			if nodeInfo["name"] == node["name"] {
-				for _, id := range idsEdited {
-					ringStr := "ring" + id + "_addr"
-					node[ringStr] = nodeInfo[ringStr]
+			if nodeInfo.Name == node["name"] {
+				for _, ring := range nodeInfo.RingData {
+					node[ring.RingName] = ring.IP
 				}
 			}
 		}
 	}
+
 	utils.SetCorosyncConfig(conf, settings.CorosyncConfFile)
 	if err := SyncCorosyncConf(); err != nil {
 		return utils.GeneralResponse{
 			Action: false,
-			Info:   gettext.Gettext("Failed to synchronize corosync.conf file"),
+			Error:  gettext.Gettext("Failed to synchronize corosync.conf file"),
 		}
 	}
 	// 重新启动集群
 	utils.RunCommand(utils.CmdStartCluster)
+
+ret:
+	//更新并同步配置文件
+	localCluster := LocalClusterInfo()
+	if err := UpdateClusterConfFile(localCluster); err != nil {
+		return utils.GeneralResponse{
+			Action: false,
+			Info:   gettext.Gettext("Failed to synchronize Cluster file"),
+		}
+	}
 
 	return utils.GeneralResponse{
 		Action: true,
