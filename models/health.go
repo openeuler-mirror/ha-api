@@ -117,3 +117,26 @@ func attrdUpdateGreen(indexName string) {
 		_, _ = utils.RunCommand(attrd)
 	}
 }
+
+
+func getHealthInuseList(nodeName string) []string {
+	var pronInuse []string
+
+	healthType := make(map[string]string)
+	healthType["SysInfo"] = "\"#health_disk\""
+	healthType["HealthMEM"] = "\"#health-mem\""
+	healthType["HealthCPU"] = "\"#health-cpu\""
+
+	cmdGetType := "cibadmin -Q -o resources | xmllint --xpath '//primitive/@type' - | awk -F 'type=\"|\"' '{print $2}'"
+	getType, _ := utils.RunCommand(cmdGetType)
+
+	for key, value := range healthType {
+		if strings.Contains(string(getType), key) {
+			pronInuse = append(pronInuse, value)
+		} else {
+			attrdCg := ATTRD_UPDATER + value + " -U  \"green\" --node " + nodeName
+			_, _ = utils.RunCommand(attrdCg)
+		}
+	}
+	return pronInuse
+}
