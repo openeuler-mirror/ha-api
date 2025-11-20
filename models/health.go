@@ -118,6 +118,25 @@ func attrdUpdateGreen(indexName string) {
 	}
 }
 
+func getHealthInuseNonull(pro, nodeName string, proInuse []string) string {
+	var healthStatus string
+	healthStatus = "healthy"
+	for _, value := range proInuse {
+		attrdQ := ATTRD_UPDATER + value + " -Q --node " + nodeName + " | awk -F 'value=\"' '{print $2}' | awk -F '\"' '{print $1}'"
+		attrdQRes, err := utils.RunCommand(attrdQ)
+
+		if pro == "migrate-on-red" && err == nil && strings.TrimSpace(string(attrdQRes)) == "red" {
+			healthStatus = "unhealthy"
+			break
+		}
+		if pro == "only-green" && err == nil && (strings.TrimSpace(string(attrdQRes)) == "yellow" || strings.TrimSpace(string(attrdQRes)) == "red") {
+			healthStatus = "unhealthy"
+			break
+		}
+	}
+
+	return healthStatus
+}
 
 func getHealthInuseList(nodeName string) []string {
 	var pronInuse []string
