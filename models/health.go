@@ -118,6 +118,26 @@ func attrdUpdateGreen(indexName string) {
 	}
 }
 
+func GetHealthInfo(nodeName string) string {
+	var healthStatus string
+	var pronInuse []string
+
+	cmdGetProperty := "cibadmin --query --scope crm_config | grep node-health-strategy |awk -F 'value=\"|\"/>' '{print $2}'"
+	pro, _ := utils.RunCommand(cmdGetProperty)
+	if string(pro) == "none" {
+		healthStatus = "healthy"
+	} else {
+		pronInuse = getHealthInuseList(nodeName)
+		if len(pronInuse) == 0 {
+			healthStatus = "healthy"
+		} else {
+			healthStatus = getHealthInuseNonull(strings.TrimSpace(string(pro)), nodeName, pronInuse)
+		}
+	}
+
+	return healthStatus
+}
+
 func getHealthInuseNonull(pro, nodeName string, proInuse []string) string {
 	var healthStatus string
 	healthStatus = "healthy"
