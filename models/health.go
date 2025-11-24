@@ -179,3 +179,59 @@ func getHealthInuseList(nodeName string) []string {
 	}
 	return pronInuse
 }
+
+func GetResource() (map[string]string, map[string]string) {
+	healthDeleteList := map[string]string{}
+	healthRevList := map[string]string{}
+
+	cmdGetType := "cibadmin -Q -o resources | xmllint --xpath '//primitive/@type' - | awk -F 'type=\"|\"' '{print $2}'"
+	cmdGetResource := "cibadmin -Q -o resources | xmllint --xpath '//primitive/@id' - | awk -F 'type=\"|\"' '{print $2}'"
+	getType, _ := utils.RunCommand(cmdGetType)
+	getResource, _ := utils.RunCommand(cmdGetResource)
+	getTypeRes := utils.SplitLinesScanner(string(getType))
+	getResourceRes := utils.SplitLinesScanner(string(getResource))
+
+	resourceDict := map[string]string{}
+	for i, k := range getResourceRes {
+		if i < len(getTypeRes) {
+			resourceDict[k] = getTypeRes[i]
+		}
+	}
+
+	listType := []string{"HealthCPU", "HealthMEM", "SysInfo"}
+	resBak := []string{}
+	for key, value := range resourceDict {
+		if utils.Contains(listType, value) {
+			resBak = append(resBak, key)
+		}
+	}
+
+	cmdGetSingleName := "crm_resource | grep 'Clone Set:' | awk -F '[' '{print $2}' | awk -F ']:' '{print $1}'"
+	getSingleName, _ := utils.RunCommand(cmdGetSingleName)
+	singleName := utils.SplitLinesScanner(string(getSingleName))
+
+	listName := []string{"sysinfo", "health_mem", "health_cpu"}
+	listTest := []string{}
+
+	for _, single := range singleName {
+		if utils.Contains(listName, single) {
+			listTest = append(listTest, single)
+		}
+	}
+
+	for _, i := range listTest {
+		for key, value := range resourceDict {
+			if i == key && ((key == "sysinfo" && value == "SysInfo") || (key == "health_mem" && value == "HealthMEM") || (key == "health_cpu" && value == "HealthCPU")) {
+				resBak = removeAll(resBak, i)
+				healthRevList[key] = value
+			}
+		}
+	}
+
+	for key, value := range resourceDict {
+		if utils.Contains(resBak, key) {
+			healthDeleteList[key] = value
+		}
+	}
+	return healthDeleteList, healthRevList
+}
