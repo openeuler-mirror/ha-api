@@ -180,6 +180,28 @@ func getHealthInuseList(nodeName string) []string {
 	return pronInuse
 }
 
+type HealthTestData struct {
+	Action bool     `json:"action"`
+	Health []string `json:"health"`
+}
+
+func HealthTest() HealthTestData {
+	var healthTestData HealthTestData
+
+	res := []string{}
+	listType := []string{"HealthCPU", "HealthMEM", "SysInfo"}
+	healthDeleteList, _ := GetResource()
+	for _, value := range healthDeleteList {
+		if utils.Contains(listType, value) && !utils.Contains(res, value) {
+			res = append(res, value)
+		}
+	}
+
+	healthTestData.Action = true
+	healthTestData.Health = res
+	return healthTestData
+}
+
 func GetResource() (map[string]string, map[string]string) {
 	healthDeleteList := map[string]string{}
 	healthRevList := map[string]string{}
