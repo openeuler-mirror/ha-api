@@ -235,3 +235,13 @@ func GetResource() (map[string]string, map[string]string) {
 	}
 	return healthDeleteList, healthRevList
 }
+
+func removeAll(slice []string, value string) []string {
+	result := slice[:0] // 复用原切片的底层数组
+	for _, v := range slice {
+		if v != value {
+			result = append(result, v)
+		}
+	}
+	return result
+}
