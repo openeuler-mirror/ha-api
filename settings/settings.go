@@ -91,6 +91,7 @@ const (
 	ClustersConfigFile           = "/usr/share/heartbeat-gui/ha-api/ClustersInfo.conf"
 	MaxBackTimes                 = 50
 	DefaultClusterName           = "hacluster"
+	RSA_PUBLIC_KEY               = "/usr/share/heartbeat-gui/ha-api/crypto_public.key"
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")

@@ -141,3 +141,40 @@ func (lc *TestController) Get() {
 	// lc.Data["json"] = &result
 	lc.ServeJSON()
 }
+
+
+type PublicKeyResponse struct {
+	Action bool      `json:"action"`
+	Data   PublicKey `json:"data"`
+}
+
+type KeyController struct {
+	web.Controller
+}
+
+func (kc *KeyController) Get() {
+	var resp PublicKeyResponse
+	var block *pem.Block
+	publicKey, err := utils.ReadPublicKey(settings.RSA_PUBLIC_KEY)
+	if err != nil {
+		resp = PublicKeyResponse{
+			Action: false,
+			Data:   PublicKey{Key: ""},
+		}
+		goto ret
+	}
+	if block, _ = pem.Decode(publicKey); block == nil {
+		resp = PublicKeyResponse{
+			Action: false,
+			Data:   PublicKey{Key: ""},
+		}
+		goto ret
+	}
+	resp.Action = true
+	resp.Data.Key = string(publicKey)
+
+ret:
+	kc.Data["json"] = &resp
+	kc.ServeJSON()
+}
+
