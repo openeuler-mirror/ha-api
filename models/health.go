@@ -202,6 +202,22 @@ func HealthTest() HealthTestData {
 	return healthTestData
 }
 
+func healthDelete(healthList map[string]string) string {
+	leap := ""
+	if len(healthList) != 0 {
+		for key, value := range healthList {
+			healthCmd := "pcs resource delete " + key + " --force"
+			_, err := utils.RunCommand(healthCmd)
+			if err != nil {
+				leap = key
+			} else {
+				attrdUpdateGreen(value)
+			}
+		}
+	}
+	return leap
+}
+
 func GetResource() (map[string]string, map[string]string) {
 	healthDeleteList := map[string]string{}
 	healthRevList := map[string]string{}
