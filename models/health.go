@@ -267,6 +267,69 @@ func HealthSet(data []byte) utils.GeneralResponse {
 				}
 			}
 		}
+
+		//总结创建、更新、删除资源结果，并返回到前端
+		createConT := ""
+		createOutT := ""
+		if len(createResT) != 0 {
+			for _, value := range createResT {
+				createConT = createConT + " " + value
+			}
+			createOutT = gettext.Gettext("Succeed to create health indicator") + createConT + " "
+		}
+
+		createConF := ""
+		createOutF := ""
+		if len(createResF) != 0 {
+			for _, value := range createResF {
+				createConF = createConF + " " + value
+			}
+			createOutF = gettext.Gettext("Failed to create health indicator") + createConF + " "
+		}
+
+		updateConT := ""
+		updateOutT := ""
+		if len(updateResT) != 0 {
+			for _, value := range updateResT {
+				updateConT = updateConT + " " + value
+			}
+			updateOutT = gettext.Gettext("Succeed to update health indicator") + updateConT + " "
+		}
+
+		updateConF := ""
+		updateOutF := ""
+		if len(updateResF) != 0 {
+			for _, value := range updateResF {
+				updateConF = updateConF + " " + value
+			}
+			updateOutF = gettext.Gettext("Failed to update health indicator") + updateConF + " "
+		}
+
+		deleteConT := ""
+		deleteOutT := ""
+		if len(deleteResT) != 0 {
+			for _, value := range deleteResT {
+				deleteConT = deleteConT + " " + value
+			}
+			deleteOutT = gettext.Gettext("Succeed to delete health indicator") + deleteConT + " "
+		}
+
+		deleteConF := ""
+		deleteOutF := ""
+		if len(deleteResF) != 0 {
+			for _, value := range deleteResF {
+				deleteConF = deleteConF + " " + value
+			}
+			deleteOutF = gettext.Gettext("Failed to delete health indicator") + deleteConF + " "
+		}
+
+		if createOutF != "" || updateOutF != "" || deleteOutF != "" {
+			result.Action = false
+			result.Error = createOutF + updateOutF + deleteOutF + createOutT + updateOutT + deleteOutT
+		} else {
+			result.Action = true
+			result.Info = gettext.Gettext("Smart migration Settings are successful!")
+		}
 	}
 	return result
 }
