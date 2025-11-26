@@ -107,6 +107,170 @@ func getIndexValue(resName, indexName string) string {
 	}
 }
 
+func HealthSet(data []byte) utils.GeneralResponse {
+	var result utils.GeneralResponse
+
+	if len(data) == 0 {
+		result.Action = false
+		result.Error = gettext.Gettext("No input data")
+		return result
+	}
+
+	healthData := HealthData{}
+	err := json.Unmarshal(data, &healthData)
+	if err != nil {
+		result.Action = false
+		result.Error = gettext.Gettext("Cannot convert data to json map")
+		return result
+	}
+
+	healthDeleteList, _ := GetResource()
+	res := healthDelete(healthDeleteList)
+	if res != "" {
+		result.Action = false
+		result.Error = gettext.Gettext("Failed to delete " + res + " resource!")
+		return result
+	}
+
+	healthDeleteList, _ = GetResource()
+	if len(healthDeleteList) == 0 {
+		createResF, createResT := []string{}, []string{} // 创建资源列表
+		updateResF, updateResT := []string{}, []string{} // 更新资源列表
+		deleteResF, deleteResT := []string{}, []string{} // 删除资源列表
+
+		if healthData.CpuFlag == true || healthData.MemFlag == true || healthData.DiskFlag == true {
+			//设置健康策略
+			getProperty := "cibadmin --query --scope crm_config | grep node-health-strategy |awk -F 'value=|/>' '{print $2}'"
+			getPropertyData, _ := utils.RunCommand(getProperty)
+			if string(getPropertyData) != "migrate-on-red" && string(getPropertyData) != "only-green" {
+				setProperty := "pcs property set node-health-strategy=migrate-on-red"
+				_, _ = utils.RunCommand(setProperty)
+			}
+		}
+
+		if healthData.CpuFlag == true {
+			//创建或更新资源
+			crmResourceCpu := "crm_resource --resource health_cpu-clone --query-xml "
+			_, errCpu := utils.RunCommand(crmResourceCpu)
+			if errCpu != nil {
+				//创建资源
+				createCpu := "pcs resource create health_cpu ocf:pacemaker:HealthCPU" + " " + "yellow_limit=" + healthData.CpuYellow + " " + "red_limit=" + healthData.CpuRed + " " + " clone" + " " + "&& pcs resource meta health_cpu-clone allow-unhealthy-nodes=true"
+				_, createCpuErr := utils.RunCommand(createCpu)
+
+				if createCpuErr == nil {
+					createResT = append(createResT, "cpu")
+				} else {
+					createResF = append(createResF, "cpu")
+				}
+			} else {
+				//更新资源
+				updateCpu := "pcs resource update health_cpu ocf:pacemaker:HealthCPU" + " " + "yellow_limit=" + healthData.CpuYellow + " " + "red_limit=" + healthData.CpuRed + " " + " clone" + " " + "&& pcs resource meta health_cpu-clone allow-unhealthy-nodes=true"
+				_, updateCpuErr := utils.RunCommand(updateCpu)
+				if updateCpuErr == nil {
+					updateResT = append(updateResT, "cpu")
+					attrdUpdateGreen("#health-cpu")
+				} else {
+					updateResF = append(updateResF, "cpu")
+				}
+			}
+		} else {
+			// healthData.CpuFlag == "False"
+			// 删除资源
+			crmResourceCpu := "crm_resource --resource health_cpu-clone --query-xml "
+			_, errCpu := utils.RunCommand(crmResourceCpu)
+			if errCpu == nil {
+				deleteCpu := "pcs resource delete health_cpu-clone "
+				_, deleteCpuErr := utils.RunCommand(deleteCpu)
+				if deleteCpuErr == nil {
+					deleteResT = append(deleteResT, "cpu")
+					attrdUpdateGreen("#health-cpu")
+				} else {
+					deleteResF = append(deleteResF, "cpu")
+				}
+			}
+		}
+
+		if healthData.MemFlag == true {
+			//处理内存：创建mem资源
+			crmResourceMem := "crm_resource --resource health_mem-clone --query-xml "
+			_, errMem := utils.RunCommand(crmResourceMem)
+			if errMem != nil {
+				createMem := "pcs resource create health_mem ocf:pacemaker:HealthMEM" + " " + "yellow_mem=" + healthData.MemYellow + " " + "red_mem=" + healthData.MemRed + " " + "clone" + " " + "&& pcs resource meta health_mem-clone allow-unhealthy-nodes=true"
+				_, createMemErr := utils.RunCommand(createMem)
+				if createMemErr == nil {
+					createResT = append(createResT, "mem")
+				} else {
+					createResF = append(createResF, "mem")
+				}
+			} else {
+				updateMem := "pcs resource update health_mem ocf:pacemaker:HealthMEM" + " " + "yellow_mem=" + healthData.MemYellow + " " + "red_mem=" + healthData.MemRed + " " + "clone" + " " + "&& pcs resource meta health_mem-clone allow-unhealthy-nodes=true"
+				_, updateMemErr := utils.RunCommand(updateMem)
+				if updateMemErr == nil {
+					updateResT = append(updateResT, "mem")
+					attrdUpdateGreen("#health-mem")
+				} else {
+					updateResF = append(updateResF, "mem")
+				}
+			}
+		} else {
+			// healthData.MemFlag == "False"
+			crmResourceMem := "crm_resource --resource health_mem-clone --query-xml "
+			_, errMem := utils.RunCommand(crmResourceMem)
+			if errMem == nil {
+				deleteMem := "pcs resource delete health_mem-clone"
+				_, deleteMemErr := utils.RunCommand(deleteMem)
+				if deleteMemErr == nil {
+					deleteResT = append(deleteResT, "mem")
+					attrdUpdateGreen("#health-mem")
+				} else {
+					deleteResF = append(deleteResF, "mem")
+				}
+			}
+		}
+
+		if healthData.DiskFlag == true {
+			//创建或更新资源
+			crmResourceDisk := "crm_resource  --resource sysinfo-clone --query-xml "
+			_, errDisk := utils.RunCommand(crmResourceDisk)
+			if errDisk != nil {
+				//创建资源
+				createDisk := "pcs resource create sysinfo ocf:pacemaker:SysInfo" + " " + "disks=" + healthData.Disks + " " + "min_disk_free=" + healthData.DiskRed + " " + "yellow_disk_free=" + healthData.DiskYellow + " " + "clone" + " " + "&& pcs resource meta sysinfo-clone allow-unhealthy-nodes=true"
+				_, createDiskErr := utils.RunCommand(createDisk)
+				if createDiskErr == nil {
+					createResT = append(createResT, "disk")
+				} else {
+					createResF = append(createResF, "disk")
+				}
+			} else {
+				//更新资源
+				updateDisk := "pcs resource update sysinfo ocf:pacemaker:SysInfo" + " " + "disks=" + healthData.Disks + " " + "min_disk_free=" + healthData.DiskRed + " " + "yellow_disk_free=" + healthData.DiskYellow + " " + "clone" + " " + "&& pcs resource meta sysinfo-clone allow-unhealthy-nodes=true"
+				_, updateDiskErr := utils.RunCommand(updateDisk)
+				if updateDiskErr == nil {
+					updateResT = append(updateResT, "disk")
+					attrdUpdateGreen("#health_disk")
+				} else {
+					updateResF = append(updateResF, "disk")
+				}
+			}
+		} else {
+			//删除资源
+			crmResourceDisk := "crm_resource  --resource sysinfo-clone --query-xml "
+			_, errDisk := utils.RunCommand(crmResourceDisk)
+			if errDisk == nil {
+				deleteDisk := "pcs resource delete  sysinfo-clone"
+				_, deleteDiskErr := utils.RunCommand(deleteDisk)
+				if deleteDiskErr == nil {
+					deleteResT = append(deleteResT, "disk")
+					attrdUpdateGreen("#health_disk")
+				} else {
+					deleteResF = append(deleteResF, "disk")
+				}
+			}
+		}
+	}
+	return result
+}
+
 // 更新属性为green
 func attrdUpdateGreen(indexName string) {
 	res := "crm_node -l | awk -F ' ' '{print $2}'"
