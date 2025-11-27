@@ -104,13 +104,15 @@ const (
 )
 
 // RunCommand runs the command and get the result
-func RunCommand(c string) ([]byte, error) {
-	logs.Debug("Running command: %s", c)
+var RunCommand = func(c string) ([]byte, error) {
+	slog.Debug("Running command", "cmd", c)
+
 	command := exec.Command("bash", "-c", c)
+	command.Env = append(command.Environ(), "LANG=C")
 	out, err := command.CombinedOutput()
 	if err != nil {
-		// logs.Error("Run command failed!, command: " + c + " out: " + string(out) + " err: " + err.Error())
-		return out, errors.Wrapf(err, "Run command failed!, command: "+c+" out: "+string(out)+" err: "+err.Error())
+		slog.Error("Run command failed!", "cmd", c, "out", string(out))
+		return out, errors.Wrapf(err, "Run command failed!, command: "+c+" out: "+string(out))
 	}
 	return out, nil
 }

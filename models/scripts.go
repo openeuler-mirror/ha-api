@@ -5,12 +5,14 @@
  * Author: bizhiyuan <bizhiyuan@kylinos.cn>
  * Date: Wed Mar 13 15:34:21 2024 +0800
  */
+
 package models
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,9 +20,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gitee.com/openeuler/ha-api/settings"
 	"gitee.com/openeuler/ha-api/utils"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/chai2010/gettext-go"
 )
 
@@ -38,7 +38,7 @@ func IsScriptExist(scriptName string) utils.GeneralResponse {
 	scripts := strings.Split(strings.TrimSpace(string(out)), "\n")
 	for _, script := range scripts {
 		if script == scriptName {
-			logs.Info(fmt.Sprintf("Script %s was already exists in the pacemaker directory", scriptName))
+			slog.Info(fmt.Sprintf("Script %s was already exists in the pacemaker directory", scriptName))
 			return utils.GeneralResponse{
 				Action: false,
 				Error:  gettext.Gettext("The script already exists in the pacemaker directory"),
@@ -52,7 +52,7 @@ func IsScriptExist(scriptName string) utils.GeneralResponse {
 	}
 }
 
-func GenerateLocalScript(data map[string]string) error {
+var GenerateLocalScript = func(data map[string]string) error {
 	name := data["name"]
 	startCommand := data["start"]
 	stopCommand := data["stop"]
@@ -254,14 +254,14 @@ func GenerateScript(data map[string]string) ScriptResponse {
 			err := GenerateLocalScript(data)
 			if err != nil {
 				utils.LogTrace(err)
-				result[nodeName] = gettext.Gettext("Generate script failed")
+				result[nodeName] = gettext.Gettext("Generate script failed, please checkout network and ha service")
 				continue
 			} else {
 				result[nodeName] = gettext.Gettext("Generate script success")
 			}
 		} else {
 			// 生成集群其他节点的脚本
-			remoteUrl := fmt.Sprintf("http://%s:%d/api/v1/remotescripts", nodeName, settings.HAAPI_DEFAULT_PORT)
+			remoteUrl := utils.GenerateRemoteRequestURL(nodeName, "/api/v1/remotescripts")
 			data["nodecall"] = localHostName
 			body, err := json.Marshal(data)
 			if err != nil {
@@ -276,7 +276,7 @@ func GenerateScript(data map[string]string) ScriptResponse {
 
 			httpResp, err := utils.SendRequest(remoteUrl, "POST", body)
 			if err != nil {
-				logs.Error("connecting node %s failed", nodeName)
+				slog.Error(fmt.Sprintf("connecting node %s failed", nodeName))
 				result[nodeName] = gettext.Gettext("node connecting failed")
 				continue
 			}
@@ -300,17 +300,11 @@ func GenerateScript(data map[string]string) ScriptResponse {
 				result[nodeName] = gettext.Gettext("Generate script failed")
 				continue
 			}
-			// actionVal, exist := retMap["action"]
 			if retMap != nil {
 				result[nodeName] = gettext.Gettext("Generate script failed")
 			} else {
 				result[nodeName] = gettext.Gettext("Generate script success")
 			}
-			// if !exist || (exist && !actionVal.(bool)) {
-			// 	result[nodeName] = gettext.Gettext("Generate script failed")
-			// } else {
-			// 	result[nodeName] = gettext.Gettext("Generate script success")
-			// }
 		}
 	}
 	return ScriptResponse{
