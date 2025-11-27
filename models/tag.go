@@ -8,6 +8,7 @@
 package models
 
 import (
+	"bufio"
 	"encoding/json"
 	"encoding/xml"
 	"strings"
@@ -43,6 +44,31 @@ type TagGetResult struct {
 	Error   string    `json:"error,omitempty"`
 }
 
+func GetOneTag(tagName string) map[string]interface{} {
+	result := make(map[string]interface{})
+	var data TagPostData
+	cmd := "pcs tag config " + tagName
+	out, err := utils.RunCommand(cmd)
+	if err != nil {
+		result["action"] = false
+		result["error"] = "Can not get the tag!"
+		return result
+	}
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	//跳过第一行
+	scanner.Scan()
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			data.Tag_resource = append(data.Tag_resource, line)
+		}
+	}
+	data.ID = tagName
+	result["action"] = true
+	result["data"] = data
+	return result
+
+}
 func GetTag() TagGetResult {
 	resList := []string{}
 	cmd := "cibadmin --query --scope tags"
