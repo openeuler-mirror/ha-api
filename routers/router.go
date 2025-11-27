@@ -29,6 +29,7 @@ func init() {
 		web.NSRouter("/login", &controllers.LoginController{}),
 		web.NSRouter("/logout", &controllers.LogoutController{}),
 		web.NSRouter("/user", &controllers.PasswordChangeController{}),
+		web.NSRouter("/public-key", &controllers.KeyController{}),
 		web.NSRouter("/managec/cluster_overview", &controllers.ClusterOverviewController{}),
 		web.NSRouter("/managec/cluster_add", &controllers.MultipleClustersController{}),
 		//web.NSRouter("/managec/sync_config", &controllers.Sync_configController{}),
