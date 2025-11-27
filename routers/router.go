@@ -75,6 +75,9 @@ func init() {
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
 		web.NSRouter("/remotescripts", &controllers.ScriptsRemoteController{}),
+
+		//智能迁移
+		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
 	)
 
 	nr := web.NewNamespace("/remote/api/v1",
@@ -121,6 +124,9 @@ func init() {
 		web.NSRouter("/:cluster_name/1/tag/:tag_name/:action", &controllers.TagActionController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
+		
+		//智能迁移
+		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
 	)
 	web.AddNamespace(ns)
 	web.AddNamespace(nr)
