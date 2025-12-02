@@ -163,3 +163,50 @@
 		 }
 	 })
  }
+ 
+func TestNewCryptoProvider(t *testing.T) {
+	// 生成测试密钥
+	if err := generateTestKeys(); err != nil {
+		t.Fatalf("Failed to generate test keys: %v", err)
+	}
+	defer cleanupTestKeys()
+
+	t.Run("Test RSA Provider", func(t *testing.T) {
+		config := map[string]string{
+			"publicKeyPath":  testPublicKeyPath,
+			"privateKeyPath": testPrivateKeyPath,
+		}
+
+		provider, err := NewCryptoProvider(AlgorithmRSA, config)
+		if err != nil {
+			t.Fatalf("Failed to create RSA provider: %v", err)
+		}
+
+		if provider.Algorithm() != "RSA-OAEP" {
+			t.Errorf("Expected algorithm 'RSA-OAEP', got '%s'", provider.Algorithm())
+		}
+
+		// 测试加密解密
+		plainText := "test message"
+		cipherText, err := provider.Encrypt(plainText)
+		if err != nil {
+			t.Fatalf("Encrypt failed: %v", err)
+		}
+
+		decrypted, err := provider.Decrypt(cipherText)
+		if err != nil {
+			t.Fatalf("Decrypt failed: %v", err)
+		}
+
+		if decrypted != plainText {
+			t.Errorf("Decrypted text doesn't match original. Expected: '%s', Got: '%s'", plainText, decrypted)
+		}
+	})
+
+	t.Run("Test Unsupported Algorithm", func(t *testing.T) {
+		_, err := NewCryptoProvider("invalid-algorithm", nil)
+		if err == nil {
+			t.Error("Expected error for unsupported algorithm")
+		}
+	})
+}
