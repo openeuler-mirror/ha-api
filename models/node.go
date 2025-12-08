@@ -142,14 +142,17 @@ func DoNodeAction(nodeID string, action string, data map[string]string) map[stri
 func handleNodeAction(action string, nodeType, nodeID, nodeRes string) string {
 	commands := map[string]map[string]string{
 		"start": {
-			"primitive": fmt.Sprintf("pcs cluster start %s", nodeID),
-			"remote":    fmt.Sprintf("pcs resource enable %s", nodeID),
-			"guest":     fmt.Sprintf("pcs resource enable %s", nodeRes),
+			"primitive": fmt.Sprintf(utils.CmdStartClusterNode, nodeID),
+			"remote":    fmt.Sprintf(utils.CmdStartClusterRemoteNode, nodeID),
+			"guest":     fmt.Sprintf(utils.CmdStartClusterRemoteNode, nodeRes),
 		},
 		"stop": {
-			"primitive": fmt.Sprintf("pcs cluster stop %s", nodeID),
-			"remote":    fmt.Sprintf("pcs resource disable %s", nodeID),
-			"guest":     fmt.Sprintf("pcs resource disable %s", nodeRes),
+			// b#371753 add --force for: 3 nodes when 1 node has been stopped
+			// In a three-node cluster, if one node is stopped first, and then another node is attempted to be stopped, the second node cannot be stopped normally.
+			// The command reports an error, but $?=0 after executing the command, which is considered as no problem in the code
+			"primitive": fmt.Sprintf(utils.CmdStopClusterNodeForce, nodeID),
+			"remote":    fmt.Sprintf(utils.CmdStopClusterRemoteNode, nodeID),
+			"guest":     fmt.Sprintf(utils.CmdStopClusterRemoteNode, nodeRes),
 		},
 	}
 	sleepStr := utils.DefaultSleep
