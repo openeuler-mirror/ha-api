@@ -35,7 +35,12 @@ const (
 	CmdQueryResourcesById           = "cibadmin --query --scope resources|grep 'id=\"%s\"'"
 
 	CmdStartCluster             = "pcs cluster start --all "
+	CmdStartClusterNode         = "pcs cluster start %s"
+	CmdStartClusterRemoteNode   = "pcs resource enable %s"
 	CmdStopClusterLocal         = "pcs cluster stop "
+	CmdStopClusterNode          = "pcs cluster stop %s"
+	CmdStopClusterNodeForce     = CmdStopClusterNode + " --force"
+	CmdStopClusterRemoteNode    = "pcs resource disable %s"
 	CmdStopCluster              = "pcs cluster stop --all"
 	CmdSetupCluster             = "pcs cluster setup hacluster"
 	CmdSetupClusterStandard     = "pcs cluster setup %s %s totem token=8000 --start"
