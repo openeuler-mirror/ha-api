@@ -8,12 +8,16 @@
 package controllers
 
 import (
+	"encoding/json"
+	
 	"gitee.com/openeuler/ha-api/models"
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
 )
 
-type HeartBeatController struct {
+
+type LocalHeartBeatController struct {
 	web.Controller
 }
 
@@ -30,6 +34,10 @@ func (lhbc *LocalHeartBeatController) Delete() {
 	result = models.DeleteHeartbeat(reqData)
 	lhbc.Data["json"] = &result
 	lhbc.ServeJSON()
+}
+
+type HeartBeatController struct {
+	web.Controller
 }
 
 func (hbc *HeartBeatController) Get() {

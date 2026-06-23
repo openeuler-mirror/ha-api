@@ -18,3 +18,9 @@ type Response struct {
 	Error  interface{} `json:"error,omitempty"`
 	Info   string      `json:"info,omitempty"`
 }
+
+type RecoveryResponse struct {
+	Action bool     `json:"action"`
+	Error  string   `json:"error,omitempty"`
+	Stack  []string `json:"stack,omitempty"`
+}

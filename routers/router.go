@@ -13,7 +13,6 @@ import (
 )
 
 func init() {
-	web.Router("/test", &controllers.TestController{})
 
 	web.Router("/", &controllers.RootController{})
 	web.Router("/resource", &controllers.IndexController{})
@@ -124,7 +123,7 @@ func init() {
 		web.NSRouter("/:cluster_name/1/tag/:tag_name/:action", &controllers.TagActionController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
-		
+
 		//智能迁移
 		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
 	)
