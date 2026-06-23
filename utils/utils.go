@@ -2,9 +2,10 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: yangzhao_kl <yangzhao1@kylinos.cn>
- * Date: Fri Jan 8 20:56:40 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package utils
 
 import (
@@ -13,18 +14,22 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"gitee.com/openeuler/ha-api/settings"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/spf13/viper"
 )
 
-func IsInSlice(str string, sli []string) bool {
+var port, _ = ReadPortFromConfig()
+
+var IsInSlice = func(str string, sli []string) bool {
 	//TODO
 
 	for _, item := range sli {
@@ -47,6 +52,10 @@ func RemoveDupl(strs []string) []string {
 	}
 	return strsDupl
 }
+func isDevEnvironment() bool {
+	env := os.Getenv("HA_API")
+	return env != "production"
+}
 
 // GetNumAndUnitFromStr gets the first number and the unit after this number
 // like "20.5min" ==> ["20.5", "min"]
@@ -59,33 +68,61 @@ func GetNumAndUnitFromStr(s string) (string, string) {
 	return s[:index[1]], s[index[1]:]
 }
 
-// Send http request
-func SendRequest(url string, method string, data interface{}) (resp *http.Response, err error) {
-	var httpResp *http.Response
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+var globalHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: isDevEnvironment(),
 		},
-	}
+		// 连接池优化配置
+		MaxIdleConns:        100,              // 最大空闲连接数
+		MaxIdleConnsPerHost: 100,              // 对每个目标host的最大空闲连接数
+		IdleConnTimeout:     90 * time.Second, // 空闲连接超时关闭时间
+	},
+	// 可以设置全局请求超时
+	Timeout: 90 * time.Second,
+}
+
+var SendRequest = func(url string, method string, data interface{}) (resp *http.Response, err error) {
+	var httpResp *http.Response
+	var req *http.Request
+
+	// 复用全局的 client
+	client := globalHTTPClient
 
 	switch method {
 	case "POST":
-		httpResp, err = client.Post(url, "application/json", bytes.NewReader(data.([]byte)))
+		// 使用 http.NewRequest 更灵活，可以统一处理Header等
+		req, err = http.NewRequest("POST", url, bytes.NewReader(data.([]byte)))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
 	case "GET":
-		httpResp, err = client.Get(url)
+		req, err = http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
 	case "DELETE":
-		req, _ := http.NewRequest("DELETE", url, bytes.NewReader(data.([]byte)))
-		httpResp, err = client.Do(req)
+		req, err = http.NewRequest("DELETE", url, bytes.NewReader(data.([]byte)))
+		if err != nil {
+			return nil, err
+		}
 	case "PUT":
-
-		req, _ := http.NewRequest("PUT", url, bytes.NewReader(data.([]byte)))
-		httpResp, err = client.Do(req)
+		req, err = http.NewRequest("PUT", url, bytes.NewReader(data.([]byte)))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
 	default:
 		return nil, errors.New("unsupported method")
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
+	// 统一使用 Do 方法执行请求
+	httpResp, err = client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -95,21 +132,21 @@ func SendRequest(url string, method string, data interface{}) (resp *http.Respon
 
 // Read Port from config file
 func ReadPortFromConfig() (string, error) {
-	defaultPort := "8080"
-	viper.SetConfigName("port")
-	viper.SetConfigType("ini")
+	defaultPort := "8088"
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
-		logs.Error("Error reading config file, %s, using default port %s", err, defaultPort)
+		slog.Warn(fmt.Sprintf("Error reading config file, %s, using default port %s", err, defaultPort))
 		return defaultPort, fmt.Errorf("Error reading config file, %s, using default port %s", err, defaultPort)
 	} else {
-		port := viper.GetString("port.haapi_port")
-		_, err := strconv.Atoi(port)
+		portStr := viper.GetString("port.ha-api")
+		_, err := strconv.Atoi(portStr)
 		if err != nil {
-			logs.Warning("Port in config is not a number, using default port 8080")
-			return defaultPort, fmt.Errorf("Port in config is not a number, using default port %s", defaultPort)
+			slog.Warn("Port in config is not a number, using default port 8088")
+			return defaultPort, fmt.Errorf("port in config is not a number, using default port %s", defaultPort)
 		}
-		return port, nil
+		return portStr, nil
 	}
 }
 
@@ -215,4 +252,31 @@ func DifferenceSlice[T comparable](mainSlice, subtractSlice []T) []T {
 	}
 
 	return diffSlice
+}
+
+// 实现python的splitlines方法
+func SplitLinesScanner(s string) []string {
+	var lines []string
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines
+}
+
+func HostExists(hostName string) bool {
+	_, err := RunCommand(fmt.Sprintf(CmdHostExists, hostName))
+	return err == nil
+}
+
+func GenerateRemoteRequestURL(node string, uri string) string {
+	if strings.HasPrefix(uri, "/remote") {
+		return "https://" + node + ":" + port + uri
+	}
+	return "https://" + node + ":" + port + "/remote" + uri
+}
+
+func CopyFile(src string, dest string) error {
+	cmd := exec.Command("/usr/bin/cp", src, dest)
+	return cmd.Run()
 }

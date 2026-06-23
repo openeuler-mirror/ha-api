@@ -1,10 +1,11 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: bizhiyuan <bizhiyuan@kylinos.cn>
- * Date: Tue May 21 16:25:25 2024 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package validations
 
 import (
@@ -14,7 +15,8 @@ import (
 )
 
 type PasswordS struct {
-	Password string `json:"password" valid:"Required;"`
+	OldPwd string `json:"old_password" valid:"Required;"`
+	NewPwd string `json:"new_password" valid:"Required;"`
 }
 type UserS struct {
 	UserName string `json:"username" valid:"Required;"`

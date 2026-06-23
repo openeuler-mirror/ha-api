@@ -63,9 +63,6 @@ func (lc *LogoutController) Post() {
 	lc.DelSession("username")
 	lc.DelSession("password")
 	result := new(utils.GeneralResponse)
-	activationIface := models.NewActivation(models.ActivationLibImpl{})
-	// 同意协议
-	activationIface.SetAgreeTrial(false)
 
 	result.Info = gettext.Gettext("Logout success")
 	result.Action = true

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"reflect"
@@ -1079,33 +1080,58 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 }
 
 // UrlRedirect
-func UrlRedirect(clusterName string, uiPath string, requestMethod string, requestData interface{}) (map[string]interface{}, error) {
-	remoteNodes := getRemoteNodes(clusterName).([]interface{})
+func UrlRedirect(clusterName string, uiPath string, requestMethod string, requestData interface{}, postRequestHook func(node string, respData []byte) error) (map[string]interface{}, error) {
+	remoteNodes := getRemoteNodes(clusterName).([]string)
 	if len(remoteNodes) == 0 {
 		return map[string]interface{}{
-			"action":  false,
-			"message": gettext.Gettext("Please reselect the cluster in the top operation area"),
+			"action": false,
+			"error":  gettext.Gettext("Please reselect the cluster in the top operation area"),
 		}, errors.New("no remote nodes")
 	}
 
-	// the first remote node searched
-	node := remoteNodes[0]
-	url := generateRemoteRequestURL(node.(string), uiPath)
-	resp, err := utils.SendRequest(url, requestMethod, requestData)
-	if err != nil {
-		return map[string]interface{}{"action": false, "message": gettext.Gettext("Request remote Cluster info failed")}, err
+	for _, node := range remoteNodes {
+		url := utils.GenerateRemoteRequestURL(node, uiPath)
+		resp, err := utils.SendRequest(url, requestMethod, requestData)
+		if err != nil {
+			slog.Warn("request to node failed (retry next node)", "url", url, "node", node, "error", err)
+			continue
+		}
+		respData, err := io.ReadAll(resp.Body)
+		resp.Body.Close() // 立即关闭
+		if err != nil {
+			slog.Error("failed to read response body", "url", uiPath, "node", node, "error", err)
+			continue
+		}
+
+		remoteClusterInfo := make(map[string]interface{})
+		if err := json.Unmarshal(respData, &remoteClusterInfo); err != nil {
+			slog.Error(fmt.Sprintf("parse response failed: %s", err.Error()))
+			continue
+		}
+
+		action, ok := remoteClusterInfo["action"].(bool)
+		if !ok {
+			slog.Warn("invalid or missing 'action' field in response", "url", uiPath, "response", remoteClusterInfo)
+			continue
+		}
+
+		// 远程集群中节点响应，但是执行失败（action为false）， 直接返回
+		if !action {
+			slog.Info("Remote cluster operation failed", "url", uiPath, "response", remoteClusterInfo)
+		}
+
+		// 如果有差异逻辑，执行对应回调函数
+		if postRequestHook != nil {
+			if err := postRequestHook(node, respData); err != nil {
+				slog.Error(fmt.Sprintf("postRequestHook failed : %s", err.Error()))
+				continue
+			}
+		}
+
+		return remoteClusterInfo, nil
 	}
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return map[string]interface{}{
-			"action":  false,
-			"message": gettext.Gettext("Please reselect the cluster in the top operation area"),
-		}, err
-	}
-	defer resp.Body.Close()
-	remoteClusterInfo := make(map[string]interface{})
-	json.Unmarshal(respData, &remoteClusterInfo)
-	return remoteClusterInfo, nil
+	slog.Error("UrlRedirect failed (all nodes )", "cluster", clusterName, "url", uiPath)
+	return map[string]interface{}{"action": false, "error": gettext.Gettext("Please reselect the cluster in the top operation area")}, errors.New("no nodes succeeded")
 }
 
 func generateRemoteRequestURL(node string, uri string) string {

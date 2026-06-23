@@ -8,9 +8,9 @@
 package utils
 
 import (
+	"log/slog"
 	"os/exec"
 
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/pkg/errors"
 )
 
@@ -20,6 +20,8 @@ const (
 	CmdClusterStatusAsXML           = CmdClusterStatus + " --as-xml"
 	CmdHostName                     = "hostname"
 	CmdGetCurrentNodeName           = "cat /etc/hostname"
+	CmdHostExists                   = "cat /etc/hosts | grep -w %s"
+	CmdHostSearch                   = "cat /etc/hosts | grep -i -w %s"
 	CmdCountClustersConfigsBackuped = "ls /usr/share/heartbeat-gui/ha-api/ClustersInfo.conf.* | wc -l"
 	CmdCibQueryConfig               = "cibadmin --query --scope configuration"
 	CmdDeleteAlert                  = "pcs alert delete alert_Kylin"
@@ -106,6 +108,8 @@ const (
 	CmdUpdateLink          = "pcs cluster link update %s %s"
 	CmdUpdateLinkForce     = CmdUpdateLink + " --force"
 	CmdSyncCorosyncConf    = "pcs cluster sync"
+
+	CmdChangePwd = "echo 'hacluster:%s'|chpasswd >/dev/null 2>&1"
 )
 
 // RunCommand runs the command and get the result

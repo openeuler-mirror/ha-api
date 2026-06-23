@@ -9,9 +9,9 @@ package controllers
 
 import (
 	"encoding/json"
+	"log/slog"
 
 	"gitee.com/openeuler/ha-api/models"
-	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
@@ -127,14 +127,8 @@ func (csc *ClusterSetupController) Post() {
 
 func (cc *ClustersController) Get() {
 	logs.Debug("handle get request in ClustersController.")
-	clusterName := cc.Ctx.Input.Param(":cluster_name")
 	result := make(map[string]interface{})
-	if !utils.IsLocalCluster(clusterName) {
-		result, _ = models.UrlRedirect(clusterName, cc.Ctx.Input.URL(), cc.Ctx.Request.Method, cc.Ctx.Input.RequestBody)
-	} else {
-		result = models.GetClusterPropertiesInfo()
-	}
-
+	result = models.GetClusterPropertiesInfo()
 	cc.Data["json"] = &result
 	cc.ServeJSON()
 }
@@ -142,13 +136,7 @@ func (cc *ClustersController) Get() {
 func (csc *ClustersStatusController) Get() {
 	var result map[string]interface{}
 	logs.Debug("handle get request in ClustersStatusController.")
-	clusterName := csc.Ctx.Input.Param(":cluster_name")
-
-	if !utils.IsLocalCluster(clusterName) {
-		result, _ = models.UrlRedirect(clusterName, csc.Ctx.Input.URL(), csc.Ctx.Request.Method, csc.Ctx.Input.RequestBody)
-	} else {
-		result = models.GetClusterInfo()
-	}
+	result = models.GetClusterInfo()
 
 	csc.Data["json"] = &result
 	csc.ServeJSON()
@@ -247,20 +235,15 @@ func (lanc *LocalAddNodesController) Post() {
 }
 
 func (cc *ClustersController) Put() {
-	logs.Debug("handle put request in ClustersController.")
+	slog.Debug("handle put request in ClustersController.")
 	result := make(map[string]interface{})
-	clusterName := cc.Ctx.Input.Param(":cluster_name")
 
-	if !utils.IsLocalCluster(clusterName) {
-		result, _ = models.UrlRedirect(clusterName, cc.Ctx.Input.URL(), cc.Ctx.Request.Method, cc.Ctx.Input.RequestBody)
+	reqData := make(map[string]interface{})
+	if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result["action"] = false
+		result["error"] = gettext.Gettext("invalid input data")
 	} else {
-		reqData := make(map[string]interface{})
-		if err := json.Unmarshal(cc.Ctx.Input.RequestBody, &reqData); err != nil {
-			result["action"] = false
-			result["error"] = gettext.Gettext("invalid input data")
-		} else {
-			result = models.UpdateClusterProperties(reqData)
-		}
+		result = models.UpdateClusterProperties(reqData)
 	}
 
 	cc.Data["json"] = &result

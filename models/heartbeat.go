@@ -12,11 +12,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
+
 	"log/slog"
 	"net"
 	"os"
-	"regexp"
+
 	"strconv"
 	"strings"
 
