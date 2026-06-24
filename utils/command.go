@@ -8,6 +8,7 @@
 package utils
 
 import (
+	"fmt"
 	"log/slog"
 	"os/exec"
 
@@ -111,6 +112,36 @@ const (
 
 	CmdChangePwd = "echo 'hacluster:%s'|chpasswd >/dev/null 2>&1"
 )
+
+// RunChangePwd safely changes the hacluster password without shell injection risk.
+// The password is passed through a pipe, never embedded in shell syntax.
+var RunChangePwd = func(password string) ([]byte, error) {
+	slog.Debug("Running change password command")
+
+	chpasswd := exec.Command("chpasswd")
+	chpasswd.Env = append(chpasswd.Environ(), "LANG=C")
+
+	stdin, err := chpasswd.StdinPipe()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create stdin pipe")
+	}
+
+	if err := chpasswd.Start(); err != nil {
+		return nil, errors.Wrap(err, "failed to start chpasswd")
+	}
+
+	go func() {
+		fmt.Fprintf(stdin, "hacluster:%s\n", password)
+		stdin.Close()
+	}()
+
+	out, err := chpasswd.CombinedOutput()
+	if err != nil {
+		slog.Error("Change password failed", "out", string(out))
+		return out, errors.Wrapf(err, "change password failed, out: %s", string(out))
+	}
+	return out, nil
+}
 
 // RunCommand runs the command and get the result
 var RunCommand = func(c string) ([]byte, error) {

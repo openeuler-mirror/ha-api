@@ -67,7 +67,7 @@ func PasswordChange(data validations.PasswordS, authChecker utils.AuthChecker) u
 	var crypto utils.CryptoProvider
 	var oldDecryptedPasswd string
 	var newDecryptedPasswd string
-	var cmd string = ""
+
 	// RSA算法解密
 	crypto, err := utils.NewCryptoProvider(utils.AlgorithmRSA, map[string]string{
 		"publicKeyPath":  settings.RSA_PUBLIC_KEY,
@@ -107,8 +107,7 @@ func PasswordChange(data validations.PasswordS, authChecker utils.AuthChecker) u
 		result.Error = gettext.Gettext("New Password incorrect")
 	}
 
-	cmd = fmt.Sprintf(utils.CmdChangePwd, newDecryptedPasswd)
-	if _, err := utils.RunCommand(cmd); err != nil {
+	if _, err := utils.RunChangePwd(newDecryptedPasswd); err != nil {
 		slog.Error(fmt.Sprintf("change password failed: %s", err.Error()))
 		result.Action = false
 		result.Error = gettext.Gettext("Change password failed")
