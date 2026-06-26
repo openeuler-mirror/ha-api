@@ -11,9 +11,17 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
-
+	"strings"
 	"github.com/pkg/errors"
 )
+
+// ShellEscape safely escapes a string for use as a single shell argument.
+// It uses single-quote wrapping, which is the most robust method for POSIX shells.
+// Single quotes within the value are escaped by ending the quote, adding an escaped
+// single quote, and reopening the quote: 'it'\''s' => it's
+func ShellEscape(s string) string {
+       return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
 
 const (
 	CmdNodeStatus                   = "crm_node -l"
@@ -28,7 +36,7 @@ const (
 	CmdDeleteAlert                  = "pcs alert delete alert_Kylin"
 	CmdCreateAlert                  = "pcs alert create id=alert_Kylin path=/usr/share/pacemaker/alerts/alert_log.sh"
 	CmdAddAlert                     = "pcs alert recipient add alert_Kylin"
-	CmdSendEmail                    = "/usr/share/pacemaker/alerts/python_email.py '"
+	CmdSendEmail                    = "/usr/share/pacemaker/alerts/python_email.py"
 	CmdUpdateResourceStickness      = "crm_attribute  -t rsc_defaults -n resource-stickiness -v "
 	CmdUpdateCrmConfig              = "crm_attribute -t crm_config -n "
 	CmdQueryCIB                     = "cibadmin -Q"
