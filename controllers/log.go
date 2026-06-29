@@ -9,6 +9,8 @@ package controllers
 
 import (
 	"net/http"
+	"path/filepath"
+        "strings"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/server/web"
@@ -44,13 +46,27 @@ type LogDownloadController struct {
 }
 
 func (ldc *LogDownloadController) Get() {
-	logs.Debug("handle log download GET request")
-	fileTail := ldc.Ctx.Input.Param(":filetail")
-	// result := models.GenerateLog()
-	// lc.Data["json"] = &result
-	// lc.ServeJSON()
+        logs.Debug("handle log download GET request")
+        fileTail := ldc.Ctx.Input.Param(":filetail")
+        // Prevent path traversal: extract only the base filename
+        fileTail = filepath.Base(fileTail)
+        // Validate file extension
+        if !strings.HasSuffix(fileTail, ".tar") {
+                ldc.Ctx.Output.SetStatus(http.StatusBadRequest)
+                ldc.Data["json"] = map[string]interface{}{"action": false, "error": "invalid filename"}
+                ldc.ServeJSON()
+                return
+        }
 
-	const filePath = "/usr/share/heartbeat-gui/ha-api/static/"
-	filePrefix := "kylinha-log-"
-	http.ServeFile(ldc.Ctx.ResponseWriter, ldc.Ctx.Request, filePath+filePrefix+fileTail)
+        const filePath = "/usr/share/heartbeat-gui/ha-api/static/"
+        filePrefix := "kylinha-log-"
+        fullPath := filepath.Join(filePath, filePrefix+fileTail)
+        // Verify the resolved path is still within the expected directory
+        if !strings.HasPrefix(fullPath, filePath) {
+                ldc.Ctx.Output.SetStatus(http.StatusBadRequest)
+                ldc.Data["json"] = map[string]interface{}{"action": false, "error": "invalid filename"}
+                ldc.ServeJSON()
+                return
+        }
+        http.ServeFile(ldc.Ctx.ResponseWriter, ldc.Ctx.Request, fullPath)
 }
