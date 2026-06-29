@@ -99,7 +99,7 @@ func AlarmsGet() AlarmResponse {
 			recipients = append(recipients, vaLue)
 		}
 
-		cmdStr := "/usr/bin/pwd_decode " + string(password)
+		cmdStr := "/usr/bin/pwd_decode " + utils.ShellEscape(password)
 		out, _ := utils.RunCommand(cmdStr)
 		fmt.Println(password)
 		mailPassword := ""
@@ -135,7 +135,7 @@ func AlarmsSet(data AlarmData) map[string]interface{} {
 
 	fmt.Println("get receiver: ", data.Receiver)
 	port := strconv.Itoa(int(data.Port))
-	opsStr := " options email_sender=" + data.Sender + " email_server=" + data.Smtp + " password=" + data.Password + " port=" + port + " switCh=" + switCh
+	opsStr := " options email_sender=" + utils.ShellEscape(data.Sender) + " email_server=" + utils.ShellEscape(data.Smtp) + " password=" + utils.ShellEscape(data.Password) + " port=" + utils.ShellEscape(port) + " switCh=" + utils.ShellEscape(switCh)
 	cmdStr := utils.CmdCreateAlert + opsStr
 	fmt.Println(cmdStr)
 	_, err := utils.RunCommand(cmdStr)
@@ -149,7 +149,7 @@ func AlarmsSet(data AlarmData) map[string]interface{} {
 
 	for _, recipient := range data.Receiver {
 		fmt.Println("set recipient")
-		reveiverStr := utils.CmdAddAlert + " value=" + string(recipient) + " --force"
+		reveiverStr := utils.CmdAddAlert + " value=" + utils.ShellEscape(recipient) + " --force"
 		fmt.Println(reveiverStr)
 		_, err := utils.RunCommand(reveiverStr)
 		if err != nil {
@@ -171,13 +171,13 @@ func AlarmsTest() utils.GeneralResponse {
 	alarmConfig := AlarmsGet().Data
 	for _, recipient := range alarmConfig.Receiver {
 		port := strconv.Itoa(int(alarmConfig.Port))
-		reveiverStr := utils.CmdSendEmail + alarmConfig.Smtp + "' '" + alarmConfig.Sender + "' '" + alarmConfig.Password + "' '" + recipient + "' '此邮件为测试邮件' " + port
+		reveiverStr := utils.CmdSendEmail + utils.ShellEscape(alarmConfig.Smtp) + " " + utils.ShellEscape(alarmConfig.Sender) + " " + utils.ShellEscape(alarmConfig.Password) + " " + utils.ShellEscape(recipient) + " " + utils.ShellEscape("此邮件为测试邮件") + " " + utils.ShellEscape(port)
 		fmt.Println(reveiverStr)
 		out, err := utils.RunCommand(reveiverStr)
 		if err != nil {
 			fmt.Println(out)
 			fmt.Println(err)
-			testcmd := "echo send mail to " + string(recipient) + " failed:" + string(out) + " >>/var/log/mailtest.log"
+			testcmd := "echo send mail to " + utils.ShellEscape(recipient) + " failed:" + utils.ShellEscape(string(out)) + " >>/var/log/mailtest.log"
 			out1, err1 := utils.RunCommand(testcmd)
 			if err1 != nil {
 				fmt.Println(out1)
@@ -187,7 +187,7 @@ func AlarmsTest() utils.GeneralResponse {
 			return result
 
 		} else {
-			testcmd := "echo send mail to " + string(recipient) + " success >>/var/log/mailtest.log"
+			testcmd := "echo send mail to " + utils.ShellEscape(recipient) + " success >>/var/log/mailtest.log"
 			utils.RunCommand(testcmd)
 		}
 	}
