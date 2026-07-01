@@ -97,7 +97,7 @@ func RulesDelete(ruleids *validations.DeleteRuleS) RuleDeleteResponse {
 	var res []map[string]interface{}
 
 	for _, id := range ruleIdList {
-		delRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, id)
+		delRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, utils.ShellEscape(id))
 		_, err := utils.RunCommand(delRuleCmd)
 		if err != nil {
 			res = append(res, map[string]interface{}{
@@ -122,15 +122,15 @@ func RulesDelete(ruleids *validations.DeleteRuleS) RuleDeleteResponse {
 func RuleAdd(data *validations.RuleS) utils.GeneralResponse {
 	var cmdAddRule string
 	if data.RuleID != "" {
-		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, data.Rsc, data.Score, data.RuleID)
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, utils.ShellEscape(data.Rsc), utils.ShellEscape(data.Score), utils.ShellEscape(data.RuleID))
 	} else {
-		cmdAddRule = fmt.Sprintf(utils.CmdRuleAdd, data.Rsc, data.Score)
+		cmdAddRule = fmt.Sprintf(utils.CmdRuleAdd, utils.ShellEscape(data.Rsc), utils.ShellEscape(data.Score))
 	}
 
 	if data.Value != "" {
-		cmdAddRule = cmdAddRule + " " + data.Attribute + " " + data.Operation + " " + data.Value
+		cmdAddRule = cmdAddRule + " " + utils.ShellEscape(data.Attribute) + " " + utils.ShellEscape(data.Operation) + " " + utils.ShellEscape(data.Value)
 	} else {
-		cmdAddRule = cmdAddRule + " " + data.Operation + " " + data.Attribute
+		cmdAddRule = cmdAddRule + " " + utils.ShellEscape(data.Operation) + " " + utils.ShellEscape(data.Attribute)
 	}
 	_, err := utils.RunCommand(cmdAddRule)
 	if err != nil {
@@ -167,7 +167,7 @@ func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 		}
 	}
 	// delete old rule
-	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, data.RuleID)
+	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, utils.ShellEscape(data.RuleID))
 	fmt.Println(deleteRuleCmd)
 	_, err = utils.RunCommand(deleteRuleCmd)
 	if err != nil {
