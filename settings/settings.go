@@ -93,6 +93,7 @@ const (
 	DefaultClusterName           = "hacluster"
 	RSA_PRIVATE_KEY              = "/usr/share/heartbeat-gui/ha-api/crypto_private.key"
 	RSA_PUBLIC_KEY               = "/usr/share/heartbeat-gui/ha-api/crypto_public.key"
+	StaticDir                    = "/usr/share/heartbeat-gui/ha-api/static/"
 )
 
 var CrmResourceBinary = filepath.Join(PacemakerBinaries, "crm_resource")
