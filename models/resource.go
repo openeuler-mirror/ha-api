@@ -685,7 +685,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				} else {
 					logs.Error("unparsed value: ", v)
 				}
-				cmd := fmt.Sprintf(utils.CmdResourceMetaAdd, rscId, k, value)
+				cmd := fmt.Sprintf(utils.CmdResourceMetaAdd, utils.ShellEscape(rscId), utils.ShellEscape(k), utils.ShellEscape(value))
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -711,7 +711,7 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 				} else {
 					logs.Error("unparsed value: ", v)
 				}
-				cmd := fmt.Sprintf(utils.CmdResourceUpdateMetaForce, rscId, k, value)
+				cmd := fmt.Sprintf(utils.CmdResourceUpdateMetaForce, utils.ShellEscape(rscId), utils.ShellEscape(k), utils.ShellEscape(value))
 				_, err := utils.RunCommand(cmd)
 				if err != nil {
 					return err
@@ -729,11 +729,11 @@ func UpdateResourceAttributes(rscId string, data map[string]interface{}) error {
 	if _, ok := data["instance_attributes"]; ok {
 		instAttri := data["instance_attributes"].(map[string]interface{})
 		for k, v := range instAttri {
-			instStr += fmt.Sprintf("%s=%s ", k, convertToString(v))
+			instStr += fmt.Sprintf("%s=%s ", utils.ShellEscape(k), utils.ShellEscape(convertToString(v)))
 		}
 
 		if instStr != "" {
-			_, err = utils.RunCommand(fmt.Sprintf(utils.CmdResourceUpdateForce, rscId, instStr))
+			_, err = utils.RunCommand(fmt.Sprintf(utils.CmdResourceUpdateForce, utils.ShellEscape(rscId), instStr))
 			if err != nil {
 				return err
 			}
