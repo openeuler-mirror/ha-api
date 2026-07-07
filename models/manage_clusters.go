@@ -602,32 +602,35 @@ func checkClusterStatus(clusterConf Cluster) bool {
 	clusterExist := true
 	connectNode := 0
 	for _, node := range nodeList {
-		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
-		resp, err := http.Get(url)
-		if err != nil {
-			continue
-		}
-		if resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
+		func() {
+			url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
+			resp, err := http.Get(url)
 			if err != nil {
-				logs.Info("Error reading response body: %v", err)
-				continue
+				return
 			}
-			var resInfo checkClusterExistRes
-			err = json.Unmarshal(body, &resInfo)
-			if err != nil {
-				logs.Info("Error Unmarshal response json: %v", err)
-				continue
-			}
-			connectNode = connectNode + 1
-			if resInfo.Action == true {
-				if resInfo.ClusterName != clusterName {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logs.Info("Error reading response body: %v", err)
+					return
+				}
+				var resInfo checkClusterExistRes
+				err = json.Unmarshal(body, &resInfo)
+				if err != nil {
+					logs.Info("Error Unmarshal response json: %v", err)
+					return
+				}
+				connectNode = connectNode + 1
+				if resInfo.Action == true {
+					if resInfo.ClusterName != clusterName {
+						clusterExist = false
+					}
+				} else {
 					clusterExist = false
 				}
-			} else {
-				clusterExist = false
 			}
-		}
+		}()
 	}
 	if connectNode == nodeSum && clusterExist == false {
 		return false
