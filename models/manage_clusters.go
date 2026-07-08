@@ -366,40 +366,49 @@ func oneClusterOverview(cluster Cluster, localconf *ClustersInfo, ips []IP, wg *
 	connectNode := 0
 	clusterConnect := false
 	for _, node := range nodeList {
-		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/local_cluster_overview"), node)
-		resp, err := http.Get(url)
-		if err != nil {
-			// 连接失败异常捕获部分
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
-			clusterConnect = true
-			connectNode = connectNode + 1
-			body, err := io.ReadAll(resp.Body)
+		earlyReturn := false
+		var earlyResult oneClusterOverviewRes
+		func() {
+			url := fmt.Sprintf(("https://%s/remote/api/v1/managec/local_cluster_overview"), node)
+			resp, err := http.Get(url)
 			if err != nil {
-				logs.Info("Error reading response body: %v", err)
-				continue
+				// 连接失败异常捕获部分
+				return
 			}
-			var resInfo localClusterOverviewRes
-			err = json.Unmarshal(body, &resInfo)
-			if err != nil {
-				logs.Info("Error Unmarshal response json: %v", err)
-				continue
-			}
-			if resInfo.Action {
-				if resInfo.ClusterStart {
-					var oneClusterOverviewRes oneClusterOverviewRes
-					oneClusterOverviewRes.ClusterName = resInfo.Data.ClusterName
-					oneClusterOverviewRes.NodeSum = resInfo.Data.NodeSum
-					oneClusterOverviewRes.ResourceList = resInfo.Data.ResourceList
-					oneClusterOverviewRes.ClusterOnline = resInfo.Data.ClusterOnline
-					oneClusterOverviewRes.Ip = ips
-					return oneClusterOverviewRes
-				} else {
-					connectNode = connectNode - 1
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				clusterConnect = true
+				connectNode = connectNode + 1
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logs.Info("Error reading response body: %v", err)
+					return
+				}
+				var resInfo localClusterOverviewRes
+				err = json.Unmarshal(body, &resInfo)
+				if err != nil {
+					logs.Info("Error Unmarshal response json: %v", err)
+					return
+				}
+				if resInfo.Action {
+					if resInfo.ClusterStart {
+						var result oneClusterOverviewRes
+						result.ClusterName = resInfo.Data.ClusterName
+						result.NodeSum = resInfo.Data.NodeSum
+						result.ResourceList = resInfo.Data.ResourceList
+						result.ClusterOnline = resInfo.Data.ClusterOnline
+						result.Ip = ips
+						earlyReturn = true
+						earlyResult = result
+						return
+					} else {
+						connectNode = connectNode - 1
+					}
 				}
 			}
+		}()
+		if earlyReturn {
+			return earlyResult
 		}
 	}
 	if connectNode == 0 {
@@ -764,10 +773,12 @@ func syncClusterConfFile(conf *ClustersInfo) {
 			return
 		}
 
-		_, err = http.Post(url, "application/json", bytes.NewBuffer(confJSON))
+		resp, err := http.Post(url, "application/json", bytes.NewBuffer(confJSON))
 		if err != nil {
 			fmt.Println("Error syncing config to node:", err)
+			continue
 		}
+		resp.Body.Close()
 	}
 
 	fmt.Println("Sync complete")
@@ -987,7 +998,10 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 		for _, node := range remoteNodeList {
 			url := fmt.Sprintf("http://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
 
-			httpResp, _ := utils.SendRequest(url, "POST", AddNodesinfo.Data)
+			httpResp, err := utils.SendRequest(url, "POST", AddNodesinfo.Data)
+			if err != nil || httpResp == nil {
+				continue
+			}
 			if httpResp.StatusCode == http.StatusOK {
 				httpRespData, _ := io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
@@ -995,7 +1009,10 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				json.Unmarshal(httpRespData, &httpRespMessage)
 
 				url = fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
-				httpResp, _ = utils.SendRequest(url, "GET", nil)
+				httpResp, err = utils.SendRequest(url, "GET", nil)
+				if err != nil || httpResp == nil {
+					continue
+				}
 				httpRespData, _ = io.ReadAll(httpResp.Body)
 				httpResp.Body.Close()
 				var remoteClusterInfo Cluster
