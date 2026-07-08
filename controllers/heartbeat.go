@@ -29,6 +29,7 @@ func (lhbc *LocalHeartBeatController) Delete() {
 		result.Error = gettext.Gettext("invalid input data")
 		lhbc.Data["json"] = &result
 		lhbc.ServeJSON()
+		return
 	}
 
 	result = models.DeleteHeartbeat(reqData)
