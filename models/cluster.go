@@ -399,7 +399,11 @@ func getResourceStickiness() int {
 	// resource-stickiness=100
 	outStr := strings.Split(string(out), "\n")[0]
 	valueStr := strings.Split(outStr, "=")[1]
-	value, _ := strconv.Atoi(valueStr)
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		logs.Error("parse resource-stickiness value failed: %v", err)
+		return 0
+	}
 
 	return value
 }
