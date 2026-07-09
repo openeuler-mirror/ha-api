@@ -6,37 +6,38 @@
  * Date: Fri Jul 04 15:54:28 2025 +0800
  */
 
- package models
+package models
 
- import (
-	 "encoding/json"
-	 "strconv"
-	 "strings"
- 
-	 "gitee.com/openeuler/ha-api/utils"
-	 "github.com/chai2010/gettext-go"
- )
+import (
+	"encoding/json"
+	"log/slog"
+	"strconv"
+	"strings"
 
- const ATTRD_UPDATER = "attrd_updater -n "
+	"gitee.com/openeuler/ha-api/utils"
+	"github.com/chai2010/gettext-go"
+)
 
- type HealthGetResponse struct {
-	 Action bool       `json:"action"`
-	 Data   HealthData `json:"data"`
- }
- 
- type HealthData struct {
-	 CpuFlag    bool                     `json:"cpu_flag"`
-	 CpuYellow  string                   `json:"cpu_yellow"`
-	 CpuRed     string                   `json:"cpu_red"`
-	 MemFlag    bool                     `json:"mem_flag"`
-	 MemYellow  string                   `json:"mem_yellow"`
-	 MemRed     string                   `json:"mem_red"`
-	 DiskFlag   bool                     `json:"disk_flag"`
-	 DiskYellow string                   `json:"disk_yellow"`
-	 DiskRed    string                   `json:"disk_red"`
-	 Disks      string                   `json:"disks"`
-	 DisksList  []map[string]interface{} `json:"diskslist"`
- }
+const ATTRD_UPDATER = "attrd_updater -n "
+
+type HealthGetResponse struct {
+	Action bool       `json:"action"`
+	Data   HealthData `json:"data"`
+}
+
+type HealthData struct {
+	CpuFlag    bool                     `json:"cpu_flag"`
+	CpuYellow  string                   `json:"cpu_yellow"`
+	CpuRed     string                   `json:"cpu_red"`
+	MemFlag    bool                     `json:"mem_flag"`
+	MemYellow  string                   `json:"mem_yellow"`
+	MemRed     string                   `json:"mem_red"`
+	DiskFlag   bool                     `json:"disk_flag"`
+	DiskYellow string                   `json:"disk_yellow"`
+	DiskRed    string                   `json:"disk_red"`
+	Disks      string                   `json:"disks"`
+	DisksList  []map[string]interface{} `json:"diskslist"`
+}
 
 // 获取属性值返给前端展示
 func HealthGet() HealthGetResponse {
@@ -54,8 +55,10 @@ func HealthGet() HealthGetResponse {
 	healthData.Disks = getIndexValue("sysinfo-clone", "disks")
 
 	cmdGetDisksList := "df --block-size=1GB --output=source,avail | awk -F \" \" '{print $1,$2}'|grep ^/dev"
-	disksListDataTemp, _ := utils.RunCommand(cmdGetDisksList)
-	if len(disksListDataTemp) != 0 {
+	disksListDataTemp, err := utils.RunCommand(cmdGetDisksList)
+	if err != nil {
+		slog.Error("get disk list failed", "cmd", cmdGetDisksList, "error", err)
+	} else if len(disksListDataTemp) != 0 {
 		disksListData = strings.Split(strings.TrimSuffix(string(disksListDataTemp), "\n"), "\n")
 	}
 	var diskname string
@@ -64,7 +67,10 @@ func HealthGet() HealthGetResponse {
 	for _, value := range disksListData {
 		disklist := make(map[string]interface{})
 		diskname = strings.Split(value, " ")[0]
-		diskcap, _ = strconv.Atoi(strings.Split(value, " ")[1])
+		diskcap, err = strconv.Atoi(strings.Split(value, " ")[1])
+		if err != nil {
+			slog.Warn("parse disk capacity failed", "value", value, "error", err)
+		}
 		disklist["key"] = diskname
 		disklist["value"] = diskcap
 		diskslist = append(diskslist, disklist)
@@ -93,7 +99,7 @@ func HealthGet() HealthGetResponse {
 	return healthDataResponse
 }
 
- // 获取cib文件中智能迁移资源对应的属性的值
+// 获取cib文件中智能迁移资源对应的属性的值
 func getIndexValue(resName, indexName string) string {
 	getIndex := "cibadmin --query --xpath " + "\"//clone[@id='" + resName + "']//primitive//instance_attributes//nvpair[@name='" + indexName + "']\""
 	_, err := utils.RunCommand(getIndex)
