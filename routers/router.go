@@ -77,6 +77,9 @@ func init() {
 
 		//智能迁移
 		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
+		
+		//系统分析
+                web.NSRouter("/:cluster_name/1/system_overview", &controllers.SystemInfoController{}),
 	)
 
 	nr := web.NewNamespace("/remote/api/v1",
