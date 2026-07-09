@@ -497,43 +497,45 @@ func checkOneClusterExist(localConf *ClustersInfo, cluster Cluster, wg *sync.Wai
 	realNodeNum := 0
 	var clusterConf Cluster
 	for _, node := range cluster.Nodes {
-		url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
-		resp, err := http.Get(url)
-		if err != nil {
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
+		func() {
+			url := fmt.Sprintf(("https://%s/remote/api/v1/managec/is_cluster_exist"), node)
+			resp, err := http.Get(url)
 			if err != nil {
-				logs.Info("Error reading response body: %v", err)
-				continue
+				return
 			}
-			var resInfo checkClusterExistRes
-			err = json.Unmarshal(body, &resInfo)
-			if err != nil {
-				logs.Info("Error Unmarshal response json: %v", err)
-				continue
-			}
-			if resInfo.Action {
-				if resInfo.ClusterName == cluster.ClusterName {
-					connectNode++
-					clusterConf = resInfo.ClusterConf
-					realNodeNum = len(clusterConf.Nodes)
-					logs.Info("Node %s information check passed.", node)
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					logs.Info("Error reading response body: %v", err)
+					return
+				}
+				var resInfo checkClusterExistRes
+				err = json.Unmarshal(body, &resInfo)
+				if err != nil {
+					logs.Info("Error Unmarshal response json: %v", err)
+					return
+				}
+				if resInfo.Action {
+					if resInfo.ClusterName == cluster.ClusterName {
+						connectNode++
+						clusterConf = resInfo.ClusterConf
+						realNodeNum = len(clusterConf.Nodes)
+						logs.Info("Node %s information check passed.", node)
+
+					} else {
+						confNodeSum--
+						logs.Info("Node %s information check failed: inconsistent cluster name.", node)
+					}
 
 				} else {
 					confNodeSum--
-					logs.Info("Node %s information check failed: inconsistent cluster name.", node)
+					logs.Info("Node %s information check failed: cluster not exist", node)
 				}
-
 			} else {
-				confNodeSum--
-				logs.Info("Node %s information check failed: cluster not exist", node)
+				logs.Info("Get %s failed: status is %d.", url, resp.StatusCode)
 			}
-		} else {
-			logs.Info("Get %s failed: status is %d.", url, resp.StatusCode)
-		}
+		}()
 	}
 	handleExistClusterConf(realNodeNum, confNodeSum, clusterConf, cluster, localConf, cluster.ClusterName)
 }
