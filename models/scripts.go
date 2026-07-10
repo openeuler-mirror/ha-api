@@ -280,31 +280,35 @@ func GenerateScript(data map[string]string) ScriptResponse {
 				result[nodeName] = gettext.Gettext("node connecting failed")
 				continue
 			}
-			if httpResp.StatusCode != http.StatusOK {
-				utils.LogTrace(errors.Errorf("url: %s, error: send request failed", remoteUrl))
-				result[nodeName] = gettext.Gettext("Generate script failed")
-				continue
-			}
-			defer httpResp.Body.Close() // 确保请求在函数结束时关闭
 
-			body, err = io.ReadAll(httpResp.Body)
-			if err != nil {
-				utils.LogTrace(errors.Wrapf(err, "url: %s, error: read response body failed", remoteUrl))
-				result[nodeName] = gettext.Gettext("Generate script failed")
-				continue
-			}
+			handleResp := func() {
+				defer httpResp.Body.Close()
+				if httpResp.StatusCode != http.StatusOK {
+					utils.LogTrace(errors.Errorf("url: %s, error: send request failed", remoteUrl))
+					result[nodeName] = gettext.Gettext("Generate script failed")
+					return
+				}
 
-			var retMap map[string]interface{}
-			if err = json.Unmarshal(body, &retMap); err != nil {
-				utils.LogTrace(errors.Wrapf(err, "url: %s, error: unmarshal response body failed", remoteUrl))
-				result[nodeName] = gettext.Gettext("Generate script failed")
-				continue
+				body, err = io.ReadAll(httpResp.Body)
+				if err != nil {
+					utils.LogTrace(errors.Wrapf(err, "url: %s, error: read response body failed", remoteUrl))
+					result[nodeName] = gettext.Gettext("Generate script failed")
+					return
+				}
+
+				var retMap map[string]interface{}
+				if err = json.Unmarshal(body, &retMap); err != nil {
+					utils.LogTrace(errors.Wrapf(err, "url: %s, error: unmarshal response body failed", remoteUrl))
+					result[nodeName] = gettext.Gettext("Generate script failed")
+					return
+				}
+				if retMap != nil {
+					result[nodeName] = gettext.Gettext("Generate script failed")
+				} else {
+					result[nodeName] = gettext.Gettext("Generate script success")
+				}
 			}
-			if retMap != nil {
-				result[nodeName] = gettext.Gettext("Generate script failed")
-			} else {
-				result[nodeName] = gettext.Gettext("Generate script success")
-			}
+			handleResp()
 		}
 	}
 	return ScriptResponse{
