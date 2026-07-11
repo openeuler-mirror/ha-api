@@ -1093,7 +1093,7 @@ func GetAllConstraints() map[string]interface{} {
 		}
 	}
 
-	// failureInfo := GetResourceFailedMessage()
+	failInfo := GetResourceFailedMessage()
 
 	constraintMaps := []map[string]interface{}{}
 	for rscId := range data {
@@ -1487,14 +1487,10 @@ func GetAllResourceStatus() map[string]map[string]interface{} {
 	return rscInfo
 }
 
-var failInfo map[string]map[string]string
-
-var clusterPro map[string]interface{}
-
 func GetResourceStatus(rscInfo *etree.Element) string {
-	// 在获取集群资源时为全局变量failInfo、clusterPro赋值，避免操作过程多次查询对响应时长造成影响
-	failInfo = GetResourceFailedMessage()
-	clusterPro = GetClusterPropertiesInfo()
+	// 在获取集群资源时为局部变量failInfo、clusterPro赋值，避免操作过程多次查询对响应时长造成影响
+	failInfo := GetResourceFailedMessage()
+	clusterPro := GetClusterPropertiesInfo()
 
 	rscId := rscInfo.SelectAttr("id").Value
 
@@ -1570,7 +1566,7 @@ type ResourceParams struct {
 }
 
 func getCloneSubrscPriStatus(rscInfo *etree.Element) string {
-	// failInfo := GetResourceFailedMessage()
+	failInfo := GetResourceFailedMessage()
 	params := ResourceParams{
 		ID:       rscInfo.SelectAttrValue("id", ""),
 		Managed:  rscInfo.SelectAttrValue("managed", ""),
@@ -1627,7 +1623,7 @@ func GetCloneSubrscStatusWithFailedInfo(rscInfo *etree.Element, rscId string, fa
 
 func GetSubResources(rscId string) map[string]interface{} {
 	rscStatus := GetAllResourceStatus()
-	// failInfo := GetResourceFailedMessage() // failure run information
+	failInfo := GetResourceFailedMessage() // failure run information
 	rscInfo := map[string]interface{}{}
 
 	out, err := utils.RunCommand(utils.CmdQueryResources)

@@ -8,6 +8,7 @@ require (
 	github.com/chai2010/gettext-go v1.0.2
 	github.com/msteinert/pam v0.0.0-20201130170657-e61372126161
 	github.com/pkg/errors v0.9.1
+	github.com/sagikazarmark/slog-shim v0.1.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -32,7 +33,6 @@ require (
 	github.com/prometheus/common v0.10.0 // indirect
 	github.com/prometheus/procfs v0.1.3 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
-	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
