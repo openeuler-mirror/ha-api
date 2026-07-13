@@ -10,13 +10,31 @@ package models
 
 import (
         "bufio"
+        "fmt"
+        "regexp"
         "strconv"
         "strings"
+        "sync"
 
         "gitee.com/openeuler/ha-api/utils"
 )
 
-func GetRunResult(cmd string) (string, error) {
+var allowedServiceNames = map[string]bool{
+        "corosync": true,
+        "pacemaker": true,
+        "pcsd":     true,
+        "ha-api":   true,
+}
+
+var (
+        activeRegex   = regexp.MustCompile(`Active:\s+(.*?)\s+since\s+(.*?);\s+(.*)`)
+        activeFallback = regexp.MustCompile(`Active:\s+(.*)`)
+        pidRegex      = regexp.MustCompile(`Main PID:\s+(\d+)`)
+        memoryRegex   = regexp.MustCompile(`Memory:\s+(.*)`)
+        logRegex      = regexp.MustCompile(`^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}`)
+)
+
+func getRunResult(cmd string) (string, error) {
         out, err := utils.RunCommand(cmd)
         if err != nil {
                 return "", err
@@ -184,7 +202,7 @@ func GetSystemInfo() map[string]interface{} {
 
         errors := make(map[string]string)
         for k, v := range constMap {
-                output, err := GetRunResult(v)
+                output, err := getRunResult(v)
                 if err != nil {
                         errors[k] = err.Error()
                         continue
@@ -206,3 +224,91 @@ func GetSystemInfo() map[string]interface{} {
         return result
 }
 
+type SystemdUnitStatus struct {
+        Name         string   `json:"name"`
+        Active       string   `json:"active"`       // 运行状态
+        RunningSince string   `json:"runningSince"` // 启动时间
+        ProcessID    string   `json:"processID"`    // 主进程PID
+        MemoryUsage  string   `json:"memoryUsage"`  // 内存占用
+        Logs         []string `json:"logs"`         // 最近日志
+}
+func ParseSystemctlStatus(serviceName string) (*SystemdUnitStatus, error) {
+        if !allowedServiceNames[serviceName] {
+                return nil, fmt.Errorf("service name not allowed: %s", serviceName)
+        }
+        out, err := utils.RunCommandWithArgs("systemctl", "status", serviceName, "--no-pager")
+        if err != nil {
+                return nil, fmt.Errorf("systemctl status %s: %w", serviceName, err)
+        }
+
+        return parseStatusOutput(serviceName, string(out))
+}
+func parseStatusOutput(name, output string) (*SystemdUnitStatus, error) {
+        status := &SystemdUnitStatus{Name: name}
+        lines := strings.Split(output, "\n")
+
+        var logs []string
+
+        for _, line := range lines {
+                line = strings.TrimSpace(line)
+                switch {
+                case strings.HasPrefix(line, "Active:"):
+                        matches := activeRegex.FindStringSubmatch(line)
+                        if len(matches) > 3 {
+                                status.Active = matches[1]
+                                status.RunningSince = matches[2]
+                        } else {
+                                matches = activeFallback.FindStringSubmatch(line)
+                                if len(matches) > 1 {
+                                        status.Active = matches[1]
+                                }
+                        }
+
+                case strings.HasPrefix(line, "Main PID:"):
+                        matches := pidRegex.FindStringSubmatch(line)
+                        if len(matches) > 1 {
+                                status.ProcessID = matches[1]
+                        }
+
+                case strings.HasPrefix(line, "Memory:"):
+                        matches := memoryRegex.FindStringSubmatch(line)
+                        if len(matches) > 1 {
+                                status.MemoryUsage = matches[1]
+                        }
+                case logRegex.MatchString(line):
+                        if strings.Contains(strings.ToLower(line), "error") || strings.Contains(strings.ToLower(line), "fail") {
+                                logs = append(logs, line)
+                        }
+                }
+        }
+
+        status.Logs = logs
+        if status.Active == "" {
+                return nil, fmt.Errorf("failed to parse systemctl status for %s: no Active field found", name)
+        }
+        return status, nil
+}
+func GetServiceStatus() map[string]interface{} {
+        result := make(map[string]interface{})
+        services := []string{"corosync", "pacemaker", "pcsd", "ha-api"}
+        data := make([]SystemdUnitStatus, len(services))
+
+        var wg sync.WaitGroup
+        for i, r := range services {
+                wg.Add(1)
+                go func(idx int, name string) {
+                        defer wg.Done()
+                        status, err := ParseSystemctlStatus(name)
+                        if err != nil {
+                                data[idx] = SystemdUnitStatus{Name: name, Active: "Unknown"}
+                        } else {
+                                data[idx] = *status
+                        }
+                }(i, r)
+        }
+        wg.Wait()
+
+        result["action"] = true
+        result["data"] = data
+        return result
+}
