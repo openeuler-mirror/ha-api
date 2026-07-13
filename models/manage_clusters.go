@@ -998,33 +998,43 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
 	if len(remoteNodeList) > 0 {
 		for _, node := range remoteNodeList {
-			url := fmt.Sprintf("http://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
+			var earlyResult interface{}
+			earlyReturn := false
+			func() {
+				url := fmt.Sprintf("http://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
 
-			httpResp, err := utils.SendRequest(url, "POST", AddNodesinfo.Data)
-			if err != nil || httpResp == nil {
-				continue
-			}
-			if httpResp.StatusCode == http.StatusOK {
-				httpRespData, _ := io.ReadAll(httpResp.Body)
-				httpResp.Body.Close()
-				var httpRespMessage map[string]interface{}
-				json.Unmarshal(httpRespData, &httpRespMessage)
-
-				url = fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
-				httpResp, err = utils.SendRequest(url, "GET", nil)
+				httpResp, err := utils.SendRequest(url, "POST", AddNodesinfo.Data)
 				if err != nil || httpResp == nil {
-					continue
+					return
 				}
-				httpRespData, _ = io.ReadAll(httpResp.Body)
-				httpResp.Body.Close()
-				var remoteClusterInfo Cluster
-				json.Unmarshal(httpRespData, &remoteClusterInfo)
+				defer httpResp.Body.Close()
 
-				localConf.UpdateCluster(remoteClusterInfo.ClusterName, remoteClusterInfo)
-				localConf.Save()
-				syncClusterConfFile(localConf)
+				if httpResp.StatusCode == http.StatusOK {
+					httpRespData, _ := io.ReadAll(httpResp.Body)
+					var httpRespMessage map[string]interface{}
+					json.Unmarshal(httpRespData, &httpRespMessage)
 
-				return httpRespMessage
+					url = fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
+					httpResp2, err := utils.SendRequest(url, "GET", nil)
+					if err != nil || httpResp2 == nil {
+						return
+					}
+					defer httpResp2.Body.Close()
+
+					httpRespData, _ = io.ReadAll(httpResp2.Body)
+					var remoteClusterInfo Cluster
+					json.Unmarshal(httpRespData, &remoteClusterInfo)
+
+					localConf.UpdateCluster(remoteClusterInfo.ClusterName, remoteClusterInfo)
+					localConf.Save()
+					syncClusterConfFile(localConf)
+
+					earlyReturn = true
+					earlyResult = httpRespMessage
+				}
+			}()
+			if earlyReturn {
+				return earlyResult
 			}
 		}
 	}
@@ -1056,25 +1066,24 @@ func ClusterDestroy(clustersJSON map[string]interface{}) map[string]interface{} 
 			url := fmt.Sprintf("http://%s:%s/remote/api/v1/destroy_cluster", node, port)
 			success := false
 			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						fmt.Println(r) // 处理异常
-					}
-				}()
 				response, err := http.Get(url)
 				if err != nil {
-					panic(err) // 触发异常
+					return
 				}
 				defer response.Body.Close()
 				var requestMessage map[string]interface{}
 				err = json.NewDecoder(response.Body).Decode(&requestMessage)
 				if err != nil {
-					panic(err) // 触发异常
+					return
 				}
-				if requestMessage["action"].(bool) {
+				action, ok := requestMessage["action"].(bool)
+				if !ok {
+					return
+				}
+				if action {
 					success = true
-				} else {
-					detailInfo = requestMessage["detailInfo"].(string)
+				} else if d, ok := requestMessage["detailInfo"].(string); ok {
+					detailInfo = d
 				}
 			}()
 			if success {
