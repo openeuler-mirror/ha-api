@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: liqiuyu <liqiuyu@kylinos.cn>
  * Date: Tue Jan 12 09:51:22 2021 +0800
@@ -9,7 +9,6 @@ package controllers
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,7 +20,6 @@ import (
 
 	"gitee.com/openeuler/ha-api/models"
 	"gitee.com/openeuler/ha-api/settings"
-	"gitee.com/openeuler/ha-api/utils"
 )
 
 type LogController struct {
@@ -30,7 +28,7 @@ type LogController struct {
 
 func (lc *LogController) Get() {
 	slog.Debug("handle resource GET request")
-        // todo: multi clusters 
+	// todo: multi clusters
 	result, geterr := models.GenerateLog()
 
 	if geterr != nil {

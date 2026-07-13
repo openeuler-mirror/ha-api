@@ -1973,41 +1973,46 @@ func ResourceAction(rscID, action string, data []byte) error {
 			return err
 		}
 		for _, item := range d.SameNode {
-			cmd := fmt.Sprintf(utils.CmdColationAdd, rscID, item)
+			cmd := fmt.Sprintf(utils.CmdColationAddIN, rscID, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
 		}
 		for _, item := range d.DiffNode {
-			cmd := fmt.Sprintf(utils.CmdColationAdd, rscID, item)
+			cmd := fmt.Sprintf(utils.CmdColationAddNEIN, rscID, item)
 			if _, err := utils.RunCommand(cmd); err != nil {
 				return err
 			}
 		}
 	case "order":
-		if findOrder(rscID) {
+		// 删除旧的顺序约束
+		if hasOrder := findOrder(rscID); hasOrder {
 			cmd := fmt.Sprintf(utils.CmdOrderDelete, rscID)
 			if _, err := utils.RunCommand(cmd); err != nil {
-				return err
+				return fmt.Errorf("failed to delete old order constraints: %v", err)
 			}
 		}
-		d := struct {
-			BeforeRscs []string `json:"before_rscs"`
-			AfterRscs  []string `json:"after_rscs"`
-		}{}
-		if err := json.Unmarshal(data, &d); err != nil {
+
+		//添加新约束
+		var jsonData []interface{}
+		if err := json.Unmarshal(data, &jsonData); err != nil {
 			return err
 		}
-		for _, item := range d.BeforeRscs {
-			cmd := fmt.Sprintf(utils.CmdOrderAdd, item, rscID)
-			if _, err := utils.RunCommand(cmd); err != nil {
-				return err
-			}
-		}
-		for _, item := range d.AfterRscs {
-			cmd := fmt.Sprintf(utils.CmdOrderAdd, rscID, item)
-			if _, err := utils.RunCommand(cmd); err != nil {
-				return err
+
+		if len(jsonData) > 0 {
+			for _, d := range jsonData {
+				var cmd string
+				if m, ok := d.(map[string]interface{}); ok {
+					if m["location"] == "before" {
+						cmd = fmt.Sprintf(utils.CmdOrderAdd, m["before_action"], m["rsc_name"], m["after_action"], rscID)
+					} else if m["location"] == "after" {
+						cmd = fmt.Sprintf(utils.CmdOrderAdd, m["before_action"], rscID, m["after_action"], m["rsc_name"])
+					}
+					if _, err := utils.RunCommand(cmd); err != nil {
+						return err
+					}
+				}
+
 			}
 		}
 	}

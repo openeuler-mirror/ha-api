@@ -124,7 +124,7 @@ func isDataEmpty(data AlarmData) bool {
 func AlarmsSet(data AlarmData) map[string]interface{} {
 	result := make(map[string]interface{})
 
-	utils.RunCommand(utils.CmdDeleteAlert)
+	utils.RunCommand(utils.CmdDeleteMailAlert)
 	switCh := ""
 
 	if data.Flag != true {
@@ -136,7 +136,7 @@ func AlarmsSet(data AlarmData) map[string]interface{} {
 	fmt.Println("get receiver: ", data.Receiver)
 	port := strconv.Itoa(int(data.Port))
 	opsStr := " options email_sender=" + utils.ShellEscape(data.Sender) + " email_server=" + utils.ShellEscape(data.Smtp) + " password=" + utils.ShellEscape(data.Password) + " port=" + utils.ShellEscape(port) + " switCh=" + utils.ShellEscape(switCh)
-	cmdStr := utils.CmdCreateAlert + opsStr
+	cmdStr := utils.CmdCreateMailAlert + opsStr
 	fmt.Println(cmdStr)
 	_, err := utils.RunCommand(cmdStr)
 	if err != nil {
