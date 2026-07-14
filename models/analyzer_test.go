@@ -11,8 +11,19 @@ package models
 import (
 	"testing"
 
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/stretchr/testify/assert"
 )
+
+var analyzerOrigRunCommand = utils.RunCommand
+
+func analyzerMockRunCommand(mock func(string) ([]byte, error)) {
+	utils.RunCommand = mock
+}
+
+func analyzerRestoreRunCommand() {
+	utils.RunCommand = analyzerOrigRunCommand
+}
 
 // ==================== ParseVmstat ====================
 
@@ -231,3 +242,82 @@ func TestParseStatusOutput_EmptyOutput(t *testing.T) {
 	assert.Contains(t, err.Error(), "no Active field found")
 }
 
+// ==================== ParseSystemctlStatus ====================
+
+func TestParseSystemctlStatus_DisallowedServiceName(t *testing.T) {
+	status, err := ParseSystemctlStatus("sshd")
+	assert.Nil(t, status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "service name not allowed")
+}
+
+func TestAllowedServiceNames_AllPresent(t *testing.T) {
+	for _, name := range []string{"corosync", "pacemaker", "pcsd", "ha-api"} {
+		assert.True(t, allowedServiceNames[name], "%s should be allowed", name)
+	}
+}
+
+func TestAllowedServiceNames_Rejected(t *testing.T) {
+	disallowed := []string{"nginx", "mysql", "sshd", "docker", ""}
+	for _, name := range disallowed {
+		assert.False(t, allowedServiceNames[name], "%q should not be allowed", name)
+	}
+}
+
+// ==================== allowedServiceNames ====================
+
+func TestAllowedServiceNames_ExactMatch(t *testing.T) {
+	expected := map[string]bool{
+		"corosync":  true,
+		"pacemaker": true,
+		"pcsd":      true,
+		"ha-api":    true,
+	}
+	assert.Equal(t, expected, allowedServiceNames)
+}
+
+// ==================== getRunResult ====================
+
+func TestGetRunResult_ValidCommand(t *testing.T) {
+	defer analyzerRestoreRunCommand()
+	analyzerMockRunCommand(func(cmd string) ([]byte, error) {
+		return []byte("  Linux 5.10.0-60 \n"), nil
+	})
+
+	result, err := getRunResult("uname -r")
+	assert.NoError(t, err)
+	assert.Equal(t, "Linux 5.10.0-60", result)
+}
+
+func TestGetRunResult_CommandError(t *testing.T) {
+	defer analyzerRestoreRunCommand()
+	analyzerMockRunCommand(func(cmd string) ([]byte, error) {
+		return nil, assert.AnError
+	})
+
+	result, err := getRunResult("nonexistent_command")
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+func TestGetRunResult_SingleLineOutput(t *testing.T) {
+	defer analyzerRestoreRunCommand()
+	analyzerMockRunCommand(func(cmd string) ([]byte, error) {
+		return []byte("single line output"), nil
+	})
+
+	result, err := getRunResult("some_command")
+	assert.NoError(t, err)
+	assert.Equal(t, "single line output", result)
+}
+
+func TestGetRunResult_MultiLineOutput_TakesFirstLine(t *testing.T) {
+	defer analyzerRestoreRunCommand()
+	analyzerMockRunCommand(func(cmd string) ([]byte, error) {
+		return []byte("first line\nsecond line\nthird line"), nil
+	})
+
+	result, err := getRunResult("some_command")
+	assert.NoError(t, err)
+	assert.Equal(t, "first line", result)
+}
