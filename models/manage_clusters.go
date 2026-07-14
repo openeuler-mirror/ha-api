@@ -33,6 +33,7 @@ var port, _ = utils.ReadPortFromConfig()
 
 // ClustersInfo is a structure representing information about clusters.
 type ClustersInfo struct {
+	mu       sync.Mutex
 	Text     map[string]interface{}
 	Version  int
 	Clusters []Cluster
@@ -149,6 +150,8 @@ func MapToCluster(m map[string]interface{}) (Cluster, error) {
 
 // Save updates the version, performs a backup, and saves the ClustersInfo to a file in JSON format.
 func (ci *ClustersInfo) Save() error {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	ci.Version++
 	ci.Backup()
 	saveConf := ci.UpdateText()
@@ -189,6 +192,7 @@ func BackCount(ci *ClustersInfo) (int, error) {
 }
 
 // UpdateText updates the version and clusters in the Text field and returns it.
+// Caller must hold ci.mu.
 func (ci *ClustersInfo) UpdateText() map[string]interface{} {
 	ci.Text["version"] = ci.Version
 	ci.Text["clusters"] = ci.Clusters
@@ -197,11 +201,15 @@ func (ci *ClustersInfo) UpdateText() map[string]interface{} {
 
 // AddCluster adds cluster information to the Clusters field.
 func (ci *ClustersInfo) AddCluster(clusterInfo Cluster) {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	ci.Clusters = append(ci.Clusters, clusterInfo)
 }
 
 // IsClusterNameInUse checks if a cluster name is already in use.
 func (ci *ClustersInfo) IsClusterNameInUse(clusterName string) bool {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	for _, c := range ci.Clusters {
 		if c.ClusterName == clusterName {
 			return true
@@ -212,11 +220,15 @@ func (ci *ClustersInfo) IsClusterNameInUse(clusterName string) bool {
 
 // SetVersion sets the version of the ClustersInfo.
 func (ci *ClustersInfo) SetVersion(version int) {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	ci.Version = version
 }
 
 // DeleteCluster deletes the Cluster from ClustersInfo.
 func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	for i, c := range ci.Clusters {
 		if c.ClusterName == clusterNameJson {
 			ci.Clusters = append(ci.Clusters[:i], ci.Clusters[i+1:]...)
@@ -227,6 +239,8 @@ func (ci *ClustersInfo) DeleteCluster(clusterNameJson string) bool {
 }
 
 func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo Cluster) {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	for i, c := range ci.Clusters {
 		if c.ClusterName == clusterNameJson {
 			ci.Clusters[i].Nodes = clusterInfo.Nodes
@@ -240,6 +254,8 @@ func (ci *ClustersInfo) UpdateCluster(clusterNameJson string, clusterInfo Cluste
 
 // GetNodes  gets nodes information
 func (ci *ClustersInfo) GetNodes(clusterNameJson string) []string {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	for _, c := range ci.Clusters {
 		if c.ClusterName == clusterNameJson {
 			return c.Nodes
@@ -249,6 +265,8 @@ func (ci *ClustersInfo) GetNodes(clusterNameJson string) []string {
 }
 
 func (ci *ClustersInfo) GetClusterNameOfNode(nodeName string) string {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
 	for _, cluster := range ci.Clusters {
 		nodes := cluster.Nodes
 		for _, node := range nodes {
@@ -766,14 +784,17 @@ func syncClusterConfFile(conf *ClustersInfo) {
 
 	// Sync config file with all nodes in the cluster
 	nodeList := clusterInfo.Nodes
+	conf.mu.Lock()
+	confJSON, err := json.Marshal(conf.Text)
+	conf.mu.Unlock()
+	if err != nil {
+		fmt.Println("Error marshaling config to JSON:", err)
+		return
+	}
+
 	for _, node := range nodeList {
 		// Node-to-node config file sync operation
 		url := fmt.Sprintf("http://%s:%s/remote/api/v1/sync_config", node, port)
-		confJSON, err := json.Marshal(conf.Text)
-		if err != nil {
-			fmt.Println("Error marshaling config to JSON:", err)
-			return
-		}
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(confJSON))
 		if err != nil {
