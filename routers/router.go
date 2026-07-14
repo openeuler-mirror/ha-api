@@ -80,6 +80,7 @@ func init() {
 		
 		//系统分析
                 web.NSRouter("/:cluster_name/1/system_overview", &controllers.SystemInfoController{}),
+		web.NSRouter("/:cluster_name/1/service_status", &controllers.ServiceStatusController{}),
 	)
 
 	nr := web.NewNamespace("/remote/api/v1",

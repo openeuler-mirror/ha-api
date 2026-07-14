@@ -22,3 +22,12 @@ func (c *SystemInfoController) Get() {
         c.ServeJSON()
 }
 
+type ServiceStatusController struct {
+        web.Controller
+}
+
+func (sst *ServiceStatusController) Get() {
+        serviceStatus := models.GetServiceStatus()
+        sst.Data["json"] = serviceStatus
+        sst.ServeJSON()
+}

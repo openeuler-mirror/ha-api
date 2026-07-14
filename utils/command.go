@@ -183,3 +183,21 @@ var RunCommand = func(c string) ([]byte, error) {
 	}
 	return out, nil
 }
+
+// RunCommandWithArgs executes a command without shell interpretation.
+// The binary and each argument are passed directly to exec.Command,
+// completely eliminating shell injection risk.
+// Use this instead of RunCommand when no shell features (pipes, redirects) are needed.
+func RunCommandWithArgs(binary string, args ...string) ([]byte, error) {
+        slog.Debug("Running command with args", "binary", binary, "args", args)
+
+        command := exec.Command(binary, args...)
+        command.Env = append(command.Environ(), "LANG=C")
+        out, err := command.CombinedOutput()
+        if err != nil {
+                slog.Error("Run command failed!", "binary", binary, "args", args, "out", string(out))
+                return out, errors.Wrapf(err, "Run command failed!, binary: %s args: %v out: %s", binary, args, string(out))
+        }
+        return out, nil
+}
+
