@@ -120,3 +120,114 @@ func TestParseVmstat_FloatCPUFields(t *testing.T) {
 	assert.InDelta(t, 6.3, stat.CPU.Sy, 0.01)
 	assert.InDelta(t, 80.1, stat.CPU.Id, 0.01)
 	assert.InDelta(t, 1.1, stat.CPU.Wa, 0.01)
+}
+
+// ==================== parseStatusOutput ====================
+
+func TestParseStatusOutput_FullStatus(t *testing.T) {
+	output := `● corosync.service - Corosync Cluster Engine
+   Loaded: loaded (/usr/lib/systemd/system/corosync.service; enabled; vendor preset: disabled)
+   Active: active (running) since Mon 2026-07-07 10:30:00 CST; 2 days ago
+ Main PID: 12345 (corosync)
+   Memory: 25.6M
+   CGroup: /system.slice/corosync.service
+
+Jul 07 10:30:00 node1 corosync[12345]: Starting corosync
+Jul 07 10:30:01 node1 corosync[12345]: error: failed to connect to cluster
+Jul 08 09:15:00 node1 corosync[12345]: Cluster is operational`
+
+	status, err := parseStatusOutput("corosync", output)
+	assert.NoError(t, err)
+	assert.Equal(t, "corosync", status.Name)
+	assert.Equal(t, "active (running)", status.Active)
+	assert.Equal(t, "Mon 2026-07-07 10:30:00 CST", status.RunningSince)
+	assert.Equal(t, "12345", status.ProcessID)
+	assert.Equal(t, "25.6M", status.MemoryUsage)
+	assert.Len(t, status.Logs, 1)
+	assert.Contains(t, status.Logs[0], "error: failed to connect to cluster")
+}
+
+func TestParseStatusOutput_ActiveFallback(t *testing.T) {
+	output := `● pacemaker.service - Pacemaker High Availability Cluster Manager
+   Loaded: loaded (/usr/lib/systemd/system/pacemaker.service; enabled)
+   Active: inactive (dead)`
+
+	status, err := parseStatusOutput("pacemaker", output)
+	assert.NoError(t, err)
+	assert.Equal(t, "pacemaker", status.Name)
+	assert.Equal(t, "inactive (dead)", status.Active)
+	assert.Empty(t, status.RunningSince)
+}
+
+func TestParseStatusOutput_NoActiveField(t *testing.T) {
+	output := `● corosync.service - Corosync Cluster Engine
+   Loaded: loaded (/usr/lib/systemd/system/corosync.service; enabled)
+ Main PID: 9999 (corosync)
+   Memory: 10.0M`
+
+	status, err := parseStatusOutput("corosync", output)
+	assert.Nil(t, status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no Active field found")
+}
+
+func TestParseStatusOutput_NoMainPID(t *testing.T) {
+	output := `● pcsd.service - PCS GUI and REST interface
+   Loaded: loaded (/usr/lib/systemd/system/pcsd.service; disabled)
+   Active: active (running) since Tue 2026-07-08 08:00:00 CST; 1 day ago`
+
+	status, err := parseStatusOutput("pcsd", output)
+	assert.NoError(t, err)
+	assert.Equal(t, "active (running)", status.Active)
+	assert.Empty(t, status.ProcessID)
+}
+
+func TestParseStatusOutput_NoMemory(t *testing.T) {
+	output := `● ha-api.service - HA REST API
+   Loaded: loaded (/usr/lib/systemd/system/ha-api.service; enabled)
+   Active: active (running) since Wed 2026-07-09 12:00:00 CST; 5h ago
+ Main PID: 54321 (ha-api)`
+
+	status, err := parseStatusOutput("ha-api", output)
+	assert.NoError(t, err)
+	assert.Equal(t, "active (running)", status.Active)
+	assert.Equal(t, "54321", status.ProcessID)
+	assert.Empty(t, status.MemoryUsage)
+}
+
+func TestParseStatusOutput_LogsWithFail(t *testing.T) {
+	output := `● corosync.service - Corosync Cluster Engine
+   Active: active (running) since Mon 2026-07-07 10:30:00 CST; 2 days ago
+
+Jul 07 10:30:00 node1 corosync[100]: INFO: cluster started
+Jul 07 10:31:00 node1 corosync[100]: Failed to join the cluster
+Jul 07 10:32:00 node1 corosync[100]: WARNING: timeout occurred
+Jul 07 10:33:00 node1 corosync[100]: ERROR: quorum lost`
+
+	status, err := parseStatusOutput("corosync", output)
+	assert.NoError(t, err)
+	// "Failed" 和 "ERROR" 会被捕获，"WARNING" 不会
+	assert.Len(t, status.Logs, 2)
+	assert.Contains(t, status.Logs[0], "Failed to join the cluster")
+	assert.Contains(t, status.Logs[1], "ERROR: quorum lost")
+}
+
+func TestParseStatusOutput_EmptyLogs(t *testing.T) {
+	output := `● pacemaker.service - Pacemaker
+   Active: active (running) since Mon 2026-07-07 10:30:00 CST; 2 days ago
+
+Jul 07 10:30:00 node1 pacemaker[200]: INFO: all good
+Jul 07 10:31:00 node1 pacemaker[200]: INFO: resources started`
+
+	status, err := parseStatusOutput("pacemaker", output)
+	assert.NoError(t, err)
+	assert.Empty(t, status.Logs)
+}
+
+func TestParseStatusOutput_EmptyOutput(t *testing.T) {
+	status, err := parseStatusOutput("corosync", "")
+	assert.Nil(t, status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no Active field found")
+}
+
