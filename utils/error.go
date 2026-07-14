@@ -1,15 +1,17 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: bizhiyuan <bizhiyuan@kylinos.cn>
- * Date: Wed Mar 13 11:02:27 2024 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
 
 package utils
 
 import (
-	"github.com/beego/beego/v2/core/logs"
+	"fmt"
+	"log/slog"
+
 	"github.com/pkg/errors"
 )
 
@@ -42,11 +44,11 @@ func HandleJsonError(errMsg string, action bool) ErrorInfo {
 }
 
 func LogTraceWithMsg(err error, msg string) {
-	logs.Error(msg)
+	slog.Error(msg)
 	LogTrace(err)
 }
 
 func LogTrace(err error) {
-	logs.Error("original error: %T %v", errors.Cause(err), errors.Cause(err))
-	logs.Error("stack trace: %+v", err)
+	slog.Error(fmt.Sprintf("original error: %T %v", errors.Cause(err), errors.Cause(err)))
+	slog.Error(fmt.Sprintf("stack trace: %+v", err))
 }
