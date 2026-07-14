@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -52,11 +53,12 @@ func RemoveDupl(strs []string) []string {
 	}
 	return strsDupl
 }
-func isDevEnvironment() bool {
-	env := os.Getenv("HA_API")
-	return env != "production"
-}
 
+func isDevEnvironment() bool { 
+	env := os.Getenv("HA_API") 
+	return env != "production" 
+} 
+ 
 // GetNumAndUnitFromStr gets the first number and the unit after this number
 // like "20.5min" ==> ["20.5", "min"]
 func GetNumAndUnitFromStr(s string) (string, string) {
@@ -68,18 +70,18 @@ func GetNumAndUnitFromStr(s string) (string, string) {
 	return s[:index[1]], s[index[1]:]
 }
 
-var globalHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: isDevEnvironment(),
-		},
-		// 连接池优化配置
-		MaxIdleConns:        100,              // 最大空闲连接数
-		MaxIdleConnsPerHost: 100,              // 对每个目标host的最大空闲连接数
-		IdleConnTimeout:     90 * time.Second, // 空闲连接超时关闭时间
-	},
-	// 可以设置全局请求超时
-	Timeout: 90 * time.Second,
+var globalHTTPClient = &http.Client{	 
+	Transport: &http.Transport{	 
+		TLSClientConfig: &tls.Config{	 
+			InsecureSkipVerify: isDevEnvironment(),	 
+		},	 
+		// 连接池优化配置	 
+		MaxIdleConns:        100,              // 最大空闲连接数	 
+		MaxIdleConnsPerHost: 100,              // 对每个目标host的最大空闲连接数	 
+		IdleConnTimeout:     90 * time.Second, // 空闲连接超时关闭时间	 
+	},	 
+	// 可以设置全局请求超时	 
+	Timeout: 90 * time.Second,	 
 }
 
 var SendRequest = func(url string, method string, data interface{}) (resp *http.Response, err error) {
@@ -269,6 +271,93 @@ func HostExists(hostName string) bool {
 	return err == nil
 }
 
+func GrepHostsFile(host string) (int, string, error) {
+	cmd := fmt.Sprintf(CmdHostSearch, host)
+	out, err := RunCommand(cmd)
+	if err != nil {
+		return 0, "", err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	count := len(lines)
+	if lines[0] == "" { // 处理空输出情况
+		count = 0
+	}
+
+	return count, string(out), nil
+}
+
+func HasSpace(s string) bool {
+	matched, _ := regexp.MatchString(`\s`, s)
+	return matched
+}
+
+/*
+ *检查集群pcsd offfline的节点
+ */
+func CheckPcsdOfflineNodes() ([]string, error) {
+	out, err := RunCommand(CmdPcsdStatus)
+	if err != nil {
+		return nil, err
+	}
+	var offlineNodes []string
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasSuffix(line, "Offline") {
+			parts := strings.Split(line, ":")
+			if len(parts) > 1 {
+				node := strings.TrimSpace(parts[0])
+				offlineNodes = append(offlineNodes, node)
+			}
+		}
+	}
+	return offlineNodes, nil
+}
+
+func IsClusterStarted() bool {
+	_, err := RunCommand(CmdClusterStatus)
+	return err == nil
+}
+
+func FindWithStart(s, substr string, start int) int {
+	if start < 0 || start > len(s) {
+		return -1 // 无效的起始位置
+	}
+
+	// 从 start 位置开始截取字符串
+	slice := s[start:]
+	index := strings.Index(slice, substr)
+
+	if index == -1 {
+		return -1 // 未找到
+	}
+
+	// 返回全局索引（start + 子串在切片中的位置）
+	return start + index
+}
+
+func FindSubstring(s string, substr string, start int, end int) int {
+	// 检查 start 和 end 是否有效
+	if start < 0 || end > len(s) || start > end {
+		return -1
+	}
+
+	// 切片字符串，从 start 到 end
+	slice := s[start:end]
+
+	// 在切片中查找子字符串
+	index := strings.Index(slice, substr)
+
+	// 如果找到子字符串，返回全局索引
+	if index != -1 {
+		return start + index
+	}
+
+	// 未找到，返回 -1
+	return -1
+}
+
 func GenerateRemoteRequestURL(node string, uri string) string {
 	if strings.HasPrefix(uri, "/remote") {
 		return "https://" + node + ":" + port + uri
@@ -277,6 +366,25 @@ func GenerateRemoteRequestURL(node string, uri string) string {
 }
 
 func CopyFile(src string, dest string) error {
-	cmd := exec.Command("/usr/bin/cp", src, dest)
+	cmd := exec.Command("cp", src, dest)
 	return cmd.Run()
+}
+
+func CopyKeyFiles(privateKeySrc, publicKeySrc, destDir string) error {
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %v", destDir, err)
+	}
+
+	privateKeyDest := filepath.Join(destDir, filepath.Base(settings.RSA_PRIVATE_KEY))
+	if err := CopyFile(privateKeySrc, privateKeyDest); err != nil {
+		return fmt.Errorf("failed to copy private key: %v", err)
+	}
+
+	publicKeyDest := filepath.Join(destDir, filepath.Base(settings.RSA_PUBLIC_KEY))
+	if err := CopyFile(publicKeySrc, publicKeyDest); err != nil {
+		return fmt.Errorf("failed to copy public key: %v", err)
+	}
+
+	return nil
 }
