@@ -272,7 +272,7 @@ func HostExists(hostName string) bool {
 }
 
 func GrepHostsFile(host string) (int, string, error) {
-	cmd := fmt.Sprintf(CmdHostSearch, host)
+	cmd := fmt.Sprintf(CmdHostSearch, ShellEscape(host))
 	out, err := RunCommand(cmd)
 	if err != nil {
 		return 0, "", err
@@ -366,7 +366,7 @@ func GenerateRemoteRequestURL(node string, uri string) string {
 }
 
 func CopyFile(src string, dest string) error {
-	cmd := exec.Command("cp", src, dest)
+	cmd := exec.Command("/usr/bin/cp", src, dest)
 	return cmd.Run()
 }
 
