@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: bizhiyuan <bizhiyuan@kylinos.cn>
  * Date: Wed Mar 13 15:34:21 2024 +0800
@@ -38,6 +38,7 @@ func (sc *ScriptsController) Post() {
 		logs.Error("RequestBody Json parsing failed")
 		sc.Data["json"] = &result
 		sc.ServeJSON()
+		return
 	}
 
 	result := models.GenerateScript(data)
@@ -53,6 +54,7 @@ func (sc *ScriptsRemoteController) Post() {
 		logs.Error("RequestBody Json parsing failed")
 		sc.Data["json"] = &result
 		sc.ServeJSON()
+		return
 	}
 	sc.Data["json"] = models.GenerateLocalScript(data)
 	sc.ServeJSON()
