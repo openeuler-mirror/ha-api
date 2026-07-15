@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: bizhiyuan <bizhiyuan@kylinos.cn>
  * Date: Tue Mar 12 10:13:58 2024 +0800
@@ -9,10 +9,10 @@ package models
 
 import (
 	"fmt"
+	"log/slog"
 
 	"gitee.com/openeuler/ha-api/utils"
 	"gitee.com/openeuler/ha-api/validations"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
 )
@@ -45,23 +45,25 @@ func RulesGet(rscName string) RuleGetResponse {
 
 	doc = etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		logs.Error("RulesGet: Read xml  : %v", err)
+		slog.Error("RulesGet: Read xml failed", "error", err)
 		goto ret
 	}
 
-	rules = doc.FindElements("//rsc_location")
+	rules = doc.FindElements("/constraints/rsc_location")
 	for _, ruleElem := range rules {
 		if rsc := ruleElem.SelectAttrValue("rsc", ""); rsc == rscName {
 			rule := ruleElem.SelectElement("rule")
 			if rule != nil {
-				// 降级返回
+				expr := rule.SelectElement("expression")
 				r := Rule{
-					Rsc:       rsc,
-					RuleId:    rule.SelectAttrValue("id", ""),
-					Score:     rule.SelectAttrValue("score", ""),
-					Attribute: rule.SelectElement("expression").SelectAttrValue("attribute", ""),
-					Operation: rule.SelectElement("expression").SelectAttrValue("operation", ""),
-					Value:     rule.SelectElement("expression").SelectAttrValue("value", ""),
+					Rsc:    rsc,
+					RuleId: rule.SelectAttrValue("id", ""),
+					Score:  rule.SelectAttrValue("score", ""),
+				}
+				if expr != nil {
+					r.Attribute = expr.SelectAttrValue("attribute", "")
+					r.Operation = expr.SelectAttrValue("operation", "")
+					r.Value = expr.SelectAttrValue("value", "")
 				}
 				rulelist = append(rulelist, r)
 			}
@@ -94,6 +96,7 @@ type RuleDeleteResponse struct {
 // Todo:return list ?
 func RulesDelete(ruleids *validations.DeleteRuleS) RuleDeleteResponse {
 	ruleIdList := ruleids.RuleIDs
+	slog.Debug("RulesDelete", "ids", ruleIdList)
 	var res []map[string]interface{}
 
 	for _, id := range ruleIdList {
@@ -120,6 +123,10 @@ func RulesDelete(ruleids *validations.DeleteRuleS) RuleDeleteResponse {
 }
 
 func RuleAdd(data *validations.RuleS) utils.GeneralResponse {
+	slog.Debug("RuleAdd",
+		"id", data.RuleID,
+		"value", data.Value,
+	)
 	var cmdAddRule string
 	if data.RuleID != "" {
 		cmdAddRule = fmt.Sprintf(utils.CmdRuleAddWithId, utils.ShellEscape(data.Rsc), utils.ShellEscape(data.Score), utils.ShellEscape(data.RuleID))
@@ -136,7 +143,7 @@ func RuleAdd(data *validations.RuleS) utils.GeneralResponse {
 	if err != nil {
 		return utils.HandleCmdError(gettext.Gettext("Add rule failed, duplicate constraint already exists"), false)
 	}
-
+	slog.Info("Add rule success", "id", data.RuleID)
 	return utils.GeneralResponse{
 		Action: true,
 		Info:   gettext.Gettext("Add rule success"),
@@ -157,18 +164,18 @@ func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 	rules := doc.FindElements("//rsc_location/rule")
 	for _, ruleElem := range rules {
 		ruleId := ruleElem.SelectAttrValue("id", "")
-		fmt.Println("ruleId: ", ruleId)
 		if ruleId == data.RuleID {
 			oldRule.RuleID = ruleElem.SelectAttrValue("id", "")
 			oldRule.Score = ruleElem.SelectAttrValue("score", "")
-			oldRule.Attribute = ruleElem.SelectElement("expression").SelectAttrValue("attribute", "")
-			oldRule.Operation = ruleElem.SelectElement("expression").SelectAttrValue("operation", "")
-			oldRule.Value = ruleElem.SelectElement("expression").SelectAttrValue("value", "")
+			if expr := ruleElem.SelectElement("expression"); expr != nil {
+				oldRule.Attribute = expr.SelectAttrValue("attribute", "")
+				oldRule.Operation = expr.SelectAttrValue("operation", "")
+				oldRule.Value = expr.SelectAttrValue("value", "")
+			}
 		}
 	}
 	// delete old rule
 	deleteRuleCmd := fmt.Sprintf(utils.CmdRuleDelete, utils.ShellEscape(data.RuleID))
-	fmt.Println(deleteRuleCmd)
 	_, err = utils.RunCommand(deleteRuleCmd)
 	if err != nil {
 		return utils.HandleCmdError(
@@ -182,7 +189,7 @@ func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 		RuleAdd(oldRule)
 		return utils.HandleCmdError(gettext.Gettext("Update rule failed, duplicate constraint already exists"), false)
 	}
-
+	slog.Info("Update rule success", "id", data.RuleID)
 	return utils.GeneralResponse{
 		Action: true,
 		Info:   gettext.Gettext("Update rule success"),
