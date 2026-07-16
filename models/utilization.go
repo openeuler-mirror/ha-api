@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: bixiaoyan <bixiaoyan@kylinos.cn>
  * Date: Tue Mar 12 09:17:37 2024 +0800
@@ -9,7 +9,9 @@ package models
 
 import (
 	"encoding/json"
+	"log/slog"
 	"strings"
+
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/chai2010/gettext-go"
 )
@@ -22,6 +24,7 @@ type UtilizationData struct {
 type GetUtilResult struct {
 	Action bool              `json:"action"`
 	Data   *UtilResponseData `json:"data"`
+	Error  string            `json:"error,omitempty"`
 }
 
 type UtilResponseData struct {
@@ -33,6 +36,11 @@ func GetUtilization() GetUtilResult {
 	result := GetUtilResult{}
 	nodeUtilization := GetOneTypeUtilization("node")
 	resUtilization := GetOneTypeUtilization("resource")
+	if nodeUtilization == nil || resUtilization == nil {
+		result.Action = false
+		result.Error = gettext.Gettext("Failed to get utilization data")
+		return result
+	}
 	result.Action = true
 	result.Data = &UtilResponseData{
 		NodeUtilization: nodeUtilization,
@@ -45,11 +53,21 @@ func GetUtilization() GetUtilResult {
 func GetOneTypeUtilization(Uti_type string) []UtilizationData {
 	data := []UtilizationData{}
 	cmd := "pcs " + Uti_type + " utilization"
-	output, _ := utils.RunCommand(cmd)
-	Util := strings.Split(string(output), "Utilization:")[1]
+	output, err := utils.RunCommand(cmd)
+	if err != nil {
+		slog.Error("GetOneTypeUtilization failed", "type", Uti_type, "error", err)
+		return nil
+	}
+	parts := strings.SplitN(string(output), "Utilization:", 2)
+	if len(parts) < 2 {
+		slog.Error("GetOneTypeUtilization output missing 'Utilization:'", "type", Uti_type)
+		return nil
+	}
+	Util := parts[1]
 
 	Util = strings.TrimSpace(Util)
 	if Util == "" {
+		slog.Error("GetOneTypeUtilization output has empty utilization data", "type", Uti_type)
 		return nil
 	}
 
