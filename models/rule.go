@@ -165,6 +165,9 @@ func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 	for _, ruleElem := range rules {
 		ruleId := ruleElem.SelectAttrValue("id", "")
 		if ruleId == data.RuleID {
+			if parent := ruleElem.Parent(); parent != nil {
+				oldRule.Rsc = parent.SelectAttrValue("rsc", "")
+			}
 			oldRule.RuleID = ruleElem.SelectAttrValue("id", "")
 			oldRule.Score = ruleElem.SelectAttrValue("score", "")
 			if expr := ruleElem.SelectElement("expression"); expr != nil {
