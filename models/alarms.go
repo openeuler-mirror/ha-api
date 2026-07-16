@@ -8,12 +8,12 @@
 package models
 
 import (
-	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
 )
@@ -48,23 +48,20 @@ func AlarmsGet() AlarmResponse {
 
 	out, err := utils.RunCommand(utils.CmdCibQueryConfig)
 	if err != nil {
-		logs.Error("get alert message failed", err)
+		slog.Error("get alert message failed", "error", err)
 		goto ret
 	}
 	doc = etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		logs.Error("parse xml config error", err)
+		slog.Error("parse xml config error", "error", err)
 		goto ret
 	}
 
-	if len(alertsJson) == 0 {
-		alertsJson = doc.FindElements("/configuration/alerts/alert/instance_attributes/nvpair")
-
+	alertsJson = doc.FindElements("/configuration/alerts/alert/instance_attributes/nvpair")
+	if len(alertsJson) > 0 {
 		for _, v := range alertsJson {
-			fmt.Println(v)
 			if v.SelectAttr("name").Value == "email_sender" {
 				sender = v.SelectAttr("value").Value
-				fmt.Println(sender)
 			}
 			if v.SelectAttr("name").Value == "email_server" {
 				smtp = v.SelectAttr("value").Value
@@ -74,11 +71,8 @@ func AlarmsGet() AlarmResponse {
 			}
 			if v.SelectAttr("name").Value == "port" {
 				portV := v.SelectAttr("value").Value
-				// if portFloat, ok := portV.(float64); ok {
-
 				port, _ := strconv.ParseFloat(portV, 64)
 				result.Data.Port = port
-				// }
 			}
 			if v.SelectAttr("name").Value == "switCh" {
 				switCh = v.SelectAttr("value").Value
@@ -92,19 +86,18 @@ func AlarmsGet() AlarmResponse {
 		var recipients []string
 		var vaLue string
 		receivers := doc.FindElements("/configuration/alerts/alert/recipient")
-		fmt.Println("get receivers: ", receivers)
 		for _, v := range receivers {
-			fmt.Println(v)
 			vaLue = v.SelectAttr("value").Value
 			recipients = append(recipients, vaLue)
 		}
 
 		cmdStr := "/usr/bin/pwd_decode " + utils.ShellEscape(password)
-		out, _ := utils.RunCommand(cmdStr)
-		fmt.Println(password)
+		out, err = utils.RunCommand(cmdStr)
 		mailPassword := ""
-		if string(out) != "the parameter is less\n" {
-			mailPassword = string(out)
+		if err != nil {
+			slog.Error("password decode failed", "error", err)
+		} else if string(out) != "the parameter is less\n" {
+			mailPassword = strings.TrimSpace(string(out))
 		}
 		result.Data.Sender = sender
 		result.Data.Smtp = smtp
@@ -127,35 +120,44 @@ func AlarmsSet(data AlarmData) map[string]interface{} {
 	utils.RunCommand(utils.CmdDeleteMailAlert)
 	switCh := ""
 
-	if data.Flag != true {
+	if data.Flag {
 		switCh = "on"
 	} else {
 		switCh = "off"
 	}
+	// handle password encode
+	var password string
+	if data.Password != "" {
+		cmdStr := "/usr/bin/pwd_encode " + utils.ShellEscape(data.Password)
+		out, err := utils.RunCommand(cmdStr)
+		if err != nil {
+			slog.Error("password encode failed", "error", err)
+			result["action"] = false
+			result["error"] = gettext.Gettext("Set alarm failed")
+			return result
+		}
+		password = strings.TrimSpace(string(out))
+	} else {
+		password = ""
+	}
 
-	fmt.Println("get receiver: ", data.Receiver)
 	port := strconv.Itoa(int(data.Port))
-	opsStr := " options email_sender=" + utils.ShellEscape(data.Sender) + " email_server=" + utils.ShellEscape(data.Smtp) + " password=" + utils.ShellEscape(data.Password) + " port=" + utils.ShellEscape(port) + " switCh=" + utils.ShellEscape(switCh)
+	opsStr := " options email_sender=" + utils.ShellEscape(data.Sender) + " email_server=" + utils.ShellEscape(data.Smtp) + " password=" + utils.ShellEscape(password) + " port=" + utils.ShellEscape(port) + " switCh=" + utils.ShellEscape(switCh)
 	cmdStr := utils.CmdCreateMailAlert + opsStr
-	fmt.Println(cmdStr)
 	_, err := utils.RunCommand(cmdStr)
 	if err != nil {
+		slog.Error("create mail alert failed", "error", err)
 		result["action"] = false
-		fmt.Println("err1")
-		fmt.Println(err)
 		result["error"] = gettext.Gettext("Set alarm failed")
 		return result
 	}
 
 	for _, recipient := range data.Receiver {
-		fmt.Println("set recipient")
 		reveiverStr := utils.CmdAddAlert + " value=" + utils.ShellEscape(recipient) + " --force"
-		fmt.Println(reveiverStr)
 		_, err := utils.RunCommand(reveiverStr)
 		if err != nil {
+			slog.Error("set alarm recipient failed", "error", err, "recipient", recipient)
 			result["action"] = false
-			fmt.Println("err2")
-			fmt.Println(err)
 			result["error"] = gettext.Gettext("Set alarm failed")
 			return result
 		}
@@ -171,16 +173,12 @@ func AlarmsTest() utils.GeneralResponse {
 	alarmConfig := AlarmsGet().Data
 	for _, recipient := range alarmConfig.Receiver {
 		port := strconv.Itoa(int(alarmConfig.Port))
-		reveiverStr := utils.CmdSendEmail + utils.ShellEscape(alarmConfig.Smtp) + " " + utils.ShellEscape(alarmConfig.Sender) + " " + utils.ShellEscape(alarmConfig.Password) + " " + utils.ShellEscape(recipient) + " " + utils.ShellEscape("此邮件为测试邮件") + " " + utils.ShellEscape(port)
-		fmt.Println(reveiverStr)
+		reveiverStr := utils.CmdSendEmail + " " + utils.ShellEscape(alarmConfig.Smtp) + " " + utils.ShellEscape(alarmConfig.Sender) + " " + utils.ShellEscape(alarmConfig.Password) + " " + utils.ShellEscape(recipient) + " " + utils.ShellEscape("此邮件为测试邮件") + " " + utils.ShellEscape(port)
 		out, err := utils.RunCommand(reveiverStr)
 		if err != nil {
-			fmt.Println(out)
-			fmt.Println(err)
 			testcmd := "echo send mail to " + utils.ShellEscape(recipient) + " failed:" + utils.ShellEscape(string(out)) + " >>/var/log/mailtest.log"
-			out1, err1 := utils.RunCommand(testcmd)
-			if err1 != nil {
-				fmt.Println(out1)
+			if _, logErr := utils.RunCommand(testcmd); logErr != nil {
+				slog.Error("write mail test log failed", "error", logErr, "recipient", recipient)
 			}
 			result.Action = false
 			result.Error = gettext.Gettext("Send alarm test failed")
@@ -188,7 +186,9 @@ func AlarmsTest() utils.GeneralResponse {
 
 		} else {
 			testcmd := "echo send mail to " + utils.ShellEscape(recipient) + " success >>/var/log/mailtest.log"
-			utils.RunCommand(testcmd)
+			if _, logErr := utils.RunCommand(testcmd); logErr != nil {
+				slog.Error("write mail test log failed", "error", logErr, "recipient", recipient)
+			}
 		}
 	}
 	result.Action = true
