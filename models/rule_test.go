@@ -296,3 +296,186 @@ func TestRuleAdd_CommandFailure(t *testing.T) {
 	assert.False(t, result.Action)
 	assert.NotEmpty(t, result.Error)
 }
+
+// ==================== RuleUpdate ====================
+
+func TestRuleUpdate_Success(t *testing.T) {
+	callCount := 0
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		callCount++
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints>
+  <rsc_location id="loc-1" rsc="dummy">
+    <rule id="my-rule" score="100">
+      <expression id="e1" attribute="#uname" operation="eq" value="node1"/>
+    </rule>
+  </rsc_location>
+</constraints>`), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "200", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node2",
+	})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Update rule success", result.Info)
+	assert.Equal(t, 3, callCount) // cibadmin + delete + add
+}
+
+func TestRuleUpdate_QueryCommandFails(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte("Error: cibadmin failed"), errors.New("cibadmin error")
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.False(t, result.Action)
+	assert.NotEmpty(t, result.Error)
+}
+
+func TestRuleUpdate_XMLParseError(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte(`<invalid xml><<<`), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.False(t, result.Action)
+	assert.NotEmpty(t, result.Error)
+}
+
+func TestRuleUpdate_DeleteFails(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints>
+  <rsc_location id="loc-1" rsc="dummy">
+    <rule id="my-rule" score="100">
+      <expression id="e1" attribute="#uname" operation="eq" value="node1"/>
+    </rule>
+  </rsc_location>
+</constraints>`), nil
+		}
+		if strings.Contains(cmd, "delete") {
+			return []byte("Error: rule not found"), errors.New("not found")
+		}
+		return []byte(""), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "200", RuleID: "nonexistent-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node2",
+	})
+
+	assert.False(t, result.Action)
+	assert.Contains(t, result.Error, "not found")
+}
+
+func TestRuleUpdate_AddNewRuleFails_TriggersRecovery(t *testing.T) {
+	var executedCmds []string
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints>
+  <rsc_location id="loc-1" rsc="dummy">
+    <rule id="my-rule" score="100">
+      <expression id="e1" attribute="#uname" operation="eq" value="node1"/>
+    </rule>
+  </rsc_location>
+</constraints>`), nil
+		}
+		executedCmds = append(executedCmds, cmd)
+		if strings.Contains(cmd, "delete") {
+			return []byte(""), nil
+		}
+		if strings.Contains(cmd, "node2") {
+			return []byte("Error: duplicate"), errors.New("duplicate")
+		}
+		return []byte(""), nil
+
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "200", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node2",
+	})
+
+	assert.False(t, result.Action)
+	assert.Contains(t, result.Error, "duplicate constraint")
+	assert.Len(t, executedCmds, 3) // delete + add(new) + add(recovery)
+	assert.Contains(t, executedCmds[0], "rule delete")
+	assert.Contains(t, executedCmds[1], "score='200'")
+	assert.Contains(t, executedCmds[1], "'node2'")
+	assert.Contains(t, executedCmds[2], "'dummy'")
+	assert.Contains(t, executedCmds[2], "score='100'")
+	assert.Contains(t, executedCmds[2], "'node1'")
+}
+
+func TestRuleUpdate_RuleIDNotFoundInXML(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints>
+  <rsc_location id="loc-1" rsc="dummy">
+    <rule id="other-rule" score="100">
+      <expression id="e1" attribute="#uname" operation="eq" value="node1"/>
+    </rule>
+  </rsc_location>
+</constraints>`), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "200", RuleID: "nonexistent-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node2",
+	})
+
+	assert.True(t, result.Action)
+}
+
+func TestRuleUpdate_RuleWithNilExpression(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints>
+  <rsc_location id="loc-1" rsc="dummy">
+    <rule id="my-rule" score="100"/>
+  </rsc_location>
+</constraints>`), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "200", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node2",
+	})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Update rule success", result.Info)
+}
+
+func TestRuleUpdate_EmptyConstraints(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			return []byte(`<constraints></constraints>`), nil
+		}
+		if strings.Contains(cmd, "delete") {
+			return []byte("Error: not found"), errors.New("not found")
+		}
+		return []byte(""), nil
+	})
+
+	result := RuleUpdate(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.False(t, result.Action)
+}
