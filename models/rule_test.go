@@ -10,9 +10,11 @@ package models
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"gitee.com/openeuler/ha-api/utils"
+	"gitee.com/openeuler/ha-api/validations"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -165,4 +167,67 @@ func TestRulesGet_RuleWithNilExpression(t *testing.T) {
 	assert.Empty(t, result.Data[0].Attribute)
 	assert.Empty(t, result.Data[0].Operation)
 	assert.Empty(t, result.Data[0].Value)
+}
+
+// ==================== RulesDelete ====================
+
+func TestRulesDelete_Success(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte(""), nil
+	})
+
+	result := RulesDelete(&validations.DeleteRuleS{RuleIDs: []string{"rule-1", "rule-2"}})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Delete rule success", result.Info)
+	assert.Empty(t, result.Error)
+}
+
+func TestRulesDelete_SingleRule(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		assert.Contains(t, cmd, "pcs constraint rule delete")
+		return []byte(""), nil
+	})
+
+	result := RulesDelete(&validations.DeleteRuleS{RuleIDs: []string{"rule-1"}})
+
+	assert.True(t, result.Action)
+}
+
+func TestRulesDelete_PartialFailure(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "rule-bad") {
+			return []byte("Error: rule not found"), errors.New("not found")
+		}
+		return []byte(""), nil
+	})
+
+	result := RulesDelete(&validations.DeleteRuleS{RuleIDs: []string{"rule-good", "rule-bad"}})
+
+	assert.False(t, result.Action)
+	assert.Len(t, result.Error, 1)
+	assert.Equal(t, "rule-bad", result.Error[0]["id"])
+}
+
+func TestRulesDelete_AllFail(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte("Error: rule not found"), errors.New("not found")
+	})
+
+	result := RulesDelete(&validations.DeleteRuleS{RuleIDs: []string{"rule-1", "rule-2"}})
+
+	assert.False(t, result.Action)
+	assert.Len(t, result.Error, 2)
+}
+
+func TestRulesDelete_EmptyList(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		t.Fatal("should not call RunCommand for empty list")
+		return nil, nil
+	})
+
+	result := RulesDelete(&validations.DeleteRuleS{RuleIDs: []string{}})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Delete rule success", result.Info)
 }
