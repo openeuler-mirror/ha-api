@@ -231,3 +231,68 @@ func TestRulesDelete_EmptyList(t *testing.T) {
 	assert.True(t, result.Action)
 	assert.Equal(t, "Delete rule success", result.Info)
 }
+
+// ==================== RuleAdd ====================
+
+func TestRuleAdd_WithRuleID(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		assert.Contains(t, cmd, "pcs constraint location")
+		assert.Contains(t, cmd, "score=")
+		assert.Contains(t, cmd, "id=")
+		return []byte(""), nil
+	})
+
+	result := RuleAdd(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY", RuleID: "my-rule",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Add rule success", result.Info)
+}
+
+func TestRuleAdd_WithoutRuleID(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		assert.Contains(t, cmd, "pcs constraint location")
+		assert.Contains(t, cmd, "score=")
+		assert.NotContains(t, cmd, "id=")
+		return []byte(""), nil
+	})
+
+	result := RuleAdd(&validations.RuleS{
+		Rsc: "dummy", Score: "100",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Add rule success", result.Info)
+}
+
+func TestRuleAdd_EmptyValue(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		assert.Contains(t, cmd, "'defined' '#uname'")
+		return []byte(""), nil
+	})
+
+	result := RuleAdd(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY",
+		Attribute: "#uname", Operation: "defined", Value: "",
+	})
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Add rule success", result.Info)
+}
+
+func TestRuleAdd_CommandFailure(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte("Error: duplicate constraint"), errors.New("duplicate")
+	})
+
+	result := RuleAdd(&validations.RuleS{
+		Rsc: "dummy", Score: "INFINITY",
+		Attribute: "#uname", Operation: "eq", Value: "node1",
+	})
+
+	assert.False(t, result.Action)
+	assert.NotEmpty(t, result.Error)
+}
