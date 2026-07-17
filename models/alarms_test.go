@@ -439,3 +439,171 @@ func TestAlarmsSet_PasswordEncodeFails(t *testing.T) {
 	assert.Contains(t, executedCmds[1], "pwd_encode")
 }
 
+// ==================== AlarmsTest ====================
+
+func TestAlarmsTest_Success(t *testing.T) {
+	defer restoreRunCmd()
+	mockRunCmd(func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			xml := `<configuration>
+  <alerts>
+    <alert>
+      <instance_attributes>
+        <nvpair name="email_sender" value="sender@test.com"/>
+        <nvpair name="email_server" value="smtp.test.com"/>
+        <nvpair name="password" value="pwd"/>
+        <nvpair name="port" value="25"/>
+        <nvpair name="switCh" value="on"/>
+      </instance_attributes>
+      <recipient value="recv@test.com"/>
+    </alert>
+  </alerts>
+</configuration>`
+			return []byte(xml), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := AlarmsTest()
+
+	assert.True(t, result.Action)
+	assert.Equal(t, "Send alarm test success", result.Info)
+}
+
+func TestAlarmsTest_SendFails(t *testing.T) {
+	defer restoreRunCmd()
+	mockRunCmd(func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			xml := `<configuration>
+  <alerts>
+    <alert>
+      <instance_attributes>
+        <nvpair name="email_sender" value="sender@test.com"/>
+        <nvpair name="email_server" value="smtp.test.com"/>
+        <nvpair name="password" value="pwd"/>
+        <nvpair name="port" value="25"/>
+        <nvpair name="switCh" value="on"/>
+      </instance_attributes>
+      <recipient value="recv@test.com"/>
+    </alert>
+  </alerts>
+</configuration>`
+			return []byte(xml), nil
+		}
+		if strings.Contains(cmd, "pwd_decode") {
+			return []byte("decoded_pwd"), nil
+		}
+		if strings.Contains(cmd, "python_email") {
+			return []byte("SMTP connection refused"), errors.New("send failed")
+		}
+		// echo log command
+		return []byte(""), nil
+	})
+
+	result := AlarmsTest()
+
+	assert.False(t, result.Action)
+	assert.Equal(t, "Send alarm test failed", result.Error)
+}
+
+func TestAlarmsTest_NoRecipients(t *testing.T) {
+	defer restoreRunCmd()
+	mockRunCmd(func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			xml := `<configuration>
+  <alerts>
+    <alert>
+      <instance_attributes>
+        <nvpair name="switCh" value="on"/>
+      </instance_attributes>
+    </alert>
+  </alerts>
+</configuration>`
+			return []byte(xml), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := AlarmsTest()
+
+	// 没有收件人时循环不执行，直接返回成功
+	assert.True(t, result.Action)
+	assert.Equal(t, "Send alarm test success", result.Info)
+}
+
+func TestAlarmsTest_MultipleRecipients_SecondFails(t *testing.T) {
+	defer restoreRunCmd()
+	mockRunCmd(func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			xml := `<configuration>
+  <alerts>
+    <alert>
+      <instance_attributes>
+        <nvpair name="email_sender" value="sender@test.com"/>
+        <nvpair name="email_server" value="smtp.test.com"/>
+        <nvpair name="password" value="pwd"/>
+        <nvpair name="port" value="25"/>
+        <nvpair name="switCh" value="on"/>
+      </instance_attributes>
+      <recipient value="ok@test.com"/>
+      <recipient value="fail@test.com"/>
+    </alert>
+  </alerts>
+</configuration>`
+			return []byte(xml), nil
+		}
+		if strings.Contains(cmd, "pwd_decode") {
+			return []byte("decoded_pwd"), nil
+		}
+		if strings.Contains(cmd, "python_email") {
+			if strings.Contains(cmd, "fail@test.com") {
+				return []byte("timeout"), errors.New("send failed")
+			}
+			return []byte(""), nil
+		}
+		return []byte(""), nil
+	})
+
+	result := AlarmsTest()
+
+	assert.False(t, result.Action)
+	assert.Equal(t, "Send alarm test failed", result.Error)
+}
+
+func TestAlarmsTest_LogWriteFails(t *testing.T) {
+	defer restoreRunCmd()
+	mockRunCmd(func(cmd string) ([]byte, error) {
+		if strings.Contains(cmd, "cibadmin") {
+			xml := `<configuration>
+  <alerts>
+    <alert>
+      <instance_attributes>
+        <nvpair name="email_sender" value="sender@test.com"/>
+        <nvpair name="email_server" value="smtp.test.com"/>
+        <nvpair name="password" value="pwd"/>
+        <nvpair name="port" value="25"/>
+        <nvpair name="switCh" value="on"/>
+      </instance_attributes>
+      <recipient value="recv@test.com"/>
+    </alert>
+  </alerts>
+</configuration>`
+			return []byte(xml), nil
+		}
+		if strings.Contains(cmd, "pwd_decode") {
+			return []byte("decoded_pwd"), nil
+		}
+		if strings.Contains(cmd, "python_email") {
+			return []byte("SMTP connection refused"), errors.New("send failed")
+		}
+		// echo 日志写入也失败
+		return nil, errors.New("log write failed")
+	})
+
+	result := AlarmsTest()
+
+	// 即使日志写入失败，主流程返回值不应受影响
+	assert.False(t, result.Action)
+	assert.Equal(t, "Send alarm test failed", result.Error)
+}
+
