@@ -1018,13 +1018,21 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 	}
 	remoteNodeList := getRemoteNodes(clusterName).([]interface{})
 	if len(remoteNodeList) > 0 {
+		dataBytes, err := json.Marshal(AddNodesinfo.Data)
+		if err != nil {
+			slog.Error("marshal add nodes data failed", "error", err)
+			return map[string]interface{}{
+				"action": false,
+				"error":  gettext.Gettext("marshal data failed"),
+			}
+		}
 		for _, node := range remoteNodeList {
 			var earlyResult interface{}
 			earlyReturn := false
 			func() {
 				url := fmt.Sprintf("http://%s:%s/remote/api/v1/nodes/add_nodes", node, port)
 
-				httpResp, err := utils.SendRequest(url, "POST", AddNodesinfo.Data)
+				httpResp, err := utils.SendRequest(url, "POST", dataBytes)
 				if err != nil || httpResp == nil {
 					return
 				}
