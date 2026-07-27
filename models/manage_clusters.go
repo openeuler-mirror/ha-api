@@ -1039,9 +1039,16 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 				defer httpResp.Body.Close()
 
 				if httpResp.StatusCode == http.StatusOK {
-					httpRespData, _ := io.ReadAll(httpResp.Body)
+					httpRespData, err := io.ReadAll(httpResp.Body)
+					if err != nil {
+						slog.Error("read add_nodes response failed", "node", node, "error", err)
+						return
+					}
 					var httpRespMessage map[string]interface{}
-					json.Unmarshal(httpRespData, &httpRespMessage)
+					if err := json.Unmarshal(httpRespData, &httpRespMessage); err != nil {
+						slog.Error("unmarshal add_nodes response failed", "node", node, "error", err)
+						return
+					}
 
 					url = fmt.Sprintf("http://%s:%s/remote/api/v1/managec/local_cluster_info", node, port)
 					httpResp2, err := utils.SendRequest(url, "GET", nil)
@@ -1050,9 +1057,16 @@ func AddNodes(AddNodesinfo AddNodesData) interface{} {
 					}
 					defer httpResp2.Body.Close()
 
-					httpRespData, _ = io.ReadAll(httpResp2.Body)
+					httpRespData, err = io.ReadAll(httpResp2.Body)
+					if err != nil {
+						slog.Error("read local_cluster_info response failed", "node", node, "error", err)
+						return
+					}
 					var remoteClusterInfo Cluster
-					json.Unmarshal(httpRespData, &remoteClusterInfo)
+					if err := json.Unmarshal(httpRespData, &remoteClusterInfo); err != nil {
+						slog.Error("unmarshal local_cluster_info response failed", "node", node, "error", err)
+						return
+					}
 
 					localConf.UpdateCluster(remoteClusterInfo.ClusterName, remoteClusterInfo)
 					localConf.Save()
