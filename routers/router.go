@@ -78,6 +78,9 @@ func init() {
 		//智能迁移
 		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
 		
+		// 资源模板
+		web.NSRouter("/:cluster_name/1/resourceModel", &controllers.ResourceModelConfig{}),
+
 		//系统分析
                 web.NSRouter("/:cluster_name/1/:node_name/system_overview", &controllers.SystemInfoController{}),
 		web.NSRouter("/:cluster_name/1/:node_name/service_status", &controllers.ServiceStatusController{}),
