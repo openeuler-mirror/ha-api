@@ -2,13 +2,15 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: liqiuyu <liqiuyu@kylinos.cn>
- * Date: Tue Jan 12 09:51:22 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package controllers
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,6 +22,7 @@ import (
 
 	"gitee.com/openeuler/ha-api/models"
 	"gitee.com/openeuler/ha-api/settings"
+	"gitee.com/openeuler/ha-api/utils"
 )
 
 type LogController struct {
@@ -28,7 +31,60 @@ type LogController struct {
 
 func (lc *LogController) Get() {
 	slog.Debug("handle resource GET request")
-	// todo: multi clusters
+
+	clusterName := lc.Ctx.Input.Param(":cluster_name")
+
+	if !utils.IsLocalCluster(clusterName) {
+		currentPath := lc.Ctx.Input.URL()
+		localConf := models.GetLocalConf()
+		remoteNodes := localConf.GetNodes(clusterName)
+		if len(remoteNodes) == 0 {
+			res := map[string]interface{}{}
+			res["action"] = false
+			res["error"] = "Can not get remote nodes"
+			lc.Data["json"] = &res
+			lc.ServeJSON()
+			return
+		}
+		for _, node := range remoteNodes {
+			url := utils.GenerateRemoteRequestURL(node, currentPath)
+			res, err := utils.SendRequest(url, lc.Ctx.Request.Method, lc.Ctx.Input.RequestBody)
+			if err != nil {
+				slog.Warn("request to node failed (retry next node)", "url", url, "node", node, "error", err)
+				continue
+			}
+			defer res.Body.Close()
+			respData, err := io.ReadAll(res.Body)
+			if err != nil {
+				slog.Error("failed to read response body", "url", currentPath, "node", node, "error", err)
+				continue
+			}
+			contentDispostion := res.Header.Get("content-disposition")
+			parts := strings.Split(contentDispostion, "filename=")
+			if len(parts) < 2 {
+				slog.Error("content-disposition header missing filename", "header", contentDispostion)
+				continue
+			}
+			fileName := strings.TrimPrefix(parts[1], "\"")
+			fileName = strings.TrimSuffix(fileName, "\"")
+
+			lc.Ctx.Output.Header("content-type", "application/octet-stream")
+			lc.Ctx.Output.Header("content-transfer-encoding", "binary")
+			lc.Ctx.Output.Header("content-disposition", "attachment;filename="+fileName)
+
+			lc.Ctx.Output.Body(respData)
+			return
+
+		}
+		slog.Error("UrlRedirect failed (all nodes )", "cluster", clusterName, "url", currentPath)
+		res := map[string]interface{}{}
+		res["action"] = false
+		res["error"] = "no nodes succeeded"
+		lc.Data["json"] = &res
+		lc.ServeJSON()
+		return
+	}
+
 	result, geterr := models.GenerateLog()
 
 	if geterr != nil {

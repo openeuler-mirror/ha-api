@@ -1,17 +1,17 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: 江新宇 <jiangxinyu@kylinos.cn>
- * Date: Tue Jan 19 22:19:26 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
 package controllers
 
 import (
 	"strconv"
 
-	"github.com/beego/beego/v2/server/web"
 	"gitee.com/openeuler/ha-api/models"
+	"github.com/beego/beego/v2/server/web"
 )
 
 type CommandsController struct {
