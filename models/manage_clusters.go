@@ -9,7 +9,6 @@ package models
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -184,11 +184,11 @@ func (ci *ClustersInfo) Backup() error {
 }
 
 func BackCount(ci *ClustersInfo) (int, error) {
-	if out, err := utils.RunCommand(utils.CmdCountClustersConfigsBackuped); err != nil {
+	out, err := utils.RunCommand(utils.CmdCountClustersConfigsBackuped)
+	if err != nil {
 		return 0, err
-	} else {
-		return int(binary.LittleEndian.Uint16(out)), nil
 	}
+	return strconv.Atoi(strings.TrimSpace(string(out)))
 }
 
 // UpdateText updates the version and clusters in the Text field and returns it.
