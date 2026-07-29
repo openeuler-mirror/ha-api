@@ -6,83 +6,99 @@
  * Date: Tue Jun 23 15:54:28 2026 +0800
  */
 
-package models
+ package models
 
-// 资源模板包含的资源种类、每个种类包含的资源，可修改
-var category_default = []string{"DISK", "FileSystem", "Database", "Middleware", "VIP"}
-var category_DISK_default = []string{"LVM"}
-var category_FileSystem_default = []string{"Filesystem"}
-var category_Database_default = []string{"DMDB8"}
-var category_Middleware_default = []string{"TongWeb8", "BES9.5"}
-var category_VIP_default = []string{"IPaddr2", "IPaddr"}
-
-// 每个资源包含的属性及默认值，可修改
-var res_LVM_default = map[string]interface{}{
-	"volgrpname": "",
-	"tag":        "",
-}
-
-var res_Filesystem_default = map[string]interface{}{
-	"device":    "",
-	"directory": "",
-	"fstype":    "",
-	"options":   "",
-}
-
-var res_DMDB8_default = map[string]interface{}{
-	"datadir":     "/opt/dmdbms/",
-	"instancedir": "/opt/dmdbms/data/DAMENG",
-}
-
-var res_TongWeb8_default = map[string]interface{}{
-	"tongweb_path": "",
-}
-
-var res_BES9_default = map[string]interface{}{
-	"BES_HOME":        "/opt/BES",
-	"iastoolUser":     "",
-	"iastoolPassword": "",
-	"JAVA_HOME":       "",
-}
-
-var res_IPaddr_default = map[string]interface{}{
-	"ip":           "",
-	"nic":          "eth0",
-	"cidr_netmask": "",
-	"broadcast":    "",
-}
-
-var res_IPaddr2_default = map[string]interface{}{
-	"ip":           "",
-	"nic":          "",
-	"cidr_netmask": "",
-	"broadcast":    "",
-}
-
-type ResourceModelGetResponse struct {
-	Action bool              `json:"action"`
-	Data   ResourceModelData `json:"data"`
-}
-
-type ResourceModelData struct {
-	Category_DISK       []string `json:"category_disk"`
-	Category_FileSystem []string `json:"category_filesystem"`
-	Category_Database   []string `json:"category_database"`
-	Category_Middleware []string `json:"category_middleware"`
-	Category_VIP        []string `json:"category_vip"`
-}
-
-func ResourceModelGet() ResourceModelGetResponse {
-	var resourceModelGetResonpe ResourceModelGetResponse
-	var resourceModelData ResourceModelData
-
-	resourceModelData.Category_DISK = category_DISK_default
-	resourceModelData.Category_FileSystem = category_FileSystem_default
-	resourceModelData.Category_Database = category_Database_default
-	resourceModelData.Category_Middleware = category_Middleware_default
-	resourceModelData.Category_VIP = category_VIP_default
-
-	resourceModelGetResonpe.Action = true
-	resourceModelGetResonpe.Data = resourceModelData
-	return resourceModelGetResonpe
-}
+ // ==================== 配置定义（唯一数据源） ====================
+ 
+ // CategoryConfig 存储所有分类及其子项配置
+ var CategoryConfig = map[string]Category{
+	 "DISK": {
+		 SubItems:   []string{"LVM"},
+		 DefaultLen: 1,
+		 ResourceDefaults: map[string]map[string]interface{}{
+			 "LVM": {
+				 "id":         "",
+				 "volgrpname": "",
+				 "tag":        "",
+			 },
+		 },
+	 },
+	 "FileSystem": {
+		 SubItems:   []string{"Filesystem"},
+		 DefaultLen: 1,
+		 ResourceDefaults: map[string]map[string]interface{}{
+			 "Filesystem": {
+				 "id":        "",
+				 "device":    "",
+				 "directory": "",
+				 "fstype":    "",
+				 "options":   "",
+			 },
+		 },
+	 },
+	 "Database": {
+		 SubItems:   []string{"DMDB8"},
+		 DefaultLen: 1,
+		 ResourceDefaults: map[string]map[string]interface{}{
+			 "DMDB8": {
+				 "id":          "",
+				 "datadir":     "/opt/dmdbms/",
+				 "instancedir": "/opt/dmdbms/data/DAMENG",
+			 },
+		 },
+	 },
+	 "Middleware": {
+		 SubItems:   []string{"TongWeb8", "BES9.5"},
+		 DefaultLen: 1,
+		 ResourceDefaults: map[string]map[string]interface{}{
+			 "TongWeb8": {
+				 "id":           "",
+				 "tongweb_path": "",
+			 },
+			 "BES9.5": {
+				 "id":              "",
+				 "BES_HOME":        "/opt/BES",
+				 "iastoolUser":     "",
+				 "iastoolPassword": "",
+				 "JAVA_HOME":       "",
+			 },
+		 },
+	 },
+	 "VIP": {
+		 SubItems:   []string{"IPaddr2", "IPaddr"},
+		 DefaultLen: 1,
+		 ResourceDefaults: map[string]map[string]interface{}{
+			 "IPaddr2": {
+				 "id":           "",
+				 "ip":           "",
+				 "nic":          "",
+				 "cidr_netmask": "",
+				 "broadcast":    "",
+			 },
+			 "IPaddr": {
+				 "id":           "",
+				 "ip":           "",
+				 "nic":          "eth0",
+				 "cidr_netmask": "",
+				 "broadcast":    "",
+			 },
+		 },
+	 },
+ }
+ 
+ // Category 表示一个资源分类
+ type Category struct {
+	 SubItems         []string                          // 该分类下的资源类型列表
+	 DefaultLen       int                               // 默认部署数量
+	 ResourceDefaults map[string]map[string]interface{} // 各资源类型的属性默认值
+ }
+ 
+ // 主页显示内容
+ func ResourceModelHomepageGet() string {
+	 content := "this is resource model"
+	 return content
+ }
+ 
+ func ResourceModelDeploy() map[string]Category {
+	 return CategoryConfig
+ } 
