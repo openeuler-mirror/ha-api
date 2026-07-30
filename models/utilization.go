@@ -111,7 +111,7 @@ func SetUtilization(data []byte) utils.GeneralResponse {
 	cmd := "pcs " + utype + " utilization " + name + " "
 	for k, v := range jsonData {
 		if k != "name" && k != "type" {
-			cmd = cmd + k + "=" + v
+			cmd = cmd + k + "=" + v + " "
 		}
 	}
 	out, err := utils.RunCommand(cmd)
