@@ -1,17 +1,22 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: bixiaoyan <bixiaoyan@kylinos.cn>
- * Date: Fri Mar 22 17:26:24 2024 +0800
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package models
 
 import (
 	"bufio"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
+        "slices"
+
 	"strings"
+
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/chai2010/gettext-go"
 )
@@ -74,10 +79,11 @@ func GetTag() TagGetResult {
 	cmd := "cibadmin --query --scope tags"
 	rsc_info := GetResourceInfo()
 
-	out, err := utils.RunCommand(cmd)
 	for _, res := range rsc_info["data"].([]map[string]interface{}) {
 		resList = append(resList, res["id"].(string))
 	}
+
+	out, err := utils.RunCommand(cmd)
 
 	if err != nil {
 		if strings.Contains(string(out), "No such device or address") {
@@ -95,10 +101,21 @@ func GetTag() TagGetResult {
 	}
 
 	tagInfos := make([]TagInfo, len(tags.Tags))
+
 	for i, tag := range tags.Tags {
+		var tagList []interface{}
+		for _, test := range tag.ObjRefs {
+			for _, res := range rsc_info["data"].([]map[string]interface{}) {
+				if res["id"].(string) == test.ID {
+					tagList = append(tagList, res)
+					break
+				}
+			}
+		}
 		tagInfos[i] = TagInfo{
-			ID:      tag.ID,
-			TagsRsc: tag.ObjRefs,
+			ID: tag.ID,
+			//TagsRsc: tag.ObjRefs,
+			TagsRsc: tagList,
 		}
 	}
 
@@ -106,10 +123,10 @@ func GetTag() TagGetResult {
 }
 
 func SetTag(data []byte) utils.GeneralResponse {
-
+	
 	var result utils.GeneralResponse
 	// json数据解析
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		result.Action = false
 		result.Error = gettext.Gettext("No input data")
 		return result
@@ -119,6 +136,19 @@ func SetTag(data []byte) utils.GeneralResponse {
 	if err != nil {
 		result.Action = false
 		result.Error = gettext.Gettext("Cannot convert data to json map")
+		return result
+	}
+
+	nameCmd := "pcs resource config |awk '/Resource|Group|Bundle/ {print $2}'"
+	names, _ := utils.RunCommand(nameCmd)
+	standards := strings.Split(strings.TrimSpace(string(names)), "\n")
+	nameCmd = "pcs tag |awk '!/^[ \t]/'"
+	names, _ = utils.RunCommand(nameCmd)
+	tagNames := strings.Split(strings.TrimSpace(string(names)), "\n")
+	standards = append(standards, tagNames...)
+	if slices.Contains(standards, TagData.ID) {
+		result.Action = false
+		result.Error = fmt.Sprintf(gettext.Gettext("The tag name %s is already in the cluster!"), TagData.ID)
 		return result
 	}
 
@@ -140,7 +170,7 @@ func SetTag(data []byte) utils.GeneralResponse {
 func UpdateTag(tagName string, data []byte) utils.GeneralResponse {
 	var result utils.GeneralResponse
 	// json数据解析
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		result.Action = false
 		result.Error = gettext.Gettext("No input data")
 		return result
@@ -181,15 +211,15 @@ func TagAction(tagName string, action string) utils.GeneralResponse {
 	if action == "delete" {
 		return DeleteTag(tagName)
 	} else if action == "start" {
-		cmd = cmd + "enable " + tagName 
+		cmd = cmd + "enable " + tagName
 	} else if action == "stop" {
 		cmd = cmd + "disable " + tagName
 	}
 	print(cmd)
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
-			result.Action = true
-			result.Info = gettext.Gettext("Tag action success")
+		result.Action = true
+		result.Info = gettext.Gettext("Tag action success")
 	} else {
 		result.Action = false
 		result.Error = string(out)
@@ -199,7 +229,7 @@ func TagAction(tagName string, action string) utils.GeneralResponse {
 
 func DeleteTag(tagName string) utils.GeneralResponse {
 	var result utils.GeneralResponse
-	cmd := "pcs tag delete " + tagName 
+	cmd := "pcs tag delete " + tagName
 	out, err := utils.RunCommand(cmd)
 	if err == nil {
 		result.Action = true
@@ -210,7 +240,3 @@ func DeleteTag(tagName string) utils.GeneralResponse {
 	}
 	return result
 }
-
-
-
-
