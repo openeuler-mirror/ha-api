@@ -1,19 +1,20 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: 赵忠章 <jinzi120021@sina.com>
- * Date: Fri Jan 22 11:18:35 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package models
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beevik/etree"
+	"github.com/chai2010/gettext-go"
 )
 
 func GetAllResourceMetas() map[string]interface{} {
@@ -25,7 +26,7 @@ func GetAllResourceMetas() map[string]interface{} {
 		result["error"] = err.Error()
 		return result
 	}
-	standards := strings.Split(string(out), "\n")
+	standards := strings.Split(strings.TrimSpace(string(out)), "\n")
 	data := make(map[string]interface{})
 	res := make(map[string][]string)
 
@@ -55,7 +56,11 @@ func GetAllResourceMetas() map[string]interface{} {
 				// Eliminate Duplicates
 				agMap := map[string]bool{}
 				for _, agStr := range ag {
-					agMap[agStr] = true
+					if agStr != "" {
+						agMap[agStr] = true
+					} else {
+						continue
+					}
 				}
 				ag = []string{}
 				for k := range agMap {
@@ -91,11 +96,18 @@ func GetAllResourceMetas() map[string]interface{} {
 					la = append(la[:i], la[(i+1):]...)
 				}
 			}
-			for i, subla := range la {
-				if ok, _ := regexp.MatchString(`.*\@`, subla); ok {
-					la = append(la[:i], la[(i+1):]...)
+			// for i, subla := range la {
+			// 	if ok, _ := regexp.MatchString(`.*\@`, subla); ok {
+			// 		la = append(la[:i], la[(i+1):]...)
+			// 	}
+			// }
+			filtered := la[:0] // 复用原切片内存
+			for _, s := range la {
+				if !strings.Contains(s, "@") {
+					filtered = append(filtered, s)
 				}
 			}
+			la = filtered
 			data[st] = la
 		}
 	}
@@ -104,6 +116,7 @@ func GetAllResourceMetas() map[string]interface{} {
 	return result
 }
 
+// 获取资源的默认属性
 func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interface{} {
 	data := make(map[string]interface{})
 	prop := []map[string]interface{}{}
@@ -139,32 +152,80 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 		if i.FindElement("shortdesc") != nil {
 			text := i.FindElement("shortdesc").Text()
 			count := strings.Count(text, "\n")
-			parameters["shortdesc"] = strings.Replace(text, "\n", " ", count)
+			parameters["shortdesc"] = gettext.Gettext(strings.Replace(text, "\n", " ", count))
 		} else {
 			parameters["shortdesc"] = ""
 		}
 		if i.FindElement("longdesc") != nil {
 			text := i.FindElement("longdesc").Text()
 			count := strings.Count(text, "\n")
-			parameters["longdesc"] = strings.Replace(text, "\n", " ", count)
+			parameters["longdesc"] = gettext.Gettext(strings.Replace(text, "\n", " ", count))
 		} else {
 			parameters["longdesc"] = ""
 		}
 		prop = append(prop, parameters)
+
 	}
+
 	if rscClass == "stonith" {
 		pcmkHostList := map[string]interface{}{}
 		content := map[string]string{"default": "", "type": "string"}
 		pcmkHostList["content"] = content
-		pcmkHostList["longdesc"] = "A list of machines controlled by this device."
+		pcmkHostList["longdesc"] = gettext.Gettext("A list of machines controlled by this device.")
 		pcmkHostList["name"] = "pcmk_host_list"
 		pcmkHostList["required"] = "1"
 		pcmkHostList["shortdesc"] = ""
 		pcmkHostList["unique"] = ""
 		pcmkHostList["value"] = ""
 		prop = append(prop, pcmkHostList)
+
+		pcmkDelayBase := map[string]interface{}{}
+		pcmkDelayBase["content"] = content
+		pcmkDelayBase["longdesc"] = gettext.Gettext("Enable a base delay for fencing actions and specify base delay value")
+		pcmkDelayBase["name"] = "pcmk_delay_base"
+		pcmkDelayBase["required"] = "0"
+		pcmkDelayBase["shortdesc"] = ""
+		pcmkDelayBase["unique"] = ""
+		pcmkDelayBase["value"] = ""
+		prop = append(prop, pcmkDelayBase)
+
+		pcmkOffAction := map[string]interface{}{}
+		pcmkOffAction["content"] = content
+		pcmkOffAction["longdesc"] = gettext.Gettext("Some devices do not support the standard commands or may provide additional ones.Use this to specify an alternate, device-specific, command that implements the 'off' action.")
+		pcmkOffAction["name"] = "pcmk_off_action"
+		pcmkOffAction["required"] = "0"
+		pcmkOffAction["shortdesc"] = "Advanced use only: An alternate command to run instead of 'off'"
+		pcmkOffAction["unique"] = ""
+		pcmkOffAction["value"] = ""
+		prop = append(prop, pcmkOffAction)
+
+		pcmkRebootAction := map[string]interface{}{}
+		pcmkRebootAction["content"] = content
+		pcmkRebootAction["longdesc"] = gettext.Gettext("some devices do not support the standard commands or may provide additional ones. Use this to specify an alternate, device-specific, command that implements the 'reboot' action.")
+		pcmkRebootAction["name"] = "pcmk_reboot_action"
+		pcmkRebootAction["required"] = "0"
+		pcmkRebootAction["shortdesc"] = "Advanced use only: An alternate command to run instead of 'off'"
+		pcmkRebootAction["unique"] = ""
+		pcmkRebootAction["value"] = ""
+		prop = append(prop, pcmkRebootAction)
 	}
-	
+
+	// trace_ra添加
+	if rscClass != "stonith" {
+		traceRA := map[string]interface{}{
+			"name":      "trace_ra",
+			"required":  "0",
+			"unique":    "0",
+			"shortdesc": gettext.Gettext("Debug script switch"),
+			"longdesc":  gettext.Gettext("Debug script switch"),
+		}
+		traceRA["content"] = map[string]string{
+			"default": "0",
+			"type":    "int",
+		}
+		prop = append(prop, traceRA)
+	}
+
 	actionElems := eRoot.FindElements("./actions/action")
 	for _, actionElem := range actionElems {
 		act := map[string]string{}
@@ -181,14 +242,14 @@ func GetResourceMetas(rscClass, rscType, rscProvider string) map[string]interfac
 	if longdesc := eRoot.FindElement("longdesc"); longdesc != nil {
 		text := longdesc.Text()
 		count := strings.Count(text, "\n")
-		data["longdesc"] = strings.Replace(text, "\n", " ", count)
+		data["longdesc"] = gettext.Gettext(strings.Replace(text, "\n", " ", count))
 	} else {
 		data["longdesc"] = ""
 	}
 	if shortdesc := eRoot.FindElement("shortdesc"); shortdesc != nil {
 		text := shortdesc.Text()
 		count := strings.Count(text, "\n")
-		data["shortdesc"] = strings.Replace(text, "\n", " ", count)
+		data["shortdesc"] = gettext.Gettext(strings.Replace(text, "\n", " ", count))
 	} else {
 		data["shortdesc"] = ""
 	}
