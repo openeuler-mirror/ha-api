@@ -1,78 +1,170 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: bixiaoyan <bixiaoyan@kylinos.cn>
- * Date: Fri Nov 22 14:35:35 2024 +0800
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
 
 package models
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
+// 测试GetOneTypeUtilization基础解析功能
+func TestGetOneTypeUtilization_Normal(t *testing.T) {
+	// Mock正常命令输出
+	mockOutput := `Utilization:
+    node1: cpu=4 ram=16
+    node2: cpu=8 ram=32 special=value-with=equal
+    `
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		expectedCmd := "pcs node utilization"
+		assert.Equal(t, expectedCmd, cmd)
+		return []byte(mockOutput), nil
+	}
+
+	result := GetOneTypeUtilization("node")
+
+	// 验证解析结果
+	assert.Len(t, result, 2, "应解析出2个节点")
+
+}
+
+// 测试GetUtilization聚合功能
 func TestGetUtilization(t *testing.T) {
+	// 设置双mock
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		switch {
+		case strings.Contains(cmd, "node"):
+			return []byte("Utilization:\nnodeA: cpu=2"), nil
+		case strings.Contains(cmd, "resource"):
+			return []byte("Utilization:\nres1: priority=1"), nil
+		}
+		return nil, nil
+	}
+
 	result := GetUtilization()
-	if result.Action != true {
-		t.Fatal("Get utilization failed")
-	}
+
+	assert.True(t, result.Action)
 }
 
-func TestSetUtilization(t *testing.T) {
+// 测试设置利用率参数构建
+func TestSetUtilization_ParameterBuild(t *testing.T) {
 	testCases := []struct {
-		input    []byte
-		expected map[string]interface{}
+		name     string
+		input    map[string]string
+		expected string
 	}{
 		{
-			[]byte(`{"type":"node","name": "ha1","cpu":"1"}`),
-			map[string]interface{}{"action": true, "info": "Utilization set success"},
+			"NormalCase",
+			map[string]string{
+				"type": "node",
+				"name": "node1",
+				"cpu":  "4",
+			},
+			"pcs node utilization node1 cpu=4 ",
 		},
 		{
-			[]byte(`{"type":"resource","name": "d","cpu":"1"}`),
-			map[string]interface{}{"action": true, "info": "Utilization set success"},
+			"SpecialChars",
+			map[string]string{
+				"type": "resource",
+				"name": "res1",
+				"key":  "value=with=equals",
+			},
+			"pcs resource utilization res1 key=value=with=equals ",
 		},
 	}
 
-	for _, testCase := range testCases {
-		result := SetUtilization(testCase.input)
-		resultJson, err := json.Marshal(result)
-		require.NoError(t, err, "Marshal not return an error")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var actualCmd string
+			utils.RunCommand = func(cmd string) ([]byte, error) {
+				actualCmd = cmd
+				return []byte("success"), nil
+			}
 
-		expectedJson, err := json.Marshal(testCase.expected)
-		require.NoError(t, err, "Marshal expected map not return an error")
+			data, _ := json.Marshal(tc.input)
+			SetUtilization(data)
 
-		assert.JSONEq(t, string(expectedJson), string(resultJson), "Set utilization case success")
+			assert.Equal(t, tc.expected, actualCmd)
+		})
 	}
 }
 
+// 测试设置利用率异常场景
+func TestSetUtilization_ErrorCases(t *testing.T) {
+	t.Run("EmptyInput", func(t *testing.T) {
+		resp := SetUtilization(nil)
+		assert.False(t, resp.Action)
+		assert.Contains(t, resp.Error, "No input data")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		resp := SetUtilization([]byte("{invalid}"))
+		assert.False(t, resp.Action)
+		assert.Contains(t, resp.Error, "Cannot convert data")
+	})
+
+	t.Run("CommandFailure", func(t *testing.T) {
+		utils.RunCommand = func(cmd string) ([]byte, error) {
+			return []byte("Error: Not found"), errors.New("command failed")
+		}
+
+		data, _ := json.Marshal(map[string]string{
+			"type": "node",
+			"name": "invalid-node",
+		})
+		resp := SetUtilization(data)
+
+		assert.False(t, resp.Action)
+	})
+}
+
+// 测试删除利用率功能
 func TestDelUtilization(t *testing.T) {
-	testCases := []struct {
-		input    []byte
-		expected map[string]interface{}
-	}{
-		{
-			[]byte(`{"type":"node","name": "ha1","cpu":"1"}`),
-			map[string]interface{}{"action": true, "info": "Delete Utilization success"},
-		},
-		{
-			[]byte(`{"type":"resource","name": "d","cpu":"1"}`),
-			map[string]interface{}{"action": true, "info": "Delete Utilization success"},
-		},
-	}
+	t.Run("NormalDeletion", func(t *testing.T) {
+		var actualCmd string
+		utils.RunCommand = func(cmd string) ([]byte, error) {
+			actualCmd = cmd
+			return []byte(""), nil
+		}
 
-	for _, testCase := range testCases {
-		result := DelUtilization(testCase.input)
-		resultJson, err := json.Marshal(result)
-		require.NoError(t, err, "Marshal not return an error")
+		data, _ := json.Marshal(map[string]string{
+			"type": "resource",
+			"name": "res1",
+			"cpu":  "", // 删除cpu属性
+		})
+		resp := DelUtilization(data)
 
-		expectedJson, err := json.Marshal(testCase.expected)
-		require.NoError(t, err, "Marshal expected map not return an error")
+		assert.True(t, resp.Action)
+		assert.Equal(t, "pcs resource utilization res1 cpu=", actualCmd)
+	})
 
-		assert.JSONEq(t, string(expectedJson), string(resultJson), "Delete Utilization success")
-	}
+	t.Run("MultiAttribute", func(t *testing.T) {
+		data, _ := json.Marshal(map[string]string{
+			"type":  "node",
+			"name":  "node1",
+			"attr1": "",
+			"attr2": "",
+		})
+
+		var actualCmd string
+		utils.RunCommand = func(cmd string) ([]byte, error) {
+			actualCmd = cmd
+			return []byte(""), nil
+		}
+
+		DelUtilization(data)
+		assert.Contains(t, actualCmd, "attr1=")
+		assert.Contains(t, actualCmd, "attr2=")
+	})
 }
