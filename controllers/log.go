@@ -46,35 +46,40 @@ func (lc *LogController) Get() {
 			lc.ServeJSON()
 			return
 		}
+		var success bool
 		for _, node := range remoteNodes {
-			url := utils.GenerateRemoteRequestURL(node, currentPath)
-			res, err := utils.SendRequest(url, lc.Ctx.Request.Method, lc.Ctx.Input.RequestBody)
-			if err != nil {
-				slog.Warn("request to node failed (retry next node)", "url", url, "node", node, "error", err)
-				continue
-			}
-			defer res.Body.Close()
-			respData, err := io.ReadAll(res.Body)
-			if err != nil {
-				slog.Error("failed to read response body", "url", currentPath, "node", node, "error", err)
-				continue
-			}
-			contentDispostion := res.Header.Get("content-disposition")
-			parts := strings.Split(contentDispostion, "filename=")
-			if len(parts) < 2 {
-				slog.Error("content-disposition header missing filename", "header", contentDispostion)
-				continue
-			}
-			fileName := strings.TrimPrefix(parts[1], "\"")
-			fileName = strings.TrimSuffix(fileName, "\"")
+			func() {
+				url := utils.GenerateRemoteRequestURL(node, currentPath)
+				res, err := utils.SendRequest(url, lc.Ctx.Request.Method, lc.Ctx.Input.RequestBody)
+				if err != nil {
+					slog.Warn("request to node failed (retry next node)", "url", url, "node", node, "error", err)
+					return
+				}
+				defer res.Body.Close()
+				respData, err := io.ReadAll(res.Body)
+				if err != nil {
+					slog.Error("failed to read response body", "url", currentPath, "node", node, "error", err)
+					return
+				}
+				contentDispostion := res.Header.Get("content-disposition")
+				parts := strings.Split(contentDispostion, "filename=")
+				if len(parts) < 2 {
+					slog.Error("content-disposition header missing filename", "header", contentDispostion)
+					return
+				}
+				fileName := strings.TrimPrefix(parts[1], "\"")
+				fileName = strings.TrimSuffix(fileName, "\"")
 
-			lc.Ctx.Output.Header("content-type", "application/octet-stream")
-			lc.Ctx.Output.Header("content-transfer-encoding", "binary")
-			lc.Ctx.Output.Header("content-disposition", "attachment;filename="+fileName)
+				lc.Ctx.Output.Header("content-type", "application/octet-stream")
+				lc.Ctx.Output.Header("content-transfer-encoding", "binary")
+				lc.Ctx.Output.Header("content-disposition", "attachment;filename="+fileName)
 
-			lc.Ctx.Output.Body(respData)
-			return
-
+				lc.Ctx.Output.Body(respData)
+				success = true
+			}()
+			if success {
+				return
+			}
 		}
 		slog.Error("UrlRedirect failed (all nodes )", "cluster", clusterName, "url", currentPath)
 		res := map[string]interface{}{}
