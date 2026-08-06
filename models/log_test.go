@@ -8,7 +8,6 @@
 package models
 
 import (
-	"fmt"
 	"testing"
 
 	"gitee.com/openeuler/ha-api/utils"
