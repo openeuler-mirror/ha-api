@@ -2,9 +2,10 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: yangzhao_kl <yangzhao1@kylinos.cn>
- * Date: Fri Jan 8 20:56:40 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package controllers
 
 import (
@@ -22,23 +23,30 @@ type NodesController struct {
 }
 
 func (nsc *NodesController) Get() {
-	result := map[string]interface{}{}
-
-	retData, err := models.GetNodesInfo()
-	if err != nil {
-		result["action"] = false
-		result["error"] = err.Error()
+	clusterName := nsc.Ctx.Input.Param(":cluster_name")
+	// result := map[string]interface{}{}
+	result := make(map[string]interface{}) // 显式初始化
+	if !utils.IsLocalCluster(clusterName) {
+		ui := "/api/v1/" + clusterName + "/1/nodes"
+		result, _ = models.UrlRedirect(clusterName, ui, "GET", nil, nil)
+		result["localnode"] = ""
 	} else {
-		result["action"] = true
-		result["data"] = retData
-		if len(retData) > 0 {
-			currentNode, _ := utils.RunCommand(utils.CmdHostName)
-			currentNodeStr := strings.ReplaceAll(string(currentNode), "\n", "")
-			result["localnode"] = currentNodeStr
+		retData, err := models.GetNodesInfo()
+		if err != nil {
+			result["action"] = false
+			result["error"] = err.Error()
+		} else {
+			result["action"] = true
+			result["data"] = retData
+			if len(retData) > 0 {
+				currentNode, _ := utils.RunCommand(utils.CmdHostName)
+				currentNodeStr := strings.ReplaceAll(string(currentNode), "\n", "")
+				result["localnode"] = currentNodeStr
+			}
 		}
-	}
 
-	nsc.Data["json"] = &result
+	}
+	nsc.Data["json"] = result
 	nsc.ServeJSON()
 }
 

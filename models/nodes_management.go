@@ -809,3 +809,90 @@ func LocalAddNodes(addNodes AddNodesData) map[string]interface{} {
 		"info":   gettext.Gettext("Add node success"),
 	}
 }
+
+func LocalDeleteNodes(deleteNodes DeleteNodesData) interface{} {
+	deleteNodesInfo := deleteNodes.Data
+	cluster_exist := true
+	deleteRemoteNodes := make([]string, 0)
+	deleteGuestNodes := make([]string, 0)
+	deletePrimitiveNodes := make([]string, 0)
+	deleteOutputNode := make([]string, 0)
+
+	for num, _ := range deleteNodesInfo {
+		if deleteNodesInfo[num].Type == "remote" {
+			deleteRemoteNodes = append(deleteRemoteNodes, deleteNodesInfo[num].Name)
+		} else if deleteNodesInfo[num].Type == "guest" {
+			deleteGuestNodes = append(deleteGuestNodes, deleteNodesInfo[num].Name)
+		} else {
+			deletePrimitiveNodes = append(deletePrimitiveNodes, deleteNodesInfo[num].Name)
+		}
+	}
+
+	if len(deleteRemoteNodes) != 0 {
+		for _, deleteNode := range deleteRemoteNodes {
+			delete_cmd := "pcs cluster node delete-remote " + deleteNode
+			output, err := utils.RunCommand(delete_cmd)
+			if err != nil {
+				deleteOutputNode = append(deleteOutputNode, string(output))
+			}
+		}
+	}
+
+	if len(deleteGuestNodes) != 0 {
+		for _, deleteNode := range deleteGuestNodes {
+			delete_cmd := "pcs cluster node delete-guest " + deleteNode
+			output, err := utils.RunCommand(delete_cmd)
+			if err != nil {
+				deleteOutputNode = append(deleteOutputNode, string(output))
+			}
+		}
+	}
+
+	if len(deletePrimitiveNodes) != 0 {
+		remainNodeNum := len(GetClusterInfo1().Data) - len(deleteNodesInfo)
+		if remainNodeNum < 2 {
+			deleteOutputNode = append(deleteOutputNode, gettext.Gettext("After deleting this node, there is only one node left in the cluster. Please reselect it."))
+			return map[string]interface{}{
+				"action":        false,
+				"cluster_exist": cluster_exist,
+				"error":         gettext.Gettext("After deleting this node, there is only one node left in the cluster. Please reselect it."),
+				"detailInfo":    deleteOutputNode,
+			}
+		} else {
+			for _, node := range deletePrimitiveNodes {
+				if node == GetClusterInfo1().CurrentNode {
+					deleteOutputNode = append(deleteOutputNode, gettext.Gettext("can't delete local node"))
+					return map[string]interface{}{
+						"action":        false,
+						"cluster_exist": cluster_exist,
+						"error":         gettext.Gettext("can't delete local node"),
+						"detailInfo":    deleteOutputNode,
+					}
+				}
+			}
+
+			nodeName := ""
+			for _, deleteNode := range deletePrimitiveNodes {
+				nodeName = nodeName + deleteNode + " "
+			}
+			delete_cmd := "pcs cluster node delete " + nodeName + " --force"
+			output, err := utils.RunCommand(delete_cmd)
+			if err != nil {
+				deleteOutputNode = append(deleteOutputNode, string(output))
+			}
+		}
+	}
+	if len(deleteOutputNode) != 0 {
+		return map[string]interface{}{
+			"action":        false,
+			"cluster_exist": cluster_exist,
+			"error":         deleteOutputNode,
+			"detailInfo":    deleteOutputNode,
+		}
+	}
+	return map[string]interface{}{
+		"action":        true,
+		"cluster_exist": cluster_exist,
+		"info":          gettext.Gettext("Delete node success"),
+	}
+}
