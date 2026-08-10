@@ -596,8 +596,9 @@ func checkClusterExist() []Cluster {
 		for _, cluster := range localConf.Clusters {
 			wg.Add(1)
 			go func(cluster Cluster) {
-				defer wg.Done()
-				checkOneClusterExist(localConf, cluster)
+				// checkOneClusterExist 内部通过 defer wg.Done() 负责计数器递减，
+				// 此处不能再调用 wg.Done()，否则会造成 WaitGroup 计数为负触发 panic。
+				checkOneClusterExist(localConf, cluster, &wg)
 			}(cluster)
 		}
 		wg.Wait()
