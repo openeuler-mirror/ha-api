@@ -74,6 +74,7 @@ func GetAllResourceStatusForNew() []map[string]interface{} {
 	rscClone := doc.FindElements("/crm_mon/resources/clone")
 	rscGroup := doc.FindElements("/crm_mon/resources/group")
 	rscResource := doc.FindElements("/crm_mon/resources/resource")
+	rscBundle := doc.FindElements("/crm_mon/resources/bundle")
 
 	if len(rscClone) != 0 {
 		// several clone
@@ -297,7 +298,112 @@ func GetAllResourceStatusForNew() []map[string]interface{} {
 			rscInfo = append(rscInfo, resourceInfo)
 		}
 	}
+	// 新增bundle资源处理
+	if len(rscBundle) != 0 {
+		for _, bundle := range rscBundle {
+			bundleId := bundle.SelectAttrValue("id", "")
+			if err := validateResourceID(bundleId); err != nil {
+				continue
+			}
+			bundleInfo := map[string]interface{}{
+				"status":         "Not Running",
+				"status_message": "",
+				"running_node":   []string{},
+				"id":             bundleId,
+			}
+			priOut, err := utils.RunCommandWithArgs("crm_resource", "--resource", bundleId, "--query-xml")
+			if err != nil {
+				continue
+			}
+			doc := etree.NewDocument()
+			if err = doc.ReadFromBytes(priOut); err != nil {
+				continue
+			}
+			priRes := doc.FindElement("/bundle/primitive")
+			priId := ""
+			priSvc := ""
+			if priRes != nil {
+				priId = priRes.SelectAttrValue("id", "")
+				// 从 resource_agent 属性提取 svc，与 GetResourceSvcFromXml 保持一致
+				priSvc = GetResourceSvcFromXml(priRes)
+			}
+			// 若未找到 primitive 或 id 为空，则无法匹配子资源，跳过该 bundle
+			if priId == "" {
+				continue
+			}
+			subBundlePri := []map[string]interface{}{}
+			// 处理replica
+			if replicas := bundle.FindElements("replica"); len(replicas) > 0 {
+				bundleRunNodes := []string{}
 
+				for _, replica := range replicas {
+					// 处理replica下的resource
+					if resources := replica.FindElements("resource"); len(resources) > 0 {
+
+						for _, resource := range resources {
+							// 标准化 bundle 子资源 ID：将 crm_mon 的 "name:0" 转为 "name-0"
+							resourceId := strings.Replace(resource.SelectAttrValue("id", ""), ":", "-", 1)
+							if !strings.HasPrefix(resourceId, priId) {
+								continue
+							}
+							resourceInfo := map[string]interface{}{
+								"status":         GetResourceStatus(resource),
+								"status_message": "",
+								"running_node":   []string{},
+								"id":             resourceId,
+								"svc":            priSvc,
+								"type":           "primitive",
+							}
+
+							// 处理运行节点
+							if nodes := resource.FindElements("node"); len(nodes) > 0 {
+								nodesList := []string{}
+								for _, node := range nodes {
+									nodeName := node.SelectAttrValue("name", "")
+									nodesList = append(nodesList, nodeName)
+
+									bundleRunNodes = append(bundleRunNodes, nodeName)
+								}
+								resourceInfo["running_node"] = nodesList
+
+								// 状态聚合逻辑与 clone 处理保持一致：
+								// - 非 Running/Running but failed -> Not Running
+								// - Running but failed -> Running but failed（前提：当前非 Not Running）
+								switch resourceInfo["status"] {
+								case "Running":
+									if bundleInfo["status"] == "Not Running" {
+										bundleInfo["status"] = "Running"
+									}
+								case "Running but failed":
+									if bundleInfo["status"] == "Running" {
+										bundleInfo["status"] = "Running but failed"
+									}
+								case "Unmanaged":
+									if bundleInfo["status"] == "Running" {
+										bundleInfo["status"] = "Unmanaged"
+									}
+								case "Failed":
+									bundleInfo["status"] = "Not Running"
+								default:
+									bundleInfo["status"] = "Not Running"
+								}
+							}
+
+							subBundlePri = append(subBundlePri, resourceInfo)
+
+						}
+
+					}
+				}
+
+				bundleInfo["running_node"] = utils.RemoveDupl(bundleRunNodes)
+			}
+
+			bundleInfo["type"] = "bundle"
+			bundleInfo["subrscs"] = subBundlePri
+			rscInfo = append(rscInfo, bundleInfo)
+		}
+	}
 	return rscInfo
 }
 
