@@ -1,6 +1,6 @@
 /*
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
- * ha-api licensed under the Mulan Permissive Software License, Version 2. 
+ * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
  * Author: yangzhao_kl <yangzhao1@kylinos.cn>
  * Date: Fri Jan 8 20:56:40 2021 +0800
@@ -8,352 +8,772 @@
 package models
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/beevik/etree"
 )
 
-func TestGetResourceInfoByrscID(t *testing.T) {
-	out := `xml:
-	<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
-	  <operations>
-		<op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-		<op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-		<op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
-		<op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-		<op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-		<op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-	  </operations>
-	</primitive>
-	`
-	xml := strings.Split(string(out), ":\n")[1]
-	doc := etree.NewDocument()
-	if err := doc.ReadFromString(xml); err != nil {
-		// return ""
-	}
+// ==================== validateResourceID ====================
 
-	// fmt.Println(doc.Space)
-	// fmt.Println(doc.Tag)
-	// fmt.Println(doc.Attr)
-	// fmt.Println(doc.Child)
-	fmt.Println(doc.Root().Tag)
-	// var value map[string]interface{}
-	// var doc *etree.Document
+func TestValidateResourceID(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      string
+		wantErr bool
+	}{
+		{"valid simple id", "dummy", false},
+		{"valid with underscore", "my_resource", false},
+		{"valid with hyphen", "my-resource", false},
+		{"valid with colon", "clone:0", false},
+		{"valid with dot", "my.resource", false},
+		{"valid with digits", "rsc123", false},
+		{"valid complex id", "sysinfo-clone:1", false},
+		{"empty id", "", true},
+		{"invalid with space", "my resource", true},
+		{"invalid with slash", "my/resource", true},
+		{"invalid with special char", "rsc@123", true},
+		{"invalid with brackets", "rsc[0]", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateResourceID(tt.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateResourceID(%q) error = %v, wantErr %v", tt.id, err, tt.wantErr)
+			}
+		})
+	}
 }
 
-func TestGetGroupRscs(t *testing.T) {
-	out := `Resource Group: group1
-	dummy2     (ocf::heartbeat:Dummy): Started ha1
-	dummy6     (ocf::heartbeat:Dummy): Started ha1
-	dummy7     (ocf::heartbeat:Dummy): Started ha1
-xml:
-<group id="group1">
- <primitive class="ocf" id="dummy2" provider="heartbeat" type="Dummy">
-   <meta_attributes id="dummy2-meta_attributes"/>
-   <operations>
-	 <op id="dummy2-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-	 <op id="dummy2-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-	 <op id="dummy2-monitor-interval-10s" interval="10s" name="monitor" timeout="20s"/>
-	 <op id="dummy2-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-	 <op id="dummy2-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-	 <op id="dummy2-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-   </operations>
- </primitive>
- <primitive class="ocf" id="dummy6" provider="heartbeat" type="Dummy">
-   <meta_attributes id="dummy6-meta_attributes"/>
- </primitive>
- <primitive class="ocf" id="dummy7" provider="heartbeat" type="Dummy">
-   <meta_attributes id="dummy7-meta_attributes"/>
- </primitive>
-</group>
-	`
+// ==================== validateIdentifier ====================
 
-	xml := strings.Split(string(out), ":\n")[1]
-	fmt.Println(xml)
-	doc := etree.NewDocument()
-	if err := doc.ReadFromString(xml); err != nil {
-		fmt.Println(err)
+func TestValidateIdentifier(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		fieldName string
+		wantErr   bool
+	}{
+		{"valid class", "ocf", "class", false},
+		{"valid provider", "pacemaker", "provider", false},
+		{"valid with hyphen", "heart-beat", "provider", false},
+		{"valid with underscore", "my_type", "type", false},
+		{"empty value", "", "class", true},
+		{"invalid with colon", "ocf:heartbeat", "class", true},
+		{"invalid with dot", "my.type", "type", true},
+		{"invalid with space", "my type", "provider", true},
 	}
-	et := doc.FindElements("//primitive")
-	rscs := []string{}
-
-	for _, pri := range et {
-		rscs = append(rscs, pri.SelectAttrValue("id", ""))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateIdentifier(tt.value, tt.fieldName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIdentifier(%q, %q) error = %v, wantErr %v", tt.value, tt.fieldName, err, tt.wantErr)
+			}
+		})
 	}
-	fmt.Println(rscs)
 }
 
-// [root@ha1 ~]# cibadmin --query --scope resources
-// <resources>
-//   <clone id="sysinfo-clone">
-//     <primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo">
-//       <operations>
-//         <op id="sysinfo-monitor-interval-60s" interval="60s" name="monitor" timeout="20s"/>
-//         <op id="sysinfo-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//         <op id="sysinfo-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//       </operations>
-//     </primitive>
-//   </clone>
-//   <primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
-//     <operations>
-//       <op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-//       <op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-//       <op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
-//       <op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-//       <op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//       <op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//     </operations>
-//   </primitive>
-// </resources>
+// ==================== splitXMLOutput ====================
 
-// [root@ha1 ~]# crm_resource --resource dummy --query-xml
-//  dummy  (ocf::pacemaker:Dummy): Started ha1
-// xml:
-// <primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
-//   <operations>
-//     <op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-//     <op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-//     <op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
-//     <op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-//     <op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//     <op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//   </operations>
-// </primitive>
+func TestSplitXMLOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{
+			"valid output with xml prefix",
+			"xml:\n<primitive id=\"dummy\"/>",
+			"<primitive id=\"dummy\"/>",
+			false,
+		},
+		{
+			"valid output with text prefix",
+			"dummy (ocf::pacemaker:Dummy): Started ha1\nxml:\n<primitive id=\"dummy\"/>",
+			"<primitive id=\"dummy\"/>",
+			false,
+		},
+		{
+			"no separator",
+			"<primitive id=\"dummy\"/>",
+			"",
+			true,
+		},
+		{
+			"empty input",
+			"",
+			"",
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := splitXMLOutput([]byte(tt.input))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("splitXMLOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("splitXMLOutput() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
-// [root@ha1 ~]# crm_resource --resource group1 --query-xml
-//  Resource Group: group1
-//      dummy2     (ocf::heartbeat:Dummy): Started ha2
-// xml:
-// <group id="group1">
-//   <primitive class="ocf" id="dummy2" provider="heartbeat" type="Dummy">
-//     <operations>
-//       <op id="dummy2-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-//       <op id="dummy2-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-//       <op id="dummy2-monitor-interval-10s" interval="10s" name="monitor" timeout="20s"/>
-//       <op id="dummy2-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-//       <op id="dummy2-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//       <op id="dummy2-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//     </operations>
-//   </primitive>
-// </group>
+// ==================== GetResourceSvcFromXml ====================
 
-// [root@ha1 ~]# crm_resource --resource sysinfo-clone --query-xml
-//  Clone Set: sysinfo-clone [sysinfo]
-//      Started: [ ha1 ha2 ]
-// xml:
-// <clone id="sysinfo-clone">
-//   <primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo">
-//     <operations>
-//       <op id="sysinfo-monitor-interval-60s" interval="60s" name="monitor" timeout="20s"/>
-//       <op id="sysinfo-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//       <op id="sysinfo-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//     </operations>
-//   </primitive>
-// </clone>
+func TestGetResourceSvcFromXml(t *testing.T) {
+	tests := []struct {
+		name    string
+		xmlStr  string
+		wantSvc string
+	}{
+		{
+			"standard ocf resource agent",
+			`<resource resource_agent="ocf::pacemaker:Dummy"/>`,
+			"Dummy",
+		},
+		{
+			"heartbeat resource agent",
+			`<resource resource_agent="ocf::heartbeat:IPaddr2"/>`,
+			"IPaddr2",
+		},
+		{
+			"systemd resource agent",
+			`<resource resource_agent="systemd:my-service"/>`,
+			"my-service",
+		},
+		{
+			"no resource_agent attribute",
+			`<resource id="dummy"/>`,
+			"",
+		},
+		{
+			"single segment resource agent",
+			`<resource resource_agent="Dummy"/>`,
+			"Dummy",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc := etree.NewDocument()
+			if err := doc.ReadFromString(tt.xmlStr); err != nil {
+				t.Fatalf("failed to parse XML: %v", err)
+			}
+			got := GetResourceSvcFromXml(doc.Root())
+			if got != tt.wantSvc {
+				t.Errorf("GetResourceSvcFromXml() = %q, want %q", got, tt.wantSvc)
+			}
+		})
+	}
+}
 
-// [root@ha1 ~]# cibadmin -Q
-// <cib crm_feature_set="3.2.0" validate-with="pacemaker-3.2" epoch="56" num_updates="14818" admin_epoch="0" cib-last-written="Tue Dec 29 14:41:29 2020" update-origin="ha1" update-client="cibadmin" update-user="hacluster" have-quorum="1" dc-uuid="2">
-//   <configuration>
-//     <crm_config>
-//       <cluster_property_set id="cib-bootstrap-options">
-//         <nvpair id="cib-bootstrap-options-have-watchdog" name="have-watchdog" value="false"/>
-//         <nvpair id="cib-bootstrap-options-dc-version" name="dc-version" value="2.0.3-1.oe1-4b1f869f0f"/>
-//         <nvpair id="cib-bootstrap-options-cluster-infrastructure" name="cluster-infrastructure" value="corosync"/>
-//         <nvpair id="cib-bootstrap-options-cluster-name" name="cluster-name" value="hacluster"/>
-//         <nvpair id="cib-bootstrap-options-stonith-enabled" name="stonith-enabled" value="false"/>
-//         <nvpair id="cib-bootstrap-options-no-quorum-policy" name="no-quorum-policy" value="ignore"/>
-//       </cluster_property_set>
-//     </crm_config>
-//     <nodes>
-//       <node id="1" uname="ha1">
-//         <instance_attributes id="nodes-1"/>
-//       </node>
-//       <node id="2" uname="ha2"/>
-//     </nodes>
-//     <resources>
-//       <clone id="sysinfo-clone">
-//         <primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo">
-//           <operations>
-//             <op id="sysinfo-monitor-interval-60s" interval="60s" name="monitor" timeout="20s"/>
-//             <op id="sysinfo-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//             <op id="sysinfo-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//           </operations>
-//         </primitive>
-//       </clone>
-//       <primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
-//         <operations>
-//           <op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-//           <op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-//           <op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
-//           <op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-//           <op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//           <op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//         </operations>
-//       </primitive>
-//     </resources>
-//     <constraints/>
-//   </configuration>
-//   <status>
-//     <node_state id="2" uname="ha2" in_ccm="true" crmd="online" crm-debug-origin="do_update_resource" join="member" expected="member">
-//       <transient_attributes id="2">
-//         <instance_attributes id="status-2">
-//           <nvpair id="status-2-arch" name="arch" value="x86_64"/>
-//           <nvpair id="status-2-os" name="os" value="Linux-4.19.90-2012.1.0.0050.oe1.x86_64"/>
-//           <nvpair id="status-2-free_swap" name="free_swap" value="3750"/>
-//           <nvpair id="status-2-cpu_info" name="cpu_info" value="Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz"/>
-//           <nvpair id="status-2-cpu_speed" name="cpu_speed" value="6384.00"/>
-//           <nvpair id="status-2-cpu_cores" name="cpu_cores" value="4"/>
-//           <nvpair id="status-2-cpu_load" name="cpu_load" value="0.02,"/>
-//           <nvpair id="status-2-ram_total" name="ram_total" value="3450"/>
-//           <nvpair id="status-2-ram_free" name="ram_free" value="650"/>
-//           <nvpair id="status-2-root_free" name="root_free" value="30"/>
-//           <nvpair id="status-2-.health_disk" name="#health_disk" value="green"/>
-//         </instance_attributes>
-//       </transient_attributes>
-//       <lrm id="2">
-//         <lrm_resources>
-//           <lrm_resource id="sysinfo" type="SysInfo" class="ocf" provider="pacemaker">
-//             <lrm_rsc_op id="sysinfo_last_0" operation_key="sysinfo_start_0" operation="start" crm-debug-origin="build_active_RAs" crm_feature_set="3.2.0" transition-key="3:4:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;3:4:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha2" call-id="7" rc-code="0" op-status="0" interval="0" last-rc-change="10137" last-run="10137" exec-time="119243" queue-time="29" op-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//             <lrm_rsc_op id="sysinfo_monitor_60000" operation_key="sysinfo_monitor_60000" operation="monitor" crm-debug-origin="build_active_RAs" crm_feature_set="3.2.0" transition-key="3:6:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;3:6:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha2" call-id="8" rc-code="0" op-status="0" interval="60000" last-rc-change="10137" exec-time="106981" queue-time="17" op-digest="4811cef7f7f94e3a35a70be7916cb2fd"/>
-//           </lrm_resource>
-//           <lrm_resource id="dummy" type="Dummy" class="ocf" provider="pacemaker">
-//             <lrm_rsc_op id="dummy_last_0" operation_key="dummy_stop_0" operation="stop" crm-debug-origin="do_update_resource" crm_feature_set="3.2.0" transition-key="12:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;12:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha2" call-id="57" rc-code="0" op-status="0" interval="0" last-rc-change="1029368" last-run="1029368" exec-time="13514" queue-time="15" op-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8" op-force-restart=" envfile  op_sleep  passwd  state " op-restart-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8" op-secure-params=" passwd " op-secure-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//             <lrm_rsc_op id="dummy_monitor_3000" operation_key="dummy_monitor_3000" operation="monitor" crm-debug-origin="do_update_resource" crm_feature_set="3.2.0" transition-key="14:17725:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;14:17725:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha2" call-id="55" rc-code="0" op-status="0" interval="3000" last-rc-change="1029323" exec-time="12324" queue-time="68" op-digest="4811cef7f7f94e3a35a70be7916cb2fd" op-secure-params=" passwd " op-secure-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//           </lrm_resource>
-//         </lrm_resources>
-//       </lrm>
-//     </node_state>
-//     <node_state id="1" uname="ha1" in_ccm="true" crmd="online" crm-debug-origin="do_update_resource" join="member" expected="member">
-//       <lrm id="1">
-//         <lrm_resources>
-//           <lrm_resource id="sysinfo" type="SysInfo" class="ocf" provider="pacemaker">
-//             <lrm_rsc_op id="sysinfo_last_0" operation_key="sysinfo_start_0" operation="start" crm-debug-origin="build_active_RAs" crm_feature_set="3.2.0" transition-key="5:41:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;5:41:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha1" call-id="45" rc-code="0" op-status="0" interval="0" last-rc-change="29007" last-run="29007" exec-time="99736" queue-time="32" op-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//             <lrm_rsc_op id="sysinfo_monitor_60000" operation_key="sysinfo_monitor_60000" operation="monitor" crm-debug-origin="build_active_RAs" crm_feature_set="3.2.0" transition-key="6:41:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;6:41:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha1" call-id="46" rc-code="0" op-status="0" interval="60000" last-rc-change="29007" exec-time="101711" queue-time="17" op-digest="4811cef7f7f94e3a35a70be7916cb2fd"/>
-//           </lrm_resource>
-//           <lrm_resource id="dummy" type="Dummy" class="ocf" provider="pacemaker">
-//             <lrm_rsc_op id="dummy_last_0" operation_key="dummy_start_0" operation="start" crm-debug-origin="do_update_resource" crm_feature_set="3.2.0" transition-key="13:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;13:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha1" call-id="78" rc-code="0" op-status="0" interval="0" last-rc-change="1047822" last-run="1047822" exec-time="12155" queue-time="21" op-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8" op-force-restart=" envfile  op_sleep  passwd  state " op-restart-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8" op-secure-params=" passwd " op-secure-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//             <lrm_rsc_op id="dummy_monitor_3000" operation_key="dummy_monitor_3000" operation="monitor" crm-debug-origin="do_update_resource" crm_feature_set="3.2.0" transition-key="14:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" transition-magic="0:0;14:17729:0:a056ee7d-3b46-4f8d-8a46-bc2dfc75fc75" exit-reason="" on_node="ha1" call-id="79" rc-code="0" op-status="0" interval="3000" last-rc-change="1047822" exec-time="8472" queue-time="19" op-digest="4811cef7f7f94e3a35a70be7916cb2fd" op-secure-params=" passwd " op-secure-digest="f2317cad3d54cec5d7d7aa7d0bf35cf8"/>
-//           </lrm_resource>
-//         </lrm_resources>
-//       </lrm>
-//       <transient_attributes id="1">
-//         <instance_attributes id="status-1">
-//           <nvpair id="status-1-arch" name="arch" value="x86_64"/>
-//           <nvpair id="status-1-free_swap" name="free_swap" value="3850"/>
-//           <nvpair id="status-1-cpu_speed" name="cpu_speed" value="6384.00"/>
-//           <nvpair id="status-1-cpu_load" name="cpu_load" value="0.04,"/>
-//           <nvpair id="status-1-cpu_info" name="cpu_info" value="Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz"/>
-//           <nvpair id="status-1-ram_total" name="ram_total" value="3450"/>
-//           <nvpair id="status-1-cpu_cores" name="cpu_cores" value="4"/>
-//           <nvpair id="status-1-root_free" name="root_free" value="27"/>
-//           <nvpair id="status-1-ram_free" name="ram_free" value="650"/>
-//           <nvpair id="status-1-.health_disk" name="#health_disk" value="green"/>
-//           <nvpair id="status-1-os" name="os" value="Linux-4.19.90-2012.1.0.0050.oe1.x86_64"/>
-//         </instance_attributes>
-//       </transient_attributes>
-//     </node_state>
-//   </status>
-// </cib>
+// ==================== hasAttribute ====================
 
-// [root@ha1 ~]# crm_mon -1 --as-xml
-// <crm_mon version="2.0.3">
-//   <summary>
-//     <stack type="corosync"/>
-//     <current_dc present="true" version="2.0.3-1.oe1-4b1f869f0f" name="ha2" id="2" with_quorum="true"/>
-//     <last_update time="Fri Jan  8 13:48:44 2021"/>
-//     <last_change time="Tue Dec 29 14:41:29 2020" user="hacluster" client="cibadmin" origin="ha1"/>
-//     <nodes_configured number="2"/>
-//     <resources_configured number="3" disabled="0" blocked="0"/>
-//     <cluster_options stonith-enabled="false" symmetric-cluster="true" no-quorum-policy="ignore" maintenance-mode="false"/>
-//   </summary>
-//   <nodes>
-//     <node name="ha1" id="1" online="true" standby="false" standby_onfail="false" maintenance="false" pending="false" unclean="false" shutdown="false" expected_up="true" is_dc="false" resources_running="2" type="member"/>
-//     <node name="ha2" id="2" online="true" standby="false" standby_onfail="false" maintenance="false" pending="false" unclean="false" shutdown="false" expected_up="true" is_dc="true" resources_running="1" type="member"/>
-//   </nodes>
-//   <resources>
-//     <clone id="sysinfo-clone" multi_state="false" unique="false" managed="true" failed="false" failure_ignored="false">
-//       <resource id="sysinfo" resource_agent="ocf::pacemaker:SysInfo" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1">
-//         <node name="ha2" id="2" cached="true"/>
-//       </resource>
-//       <resource id="sysinfo" resource_agent="ocf::pacemaker:SysInfo" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1">
-//         <node name="ha1" id="1" cached="true"/>
-//       </resource>
-//     </clone>
-//     <resource id="dummy" resource_agent="ocf::pacemaker:Dummy" role="Started" active="true" orphaned="false" blocked="false" managed="true" failed="false" failure_ignored="false" nodes_running_on="1">
-//       <node name="ha1" id="1" cached="true"/>
-//     </resource>
-//   </resources>
-//   <node_attributes>
-//     <node name="ha1">
-//       <attribute name="arch" value="x86_64"/>
-//       <attribute name="cpu_cores" value="4"/>
-//       <attribute name="cpu_info" value="Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz"/>
-//       <attribute name="cpu_load" value="0.06,"/>
-//       <attribute name="cpu_speed" value="6384.00"/>
-//       <attribute name="free_swap" value="3850"/>
-//       <attribute name="os" value="Linux-4.19.90-2012.1.0.0050.oe1.x86_64"/>
-//       <attribute name="ram_free" value="700"/>
-//       <attribute name="ram_total" value="3450"/>
-//       <attribute name="root_free" value="27"/>
-//     </node>
-//     <node name="ha2">
-//       <attribute name="arch" value="x86_64"/>
-//       <attribute name="cpu_cores" value="4"/>
-//       <attribute name="cpu_info" value="Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz"/>
-//       <attribute name="cpu_load" value="0.16,"/>
-//       <attribute name="cpu_speed" value="6384.00"/>
-//       <attribute name="free_swap" value="3750"/>
-//       <attribute name="os" value="Linux-4.19.90-2012.1.0.0050.oe1.x86_64"/>
-//       <attribute name="ram_free" value="650"/>
-//       <attribute name="ram_total" value="3450"/>
-//       <attribute name="root_free" value="30"/>
-//     </node>
-//   </node_attributes>
-//   <node_history>
-//     <node name="ha2">
-//       <resource_history id="sysinfo" orphan="false" migration-threshold="1000000">
-//         <operation_history call="7" task="start" last-rc-change="Thu Jan  1 10:48:57 1970" last-run="Thu Jan  1 10:48:57 1970" exec-time="119243ms" queue-time="29ms" rc="0" rc_text="ok"/>
-//         <operation_history call="8" task="monitor" interval="60000ms" last-rc-change="Thu Jan  1 10:48:57 1970" exec-time="106981ms" queue-time="17ms" rc="0" rc_text="ok"/>
-//       </resource_history>
-//       <resource_history id="dummy" orphan="false" migration-threshold="1000000">
-//         <operation_history call="55" task="monitor" interval="3000ms" last-rc-change="Tue Jan 13 05:55:23 1970" exec-time="12324ms" queue-time="68ms" rc="0" rc_text="ok"/>
-//         <operation_history call="57" task="stop" last-rc-change="Tue Jan 13 05:56:08 1970" last-run="Tue Jan 13 05:56:08 1970" exec-time="13514ms" queue-time="15ms" rc="0" rc_text="ok"/>
-//       </resource_history>
-//     </node>
-//     <node name="ha1">
-//       <resource_history id="sysinfo" orphan="false" migration-threshold="1000000">
-//         <operation_history call="45" task="start" last-rc-change="Thu Jan  1 16:03:27 1970" last-run="Thu Jan  1 16:03:27 1970" exec-time="99736ms" queue-time="32ms" rc="0" rc_text="ok"/>
-//         <operation_history call="46" task="monitor" interval="60000ms" last-rc-change="Thu Jan  1 16:03:27 1970" exec-time="101711ms" queue-time="17ms" rc="0" rc_text="ok"/>
-//       </resource_history>
-//       <resource_history id="dummy" orphan="false" migration-threshold="1000000">
-//         <operation_history call="78" task="start" last-rc-change="Tue Jan 13 11:03:42 1970" last-run="Tue Jan 13 11:03:42 1970" exec-time="12155ms" queue-time="21ms" rc="0" rc_text="ok"/>
-//         <operation_history call="79" task="monitor" interval="3000ms" last-rc-change="Tue Jan 13 11:03:42 1970" exec-time="8472ms" queue-time="19ms" rc="0" rc_text="ok"/>
-//       </resource_history>
-//     </node>
-//   </node_history>
-// </crm_mon>
+func TestHasAttribute(t *testing.T) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(`<rsc_colocation rsc="dummy" with-rsc="ip" score="INFINITY" with-rsc-role="Master"/>`); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+	root := doc.Root()
 
-// [root@ha1 ~]# cibadmin --query --scope resources
-// <resources>
-//   <clone id="sysinfo-clone">
-//     <primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo">
-//       <operations>
-//         <op id="sysinfo-monitor-interval-60s" interval="60s" name="monitor" timeout="20s"/>
-//         <op id="sysinfo-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//         <op id="sysinfo-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//       </operations>
-//     </primitive>
-//   </clone>
-//   <primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
-//     <operations>
-//       <op id="dummy-migrate_from-interval-0s" interval="0s" name="migrate_from" timeout="20s"/>
-//       <op id="dummy-migrate_to-interval-0s" interval="0s" name="migrate_to" timeout="20s"/>
-//       <op id="dummy-monitor-interval-3s" interval="3s" name="monitor"/>
-//       <op id="dummy-reload-interval-0s" interval="0s" name="reload" timeout="20s"/>
-//       <op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
-//       <op id="dummy-stop-interval-0s" interval="0s" name="stop" timeout="20s"/>
-//     </operations>
-//   </primitive>
-// </resources>
+	tests := []struct {
+		name     string
+		attrName string
+		want     bool
+	}{
+		{"existing attribute", "rsc", true},
+		{"existing with-rsc-role", "with-rsc-role", true},
+		{"existing score", "score", true},
+		{"non-existing attribute", "rsc-role", false},
+		{"non-existing attribute 2", "nonexistent", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasAttribute(root, tt.attrName)
+			if got != tt.want {
+				t.Errorf("hasAttribute() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// ==================== getOtherRsc ====================
+
+func TestGetOtherRsc(t *testing.T) {
+	tests := []struct {
+		name    string
+		rsc     string
+		rscWith string
+		want    string
+	}{
+		{"rsc is empty", "", "ip", "ip"},
+		{"rsc is not empty", "dummy", "ip", "dummy"},
+		{"both empty", "", "", ""},
+		{"both non-empty returns rsc", "dummy", "ip2", "dummy"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getOtherRsc(tt.rsc, tt.rscWith)
+			if got != tt.want {
+				t.Errorf("getOtherRsc() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// ==================== getLevelFromScore ====================
+
+func TestGetLevelFromScore(t *testing.T) {
+	tests := []struct {
+		name  string
+		score string
+		want  string
+	}{
+		{"master node", "20000", "Master Node"},
+		{"slave 1", "16000", "Slave 1"},
+		{"slave 2", "15000", "Slave 2"},
+		{"slave 3", "14000", "Slave 3"},
+		{"slave 4", "13000", "Slave 4"},
+		{"unknown score", "10000", ""},
+		{"empty score", "", ""},
+		{"infinity", "INFINITY", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getLevelFromScore(tt.score)
+			if got != tt.want {
+				t.Errorf("getLevelFromScore(%q) = %q, want %q", tt.score, got, tt.want)
+			}
+		})
+	}
+}
+
+// ==================== getScoreForLevel ====================
+
+func TestGetScoreForLevel(t *testing.T) {
+	tests := []struct {
+		name  string
+		level string
+		want  int
+	}{
+		{"master node", "Master Node", 20000},
+		{"slave 1", "Slave 1", 16000},
+		{"slave 2", "Slave 2", 15000},
+		{"slave 3", "Slave 3", 14000},
+		{"slave 4", "Slave 4", 13000},
+		{"unknown level", "Unknown", 0},
+		{"empty level", "", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getScoreForLevel(tt.level)
+			if got != tt.want {
+				t.Errorf("getScoreForLevel(%q) = %d, want %d", tt.level, got, tt.want)
+			}
+		})
+	}
+}
+
+// ==================== extractRscID ====================
+
+func TestExtractRscID(t *testing.T) {
+	tests := []struct {
+		name  string
+		opKey string
+		want  string
+	}{
+		{"stop operation", "dummy_stop_0", "dummy"},
+		{"start operation", "dummy_start_0", "dummy"},
+		{"monitor operation", "dummy_monitor_3000", "dummy"},
+		{"demote operation", "ms_demote_0", "ms"},
+		{"promote operation", "ms_promote_0", "ms"},
+		{"empty key", "", ""},
+		{"no known operation", "dummy_validate_0", "dummy_validate_0"},
+		{"complex id with stop", "my-rsc_stop_0", "my-rsc"},
+		{"complex id with monitor", "ipaddr2_monitor_10000", "ipaddr2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractRscID(tt.opKey)
+			if got != tt.want {
+				t.Errorf("extractRscID(%q) = %q, want %q", tt.opKey, got, tt.want)
+			}
+		})
+	}
+}
+
+// ==================== getRscColocation ====================
+
+func TestGetRscColocation(t *testing.T) {
+	xml := `<constraints>
+		<rsc_colocation id="coloc-1" rsc="dummy" with-rsc="ip" score="INFINITY"/>
+		<rsc_colocation id="coloc-2" rsc="dummy" with-rsc="fs" score="-INFINITY"/>
+		<rsc_colocation id="coloc-3" rsc="web" with-rsc="dummy" score="INFINITY" with-rsc-role="Master"/>
+		<rsc_colocation id="coloc-4" rsc="db" with-rsc="dummy" score="-INFINITY" rsc-role="Slave"/>
+		<rsc_colocation id="coloc-5" rsc="other" with-rsc="other2" score="INFINITY"/>
+	</constraints>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+	elements := doc.FindElements("//rsc_colocation")
+
+	t.Run("colocation for dummy", func(t *testing.T) {
+		sameNode, diffNode := getRscColocation(elements, "dummy")
+		// coloc-1: rsc="dummy" score=INFINITY -> sameNode: "ip"
+		// coloc-2: rsc="dummy" score=-INFINITY -> diffNode: "fs"
+		// coloc-3: with-rsc="dummy" but with-rsc-role modifies rscWith to "dummy/Master" != "dummy", no match
+		// coloc-4: with-rsc="dummy" matches, rsc-role="Slave" -> diffNode: "db/Slave"
+
+		if len(sameNode) != 1 {
+			t.Errorf("expected 1 sameNode entry, got %d: %v", len(sameNode), sameNode)
+		} else if sameNode[0] != "ip" {
+			t.Errorf("sameNode[0] = %q, want %q", sameNode[0], "ip")
+		}
+
+		if len(diffNode) != 2 {
+			t.Errorf("expected 2 diffNode entries, got %d: %v", len(diffNode), diffNode)
+		} else {
+			if diffNode[0] != "fs" {
+				t.Errorf("diffNode[0] = %q, want %q", diffNode[0], "fs")
+			}
+			if diffNode[1] != "db/Slave" {
+				t.Errorf("diffNode[1] = %q, want %q", diffNode[1], "db/Slave")
+			}
+		}
+	})
+
+	t.Run("colocation for non-existent resource", func(t *testing.T) {
+		sameNode, diffNode := getRscColocation(elements, "nonexistent")
+		if len(sameNode) != 0 || len(diffNode) != 0 {
+			t.Errorf("expected empty results, got sameNode=%v diffNode=%v", sameNode, diffNode)
+		}
+	})
+}
+
+// ==================== getPrimitiveResourceInfo ====================
+
+func TestGetPrimitiveResourceInfo(t *testing.T) {
+	xml := `<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+		<operations>
+			<op id="dummy-monitor-interval-10s" interval="10s" name="monitor" timeout="20s"/>
+			<op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+		</operations>
+	</primitive>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result := getPrimitiveResourceInfo(doc.Root())
+
+	if result.Class != "ocf" {
+		t.Errorf("Class = %q, want %q", result.Class, "ocf")
+	}
+	if result.ID != "dummy" {
+		t.Errorf("ID = %q, want %q", result.ID, "dummy")
+	}
+	if result.Provider != "pacemaker" {
+		t.Errorf("Provider = %q, want %q", result.Provider, "pacemaker")
+	}
+	if result.Type != "Dummy" {
+		t.Errorf("Type = %q, want %q", result.Type, "Dummy")
+	}
+	// Note: getPrimitiveResourceInfo only processes <operations> elements that have an id attribute.
+	// Standard Pacemaker XML <operations> has no id, so Operations will be empty.
+}
+
+// ==================== getResourceInfoFromXml ====================
+
+func TestGetResourceInfoFromXml_Primitive(t *testing.T) {
+	xml := `<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+		<operations>
+			<op id="dummy-start-interval-0s" interval="0s" name="start" timeout="20s"/>
+		</operations>
+	</primitive>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result, err := getResourceInfoFromXml("primitive", doc.Root())
+	if err != nil {
+		t.Fatalf("getResourceInfoFromXml() error = %v", err)
+	}
+
+	info, ok := result.(PrimitiveResource)
+	if !ok {
+		t.Fatalf("expected PrimitiveResource, got %T", result)
+	}
+	if info.ID != "dummy" {
+		t.Errorf("ID = %q, want %q", info.ID, "dummy")
+	}
+	if info.Class != "ocf" {
+		t.Errorf("Class = %q, want %q", info.Class, "ocf")
+	}
+}
+
+func TestGetResourceInfoFromXml_Group(t *testing.T) {
+	xml := `<group id="group1">
+		<primitive class="ocf" id="dummy1" provider="pacemaker" type="Dummy"/>
+		<primitive class="ocf" id="dummy2" provider="pacemaker" type="Dummy"/>
+	</group>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result, err := getResourceInfoFromXml("group", doc.Root())
+	if err != nil {
+		t.Fatalf("getResourceInfoFromXml() error = %v", err)
+	}
+
+	info, ok := result.(GroupResource)
+	if !ok {
+		t.Fatalf("expected GroupResource, got %T", result)
+	}
+	if info.ID != "group1" {
+		t.Errorf("ID = %q, want %q", info.ID, "group1")
+	}
+	if len(info.Primitives) != 2 {
+		t.Errorf("Primitives count = %d, want 2", len(info.Primitives))
+	}
+}
+
+func TestGetResourceInfoFromXml_Clone(t *testing.T) {
+	xml := `<clone id="sysinfo-clone">
+		<primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo"/>
+	</clone>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result, err := getResourceInfoFromXml("clone", doc.Root())
+	if err != nil {
+		t.Fatalf("getResourceInfoFromXml() error = %v", err)
+	}
+
+	info, ok := result.(CloneResource)
+	if !ok {
+		t.Fatalf("expected CloneResource, got %T", result)
+	}
+	if info.ID != "sysinfo-clone" {
+		t.Errorf("ID = %q, want %q", info.ID, "sysinfo-clone")
+	}
+	if len(info.Primitives) != 1 {
+		t.Errorf("Primitives count = %d, want 1", len(info.Primitives))
+	}
+}
+
+func TestGetResourceInfoFromXml_MetaAttributes(t *testing.T) {
+	xml := `<meta_attributes id="dummy-meta_attributes">
+		<nvpair id="dummy-target-role" name="target-role" value="Stopped"/>
+		<nvpair id="dummy-priority" name="priority" value="10"/>
+	</meta_attributes>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result, err := getResourceInfoFromXml("meta", doc.Root())
+	if err != nil {
+		t.Fatalf("getResourceInfoFromXml() error = %v", err)
+	}
+
+	m, ok := result.(map[string]string)
+	if !ok {
+		t.Fatalf("expected map[string]string, got %T", result)
+	}
+	if m["target-role"] != "Stopped" {
+		t.Errorf("target-role = %q, want %q", m["target-role"], "Stopped")
+	}
+	if m["priority"] != "10" {
+		t.Errorf("priority = %q, want %q", m["priority"], "10")
+	}
+}
+
+func TestGetResourceInfoFromXml_Operations(t *testing.T) {
+	xml := `<operations>
+		<op id="dummy-start-0" interval="0s" name="start" timeout="20s"/>
+		<op id="dummy-monitor-10s" interval="10s" name="monitor" timeout="20s"/>
+	</operations>`
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xml); err != nil {
+		t.Fatalf("failed to parse XML: %v", err)
+	}
+
+	result, err := getResourceInfoFromXml("operations", doc.Root())
+	if err != nil {
+		t.Fatalf("getResourceInfoFromXml() error = %v", err)
+	}
+
+	ops, ok := result.([]map[string]string)
+	if !ok {
+		t.Fatalf("expected []map[string]string, got %T", result)
+	}
+	if len(ops) != 2 {
+		t.Errorf("operations count = %d, want 2", len(ops))
+	}
+}
+
+// ==================== GetResourceInfoID ====================
+
+func TestGetResourceInfoID_Primitive(t *testing.T) {
+	xmlData := `<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+		<operations>
+			<op id="dummy-start-0" interval="0s" name="start" timeout="20s"/>
+		</operations>
+	</primitive>`
+
+	result, err := GetResourceInfoID("primitive", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	if result["id"] != "dummy" {
+		t.Errorf("id = %v, want %q", result["id"], "dummy")
+	}
+	if result["class"] != "ocf" {
+		t.Errorf("class = %v, want %q", result["class"], "ocf")
+	}
+	if result["type"] != "Dummy" {
+		t.Errorf("type = %v, want %q", result["type"], "Dummy")
+	}
+	if result["provider"] != "pacemaker" {
+		t.Errorf("provider = %v, want %q", result["provider"], "pacemaker")
+	}
+}
+
+func TestGetResourceInfoID_Group(t *testing.T) {
+	xmlData := `<group id="group1">
+		<primitive class="ocf" id="dummy1" provider="pacemaker" type="Dummy"/>
+		<primitive class="ocf" id="dummy2" provider="pacemaker" type="Dummy"/>
+	</group>`
+
+	result, err := GetResourceInfoID("group", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	if result["id"] != "group1" {
+		t.Errorf("id = %v, want %q", result["id"], "group1")
+	}
+	rscs, ok := result["rscs"].([]string)
+	if !ok {
+		t.Fatalf("expected rscs to be []string, got %T", result["rscs"])
+	}
+	if len(rscs) != 2 {
+		t.Errorf("rscs count = %d, want 2", len(rscs))
+	}
+}
+
+func TestGetResourceInfoID_Clone(t *testing.T) {
+	xmlData := `<clone id="sysinfo-clone">
+		<primitive class="ocf" id="sysinfo" provider="pacemaker" type="SysInfo"/>
+	</clone>`
+
+	result, err := GetResourceInfoID("clone", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	if result["id"] != "sysinfo-clone" {
+		t.Errorf("id = %v, want %q", result["id"], "sysinfo-clone")
+	}
+	// Single primitive in clone -> rsc_id should be a string
+	if result["rsc_id"] != "sysinfo" {
+		t.Errorf("rsc_id = %v, want %q", result["rsc_id"], "sysinfo")
+	}
+}
+
+func TestGetResourceInfoID_CloneMultiplePrimitives(t *testing.T) {
+	xmlData := `<clone id="multi-clone">
+		<primitive class="ocf" id="rsc1" provider="pacemaker" type="Dummy"/>
+		<primitive class="ocf" id="rsc2" provider="pacemaker" type="Dummy"/>
+	</clone>`
+
+	result, err := GetResourceInfoID("clone", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	// Multiple primitives -> rsc_id should be a list
+	rscID, ok := result["rsc_id"].([]string)
+	if !ok {
+		t.Fatalf("expected rsc_id to be []string for multiple primitives, got %T", result["rsc_id"])
+	}
+	if len(rscID) != 2 {
+		t.Errorf("rsc_id count = %d, want 2", len(rscID))
+	}
+}
+
+func TestGetResourceInfoID_WithMetaAttributes(t *testing.T) {
+	xmlData := `<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+		<meta_attributes id="dummy-meta">
+			<nvpair id="dummy-target-role" name="target-role" value="Stopped"/>
+		</meta_attributes>
+	</primitive>`
+
+	result, err := GetResourceInfoID("primitive", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	meta, ok := result["meta_attributes"].(map[string]string)
+	if !ok {
+		t.Fatalf("expected meta_attributes to be map[string]string, got %T", result["meta_attributes"])
+	}
+	if meta["target-role"] != "Stopped" {
+		t.Errorf("target-role = %q, want %q", meta["target-role"], "Stopped")
+	}
+}
+
+func TestGetResourceInfoID_WithInstanceAttributes(t *testing.T) {
+	xmlData := `<primitive class="ocf" id="dummy" provider="pacemaker" type="Dummy">
+		<instance_attributes id="dummy-inst">
+			<nvpair id="dummy-state" name="state" value="/var/run/dummy"/>
+		</instance_attributes>
+	</primitive>`
+
+	result, err := GetResourceInfoID("primitive", xmlData)
+	if err != nil {
+		t.Fatalf("GetResourceInfoID() error = %v", err)
+	}
+
+	inst, ok := result["instance_attributes"].(map[string]string)
+	if !ok {
+		t.Fatalf("expected instance_attributes to be map[string]string, got %T", result["instance_attributes"])
+	}
+	if inst["state"] != "/var/run/dummy" {
+		t.Errorf("state = %q, want %q", inst["state"], "/var/run/dummy")
+	}
+}
+
+// ==================== GetResourceMetaAttributes ====================
+
+func TestGetResourceMetaAttributes(t *testing.T) {
+	t.Run("group category", func(t *testing.T) {
+		result := GetResourceMetaAttributes("group")
+		if result["action"] != true {
+			t.Errorf("action = %v, want true", result["action"])
+		}
+		data, ok := result["data"].(map[string]map[string]interface{})
+		if !ok {
+			t.Fatalf("expected data to be map[string]map[string]interface{}, got %T", result["data"])
+		}
+		// Group should NOT have resource-stickiness or migration-threshold
+		if _, exists := data["resource-stickiness"]; exists {
+			t.Error("group should not have resource-stickiness")
+		}
+		if _, exists := data["migration-threshold"]; exists {
+			t.Error("group should not have migration-threshold")
+		}
+		// Should have target-role, priority, is-managed
+		if _, exists := data["target-role"]; !exists {
+			t.Error("group should have target-role")
+		}
+	})
+
+	t.Run("non-group category", func(t *testing.T) {
+		result := GetResourceMetaAttributes("primitive")
+		if result["action"] != true {
+			t.Errorf("action = %v, want true", result["action"])
+		}
+		data, ok := result["data"].(map[string]map[string]interface{})
+		if !ok {
+			t.Fatalf("expected data to be map[string]map[string]interface{}, got %T", result["data"])
+		}
+		// Non-group should have resource-stickiness and migration-threshold
+		if _, exists := data["resource-stickiness"]; !exists {
+			t.Error("primitive should have resource-stickiness")
+		}
+		if _, exists := data["migration-threshold"]; !exists {
+			t.Error("primitive should have migration-threshold")
+		}
+	})
+}
+
+// ==================== safeResourceName / safePeriod / safeIdentifier regex ====================
+
+func TestSafeResourceName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"dummy", true},
+		{"my-resource", true},
+		{"my_resource", true},
+		{"rsc:0", true},
+		{"rsc.node", true},
+		{"rsc-1_v2:3.4", true},
+		{"", false},
+		{"has space", false},
+		{"has/slash", false},
+		{"has@symbol", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := safeResourceName.MatchString(tt.input)
+			if got != tt.want {
+				t.Errorf("safeResourceName.MatchString(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafePeriod(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"start", true},
+		{"stop", true},
+		{"promote0", true},
+		{"", false},
+		{"has-hyphen", false},
+		{"has space", false},
+		{"has_underscore", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := safePeriod.MatchString(tt.input)
+			if got != tt.want {
+				t.Errorf("safePeriod.MatchString(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSafeIdentifier(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"ocf", true},
+		{"pacemaker", true},
+		{"my-type", true},
+		{"my_type", true},
+		{"type123", true},
+		{"", false},
+		{"has:colon", false},
+		{"has.dot", false},
+		{"has space", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := safeIdentifier.MatchString(tt.input)
+			if got != tt.want {
+				t.Errorf("safeIdentifier.MatchString(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
