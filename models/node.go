@@ -2,18 +2,19 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: yangzhao_kl <yangzhao1@kylinos.cn>
- * Date: Fri Jan 8 20:56:40 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package models
 
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
 )
@@ -23,21 +24,42 @@ func GetNodesInfo() ([]map[string]string, error) {
 
 	out, err := utils.RunCommand(utils.CmdClusterStatusAsXML)
 	if err != nil {
-		nodeOffline, err2 := GetHeartBeatHosts()
-		if err2 != nil {
-			return nil, errors.New(gettext.Gettext("Please make sure that Cluster nodes has been authenticated"))
+		if !IsClusterExist() {
+			nodeOffline, err2 := GetHeartBeatHosts()
+			if err2 != nil {
+				return nil, errors.New(gettext.Gettext("Please make sure that Cluster nodes has been authenticated"))
+			}
+			for _, node := range nodeOffline {
+				infoMap := map[string]string{}
+				infoMap["id"] = node.NodeID
+				infoMap["status"] = "Not Running"
+				infoMap["is_dc"] = "false"
+				infoMap["type"] = "primitive"
+				infoMap["res"] = ""
+				result = append(result, infoMap)
+			}
+			if len(result) > 0 {
+				return result, nil
+			}
+			return nil, errors.New(gettext.Gettext("get node failed"))
+		} else {
+			nodes_info := GetClusterInfo1()
+			nodesOfflineData := nodes_info.Data
+			for _, node := range nodesOfflineData {
+				infoMap := map[string]string{}
+				infoMap["id"] = node.Name
+				infoMap["status"] = "Not Running"
+				infoMap["is_dc"] = "false"
+				infoMap["health_status"] = "healthy"
+				infoMap["type"] = "primitive"
+				infoMap["res"] = ""
+				result = append(result, infoMap)
+			}
+			if len(result) > 0 {
+				return result, nil
+			}
+			return nil, errors.New(gettext.Gettext("get node failed"))
 		}
-		for _, node := range nodeOffline {
-			infoMap := map[string]string{}
-			infoMap["id"] = node.NodeID
-			infoMap["status"] = "Not Running"
-			infoMap["is_dc"] = "false"
-			result = append(result, infoMap)
-		}
-		if len(result) > 0 {
-			return result, nil
-		}
-		return nil, errors.New(gettext.Gettext("get node failed"))
 	}
 
 	doc := etree.NewDocument()
@@ -46,38 +68,82 @@ func GetNodesInfo() ([]map[string]string, error) {
 	}
 	nodes := doc.SelectElement("crm_mon").SelectElement("nodes")
 	for _, node := range nodes.SelectElements("node") {
+		nodetype := "primitive"
+		noderes := ""
+
+		if node.SelectAttr("type").Value == "remote" {
+			if node.SelectAttr("id_as_resource") == nil {
+				nodetype = "remote"
+			} else {
+				nodetype = "guest"
+				noderes = node.SelectAttr("id_as_resource").Value
+			}
+		}
 		name := node.SelectAttr("name").Value
 		online := node.SelectAttr("online").Value
 		standby := node.SelectAttr("standby").Value
 		isDc := node.SelectAttr("is_dc").Value
+		healthStatus := GetHealthInfo(name)
 		var status string
 
 		if isDc == "true" {
-			if standby == "true" {
-				if online == "true" {
-					status = "Master/Standby"
+			if healthStatus == "healthy" {
+				if standby == "true" {
+					if online == "true" {
+						status = "Master/Standby"
+					} else {
+						status = "Not Running"
+					}
 				} else {
-					status = "Not Running"
+					if online == "true" {
+						status = "Master"
+					} else {
+						status = "Not Running"
+					}
 				}
 			} else {
-				if online == "true" {
-					status = "Master"
+				if standby == "true" {
+					if online == "true" {
+						status = "Master/Standby"
+					} else {
+						status = "Not Running"
+					}
 				} else {
-					status = "Not Running"
+					if online == "true" {
+						status = "Master/unhealthy"
+					} else {
+						status = "Not Running"
+					}
 				}
 			}
 		} else {
-			if standby == "true" {
-				if online == "true" {
-					status = "Standby"
+			if healthStatus == "healthy" {
+				if standby == "true" {
+					if online == "true" {
+						status = "Standby"
+					} else {
+						status = "Not Running"
+					}
 				} else {
-					status = "Not Running"
+					if online == "true" {
+						status = "Running"
+					} else {
+						status = "Not Running"
+					}
 				}
 			} else {
-				if online == "true" {
-					status = "Running"
+				if standby == "true" {
+					if online == "true" {
+						status = "Standby"
+					} else {
+						status = "Not Running"
+					}
 				} else {
-					status = "Not Running"
+					if online == "true" {
+						status = "unhealthy"
+					} else {
+						status = "Not Running"
+					}
 				}
 			}
 		}
@@ -86,6 +152,8 @@ func GetNodesInfo() ([]map[string]string, error) {
 		infoMap["id"] = name
 		infoMap["status"] = status
 		infoMap["is_dc"] = isDc
+		infoMap["type"] = nodetype
+		infoMap["res"] = noderes
 		result = append(result, infoMap)
 	}
 
@@ -93,6 +161,21 @@ func GetNodesInfo() ([]map[string]string, error) {
 		return result, nil
 	}
 	return nil, errors.New(gettext.Gettext("get node failed"))
+}
+
+// 获取普通节点的数量
+func GetPrimitiveNodesInfo() int {
+	nodesInfo, err := GetNodesInfo()
+	if err != nil {
+		return 0
+	}
+	nodeNum := 0
+	for _, node := range nodesInfo {
+		if node["type"] == "primitive" {
+			nodeNum += 1
+		}
+	}
+	return nodeNum
 }
 
 func GetNodeIDInfo(nodeID string) (map[string][]string, error) {
@@ -128,7 +211,7 @@ func DoNodeAction(nodeID string, action string, data map[string]string) map[stri
 	}
 	// TODO --force
 	if _, err := utils.RunCommand(cmd); err != nil {
-		logs.Error("run command error: ", err)
+		slog.Error(fmt.Sprintf("run command error: %s", err))
 		result["action"] = false
 		result["error"] = gettext.Gettext("Change node status Failed")
 	}
@@ -139,7 +222,7 @@ func DoNodeAction(nodeID string, action string, data map[string]string) map[stri
 }
 
 // handleNodeAction 根据节点类型和操作生成相应的命令
-func handleNodeAction(action string, nodeType, nodeID, nodeRes string) string {
+func handleNodeAction(action string, nodeID, nodeType, nodeRes string) string {
 	commands := map[string]map[string]string{
 		"start": {
 			"primitive": fmt.Sprintf(utils.CmdStartClusterNode, nodeID),

@@ -2,9 +2,10 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: Jason011125 <zic022@ucsd.edu>
- * Date: Mon Aug 14 13:38:45 2023 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package controllers
 
 import (
@@ -12,7 +13,7 @@ import (
 	"log/slog"
 
 	"gitee.com/openeuler/ha-api/models"
-	"github.com/beego/beego/v2/core/logs"
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beego/beego/v2/server/web"
 	"github.com/chai2010/gettext-go"
 )
@@ -57,11 +58,22 @@ type AddNodesController struct {
 	web.Controller
 }
 
+type DeleteNodesController struct {
+	web.Controller
+}
+
 type LocalAddNodesController struct {
 	web.Controller
 }
 
+type LocalDeleteNodesController struct {
+	web.Controller
+}
 type LocalClusterInfoController struct {
+	web.Controller
+}
+
+type LocalClusterOverviewController struct {
 	web.Controller
 }
 
@@ -69,21 +81,32 @@ type IsClusterExistController struct {
 	web.Controller
 }
 
+type LocalClusterSetupController struct {
+	web.Controller
+}
+
 func (coc *ClusterOverviewController) Get() {
-	logs.Debug("handle get request in ClusterOverviewController.")
+	slog.Debug("handle get request in ClusterOverviewController.")
 	result := models.ClusterOverview()
 	coc.Data["json"] = &result
 	coc.ServeJSON()
 }
+
+func (lcoc *LocalClusterOverviewController) Get() {
+	slog.Debug("handle get request in ClusterOverviewController.")
+	result := models.LocalClusterOverview()
+	lcoc.Data["json"] = &result
+	lcoc.ServeJSON()
+}
 func (mcc *MultipleClustersController) Post() {
-	logs.Debug("Handle post request in MultipleClustersController.")
-	result := map[string]interface{}{}
-	reqData := make(map[string]interface{})
+	slog.Debug("Handle post request in MultipleClustersController.")
+	var result utils.GeneralResponse
+
+	var reqData models.ClusterAddReq
 	//need to check whether we want to add or remove cluster
 	if err := json.Unmarshal(mcc.Ctx.Input.RequestBody, &reqData); err != nil {
-		// result = make(map[string]interface{})
-		result["action"] = false
-		result["error"] = gettext.Gettext("invalid input data")
+		result.Action = false
+		result.Error = gettext.Gettext("invalid input data")
 	} else {
 		result = models.ClusterAdd(reqData)
 	}
@@ -94,7 +117,7 @@ func (mcc *MultipleClustersController) Post() {
 }
 
 func (sc *Sync_configController) Post() {
-	logs.Debug("handle post request in Sync_configController.")
+	slog.Debug("handle post request in Sync_configController.")
 	result := map[string]interface{}{}
 	reqData := make(map[string]interface{})
 	if err := json.Unmarshal(sc.Ctx.Input.RequestBody, &reqData); err != nil {
@@ -109,12 +132,10 @@ func (sc *Sync_configController) Post() {
 }
 
 func (csc *ClusterSetupController) Post() {
-	logs.Debug("handle post request in ClusterSetupController.")
+	slog.Debug("handle post request in ClusterSetupController.")
 	result := make(map[string]interface{})
-	//reqData := make(map[string]interface{})
 	var reqData models.ClusterData
 	if err := json.Unmarshal(csc.Ctx.Input.RequestBody, &reqData); err != nil {
-		// result = make(map[string]interface{})
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
@@ -125,8 +146,24 @@ func (csc *ClusterSetupController) Post() {
 	csc.ServeJSON()
 }
 
+func (scc *LocalClusterSetupController) Post() {
+	slog.Debug("handle post request in SetupClusterController.")
+	result := make(map[string]interface{})
+	var reqData models.ClusterData
+	if err := json.Unmarshal(scc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result["action"] = false
+		result["error"] = gettext.Gettext("invalid input data")
+	} else {
+
+		result = models.ClusterSetupPre(reqData)
+	}
+
+	scc.Data["json"] = &result
+	scc.ServeJSON()
+}
+
 func (cc *ClustersController) Get() {
-	logs.Debug("handle get request in ClustersController.")
+	slog.Debug("handle get request in ClustersController.")
 	result := make(map[string]interface{})
 	result = models.GetClusterPropertiesInfo()
 	cc.Data["json"] = &result
@@ -134,39 +171,37 @@ func (cc *ClustersController) Get() {
 }
 
 func (csc *ClustersStatusController) Get() {
-	var result map[string]interface{}
-	logs.Debug("handle get request in ClustersStatusController.")
-	result = models.GetClusterInfo()
-
+	var result models.NodeManageClusterInfo
+	slog.Debug("handle get request in ClustersStatusController.")
+	result = models.GetClusterInfo1()
 	csc.Data["json"] = &result
 	csc.ServeJSON()
 }
 
 func (lci *LocalClusterInfoController) Get() {
-	logs.Debug("handle get request in LocalClusterInfoController.")
+	slog.Debug("handle get request in LocalClusterInfoController.")
 	result := models.LocalClusterInfo()
 	lci.Data["json"] = &result
 	lci.ServeJSON()
 }
 
 func (ice *IsClusterExistController) Get() {
-	logs.Debug("handle get request in IsClusterExistController.")
+	slog.Debug("handle get request in IsClusterExistController.")
 	result := models.CheckIsClusterExist()
 	ice.Data["json"] = &result
 	ice.ServeJSON()
 }
 
 func (lcd *LocalClusterDestroyController) Get() {
-	logs.Debug("handle post request in LocalClusterDestroyController.")
-	result := models.LocalClustersDestroy()
+	slog.Debug("handle post request in LocalClusterDestroyController.")
+	result := models.LocalClusterDestroy()
 	lcd.Data["json"] = &result
 	// return result of destroying cluster back to user.
 	lcd.ServeJSON()
 }
 
 func (cd *ClusterDestroyController) Post() {
-	logs.Debug("handle post request in ClusterDestroyController.")
-	//var Result models.AddNodesRet
+	slog.Debug("handle post request in ClusterDestroyController.")
 	result := make(map[string]interface{})
 	ReqData := make(map[string]interface{})
 	body := cd.Ctx.Input.RequestBody
@@ -182,7 +217,7 @@ func (cd *ClusterDestroyController) Post() {
 }
 
 func (crc *ClusterRemoveController) Post() {
-	logs.Debug("handle post request in ClusterRemoveController.")
+	slog.Debug("handle post request in ClusterRemoveController.")
 	var Result models.RemoveRet
 	var ReqData models.RemoveData
 	body := crc.Ctx.Input.RequestBody
@@ -200,26 +235,30 @@ func (crc *ClusterRemoveController) Post() {
 }
 
 func (anc *AddNodesController) Post() {
-	logs.Debug("handle post request in AddNodesController.")
-	//var Result models.AddNodesRet
-	result := map[string]interface{}{}
-	var ReqData models.AddNodesData
-	body := anc.Ctx.Input.RequestBody
-	err := json.Unmarshal(body, &ReqData)
-	if err != nil {
-		result = make(map[string]interface{})
-		result["action"] = false
-		result["error"] = gettext.Gettext("invalid input data")
-	} else {
-		result = models.AddNodes(ReqData).(map[string]interface{})
+	var reqData models.AddNodesData
+	var result utils.GeneralResponse
+	var resultRemote map[string]interface{}
+	if err := json.Unmarshal(anc.Ctx.Input.RequestBody, &reqData); err != nil {
+		result.Action = false
+		result.Error = gettext.Gettext("invalid input data")
+		anc.Data["json"] = &result
+		anc.ServeJSON()
+		return
 	}
-	anc.Data["json"] = &result
+	clusterName := reqData.Cluster_name
+	if !utils.IsLocalCluster(clusterName) {
+		remoteUiPath := "/api/v1/nodes/add_nodes"
+		resultRemote, _ = models.UrlRedirectWithSyncConfig(clusterName, remoteUiPath, anc.Ctx.Request.Method, anc.Ctx.Input.RequestBody)
+		anc.Data["json"] = &resultRemote
+	} else {
+		resultRemote = models.LocalAddNodes(reqData)
+		anc.Data["json"] = &resultRemote
+	}
 	anc.ServeJSON()
 }
 
 func (lanc *LocalAddNodesController) Post() {
-	logs.Debug("handle post request in LocalAddNodesController.")
-	//var Result models.AddNodesRet
+	slog.Debug("handle post request in LocalAddNodesController.")
 	result := make(map[string]interface{})
 	var ReqData models.AddNodesData
 	body := lanc.Ctx.Input.RequestBody
@@ -228,10 +267,51 @@ func (lanc *LocalAddNodesController) Post() {
 		result["action"] = false
 		result["error"] = gettext.Gettext("invalid input data")
 	} else {
-		result = models.LocalAddNodes(ReqData).(map[string]interface{})
+		// result = models.LocalAddNodes(ReqData).(map[string]interface{})
+		result = models.LocalAddNodes(ReqData)
 	}
 	lanc.Data["json"] = &result
 	lanc.ServeJSON()
+}
+
+func (dnc *DeleteNodesController) Post() {
+	slog.Debug("handle post request in DeleteNodesController.")
+	result := make(map[string]interface{})
+	var ReqData models.DeleteNodesData
+	body := dnc.Ctx.Input.RequestBody
+	err := json.Unmarshal(body, &ReqData)
+	if err != nil {
+		result["action"] = false
+		result["error"] = gettext.Gettext("invalid input data")
+		dnc.Data["json"] = &result
+	} else {
+		clusterName := ReqData.Cluster_name
+		if !utils.IsLocalCluster(clusterName) {
+			remoteUiPath := "/api/v1/nodes/delete_nodes"
+			resultRemote, _ := models.UrlRedirectWithSyncConfig(clusterName, remoteUiPath, dnc.Ctx.Request.Method, dnc.Ctx.Input.RequestBody)
+			dnc.Data["json"] = &resultRemote
+		} else {
+			result = models.LocalDeleteNodes(ReqData).(map[string]interface{})
+			dnc.Data["json"] = &result
+		}
+	}
+	dnc.ServeJSON()
+}
+
+func (ldnc *LocalDeleteNodesController) Post() {
+	slog.Debug("handle post request in DeleteNodesController.")
+	result := make(map[string]interface{})
+	var ReqData models.DeleteNodesData
+	body := ldnc.Ctx.Input.RequestBody
+	err := json.Unmarshal(body, &ReqData)
+	if err != nil {
+		result["action"] = false
+		result["error"] = gettext.Gettext("invalid input data")
+	} else {
+		result = models.LocalDeleteNodes(ReqData).(map[string]interface{})
+	}
+	ldnc.Data["json"] = &result
+	ldnc.ServeJSON()
 }
 
 func (cc *ClustersController) Put() {

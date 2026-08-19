@@ -2,16 +2,18 @@
  * Copyright (c) KylinSoft  Co., Ltd. 2024.All rights reserved.
  * ha-api licensed under the Mulan Permissive Software License, Version 2.
  * See LICENSE file for more details.
- * Author: yangzhao_kl <yangzhao1@kylinos.cn>
- * Date: Fri Jan 8 20:56:40 2021 +0800
+ * Author: bixiaoyan <bixiaoyan@kylinos.cn>
+ * Date: Thu Mar 27 09:32:28 2025 +0800
  */
+
 package models
 
 import (
+	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/beevik/etree"
 	"github.com/chai2010/gettext-go"
 
@@ -46,34 +48,9 @@ func GetClusterPropertiesInfo() map[string]interface{} {
 	return result
 }
 
-//
-//func CreateCluster(clusterInfo map[string]interface{}) map[string]interface{} {
-//	result := map[string]interface{}{}
-//	logs.Debug(clusterInfo)
-//	if len(clusterInfo) == 0 {
-//		result["action"] = false
-//		result["error"] = gettext.Gettext("No input data")
-//		return result
-//	}
-//	authRes := hostAuth(clusterInfo)
-//	if !authRes["action"] {
-//		return authRes
-//	} else {
-//		nodeName := clusterInfo["node_name"]
-//		url := "https://" + fmt.Sprint(nodeName) + ":" + strconv.Itoa(8080) + "/api/v1/managec/local_cluster_info"
-//		resp, err := http.Get(url)
-//		if resp.StatusCode == 200 {
-//
-//		}
-//	}
-//	return result
-//
-//}
-
 func UpdateClusterProperties(newProp map[string]interface{}) map[string]interface{} {
 	result := map[string]interface{}{}
 
-	logs.Debug(newProp)
 	if len(newProp) == 0 {
 		result["action"] = false
 		result["error"] = gettext.Gettext("No input data")
@@ -130,15 +107,12 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	enableList := []string{"node-health-green", "stonith-enabled",
-		"symmetric-cluster", "maintenance-mode", "node-health-yellow",
+	enableList := []string{
+		"node-health-green", "stonith-enabled", "symmetric-cluster",
+		"maintenance-mode", "node-health-yellow", 
 		"no-quorum-policy", "node-health-red", "node-health-strategy",
 		"default-resource-stickiness", "start-failure-is-fatal",
-		"stonith-action", "placement-strategy", // new properties
-		"cluster-recheck-interval", "load-threshold",
-		"node-action-limit", "transition-delay", "stonith-max-attempts",
-		"enable-acl", "cluster-ipc-limit", "stop-all-resources",
-		"priority-fencing-delay"}
+		"stop-all-resources", "priority-fencing-delay", "placement-strategy"}
 	sources := []map[string]string{
 		{
 			"name": "pacemaker-schedulerd",
@@ -157,19 +131,18 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		cmd := source["path"] + " metadata "
 		out, err := utils.RunCommand(cmd)
 		if err != nil {
-			logs.Error("run command failed: ", cmd, err)
+			slog.Error(fmt.Sprintf("run command %s failed: %s", cmd, err))
 			goto ret
 		}
 
 		doc := etree.NewDocument()
 		if err := doc.ReadFromBytes(out); err != nil {
-			logs.Error("parse command xml failed: ", doc, err)
+			slog.Error(fmt.Sprintf("parse xml failed: %s", err.Error()))
 			goto ret
 		}
 
 		for _, e := range doc.FindElements("//parameters/parameter") {
 			prop := getClusterPropertyFromXml(e)
-			logs.Debug(prop)
 			name := prop["name"].(string)
 			if utils.IsInSlice(name, enableList) {
 				if _, ok := clusterProperties[name]; ok {
@@ -259,6 +232,11 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 					propContent["values"] = prop["enum"]
 					delete(prop, "enum")
 				}
+
+				if prop["type"] == "select" {
+					propContent["values"] = prop["select"]
+					delete(prop, "select")
+				}
 				delete(prop, "default")
 				delete(prop, "type")
 
@@ -275,38 +253,38 @@ func getClusterPropertiesDefinition() (map[string]interface{}, error) {
 		}
 	}
 
-	// special for getting resource-stickiness property
-	result["resource-stickiness"] = map[string]interface{}{
-		"name":    "resource-stickiness",
-		"enabled": 1,
-		"value":   strconv.Itoa(getResourceStickiness()),
-		"content": map[string]string{
-			"default": "0",
-			"type":    "integer",
-			"unit":    "",
-		},
-		"shortdesc": "",
-		"longdesc":  "",
-	}
+	// // special for getting resource-stickiness property
+	// result["resource-stickiness"] = map[string]interface{}{
+	// 	"name":    "resource-stickiness",
+	// 	"enabled": 1,
+	// 	"value":   strconv.Itoa(getResourceStickiness()),
+	// 	"content": map[string]string{
+	// 		"default": "0",
+	// 		"type":    "integer",
+	// 		"unit":    "",
+	// 	},
+	// 	"shortdesc": "",
+	// 	"longdesc":  "",
+	// }
 
 ret:
 	return result, nil
 }
 
-func getClusterProperties() (map[string]interface{}, error) {
+var getClusterProperties = func() (map[string]interface{}, error) {
 	clusterProperties := map[string]interface{}{}
 	var doc *etree.Document
 	var nvParis []*etree.Element
 
 	out, err := utils.RunCommand(utils.CmdQueryCrmConfig)
 	if err != nil {
-		logs.Error("get cluster properties failed", err)
+		slog.Error(fmt.Sprintf("get cluster properties failed: %s", err))
 		goto ret
 	}
 
 	doc = etree.NewDocument()
 	if err = doc.ReadFromBytes(out); err != nil {
-		logs.Error("parse xml config error", err)
+		slog.Error(fmt.Sprintf("parse xml config error: %s", err))
 		goto ret
 	}
 
@@ -341,12 +319,16 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 		prop["default"] = ""
 	}
 
-	if prop["type"] == "enum" {
+	if prop["type"] == "select" {
 		propEnums := []string{}
 		if prop["longdesc"] != "" {
 			values := strings.Split(prop["longdesc"].(string), "Allowed values:")
 			if len(values) == 2 {
-				propEnums = strings.Split(values[1], ", ")
+				propEnums = strings.Split(values[1], ",")
+				// select中的值由于空格、换行符导致propEnums识别参数的默认值没有在select中，导致重复添加
+				for i, s := range propEnums {
+					propEnums[i] = strings.Join(strings.Fields(s), "")
+				}
 				prop["longdesc"] = values[0]
 			}
 		}
@@ -354,7 +336,7 @@ func getClusterPropertyFromXml(e *etree.Element) map[string]interface{} {
 			propEnums = append(propEnums, prop["default"].(string))
 		}
 
-		prop["enum"] = propEnums
+		prop["select"] = propEnums
 	}
 
 	if prop["longdesc"] == prop["shortdesc"] {
@@ -388,22 +370,18 @@ func OperationClusterAction(action string) map[string]interface{} {
 	return result
 }
 
-func getResourceStickiness() int {
+var getResourceStickiness = func() int {
 	cmdStr := utils.CmdDefaultResourceStickness
 	out, err := utils.RunCommand(cmdStr)
 	if err != nil {
-		logs.Error("get resource-stickiness failed: ", err.Error())
+		slog.Error(fmt.Sprintf("get resource-stickiness failed: %s", err.Error()))
 		return 0
 	}
 
 	// resource-stickiness=100
 	outStr := strings.Split(string(out), "\n")[0]
 	valueStr := strings.Split(outStr, "=")[1]
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		logs.Error("parse resource-stickiness value failed: %v", err)
-		return 0
-	}
+	value, _ := strconv.Atoi(valueStr)
 
 	return value
 }
