@@ -8,8 +8,10 @@
 package models
 
 import (
+	"fmt"
 	"testing"
 
+	"gitee.com/openeuler/ha-api/utils"
 	"github.com/beevik/etree"
 )
 
@@ -775,5 +777,391 @@ func TestSafeIdentifier(t *testing.T) {
 				t.Errorf("safeIdentifier.MatchString(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+// ==================== GetAllResourceStatusForNew - bundle 处理 ====================
+
+// crmMonXMLWithBundle 构造一个只含 bundle 资源的 crm_mon XML
+const crmMonXMLWithBundle = `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="galera-bundle" managed="true" failed="false">
+      <replica id="galera-bundle-0">
+        <resource id="galera:0" resource_agent="ocf::heartbeat:galera" role="Started" managed="true" failed="false" nodes_running_on="1">
+          <node name="ha1" id="1" cached="true"/>
+        </resource>
+      </replica>
+      <replica id="galera-bundle-1">
+        <resource id="galera:1" resource_agent="ocf::heartbeat:galera" role="Started" managed="true" failed="false" nodes_running_on="1">
+          <node name="ha2" id="2" cached="true"/>
+        </resource>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+// bundlePrimitiveXML 模拟 crm_resource --query-xml 对 bundle 的输出
+const bundlePrimitiveXML = `<bundle id="galera-bundle">
+  <primitive class="ocf" id="galera" provider="heartbeat" type="galera" resource_agent="ocf::heartbeat:galera">
+    <operations>
+      <op id="galera-monitor-interval-20s" interval="20s" name="monitor" timeout="20s"/>
+    </operations>
+  </primitive>
+</bundle>`
+
+// mockBundleGetResourceStatus 替换 GetResourceStatus，根据 resource 的 role 返回状态
+func mockBundleGetResourceStatus() func() {
+	orig := GetResourceStatus
+	GetResourceStatus = func(rscInfo *etree.Element) string {
+		role := rscInfo.SelectAttrValue("role", "")
+		managed := rscInfo.SelectAttrValue("managed", "")
+		failed := rscInfo.SelectAttrValue("failed", "")
+		if managed == "false" {
+			return "Unmanaged"
+		}
+		if failed == "true" {
+			return "Failed"
+		}
+		switch role {
+		case "Started":
+			return "Running"
+		case "Stopped":
+			return "Not Running"
+		}
+		return "Running"
+	}
+	return func() { GetResourceStatus = orig }
+}
+
+func TestGetAllResourceStatusForNew_BundleRunning(t *testing.T) {
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+	defer mockBundleGetResourceStatus()()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(crmMonXMLWithBundle), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(bundlePrimitiveXML), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 bundle result, got %d: %v", len(result), result)
+	}
+
+	bundle := result[0]
+	if bundle["id"] != "galera-bundle" {
+		t.Errorf("id = %v, want %q", bundle["id"], "galera-bundle")
+	}
+	if bundle["type"] != "bundle" {
+		t.Errorf("type = %v, want %q", bundle["type"], "bundle")
+	}
+	if bundle["status"] != "Running" {
+		t.Errorf("status = %v, want %q", bundle["status"], "Running")
+	}
+
+	// 子资源应有 2 个 replica 的 resource
+	subrscs, ok := bundle["subrscs"].([]map[string]interface{})
+	if !ok {
+		t.Fatalf("expected subrscs to be []map[string]interface{}, got %T", bundle["subrscs"])
+	}
+	if len(subrscs) != 2 {
+		t.Fatalf("expected 2 sub resources, got %d", len(subrscs))
+	}
+
+	// 验证子资源 ID 已标准化（冒号转连字符）
+	if subrscs[0]["id"] != "galera-0" {
+		t.Errorf("subrscs[0].id = %v, want %q", subrscs[0]["id"], "galera-0")
+	}
+	if subrscs[1]["id"] != "galera-1" {
+		t.Errorf("subrscs[1].id = %v, want %q", subrscs[1]["id"], "galera-1")
+	}
+
+	// 验证 svc 来自 GetResourceSvcFromXml
+	if subrscs[0]["svc"] != "galera" {
+		t.Errorf("subrscs[0].svc = %v, want %q", subrscs[0]["svc"], "galera")
+	}
+
+	// 验证 running_node 去重
+	nodes, ok := bundle["running_node"].([]string)
+	if !ok {
+		t.Fatalf("expected running_node to be []string, got %T", bundle["running_node"])
+	}
+	if len(nodes) != 2 {
+		t.Errorf("running_node count = %d, want 2", len(nodes))
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleNotRunning(t *testing.T) {
+	// 所有 replica 的 resource role=Stopped -> 状态为 Not Running
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="httpd-bundle" managed="true" failed="false">
+      <replica id="httpd-bundle-0">
+        <resource id="httpd:0" resource_agent="ocf::heartbeat:httpd" role="Stopped" managed="true" failed="false" nodes_running_on="0"/>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+	defer mockBundleGetResourceStatus()()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="httpd-bundle"><primitive class="ocf" id="httpd" provider="heartbeat" type="httpd" resource_agent="ocf::heartbeat:httpd"/></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 bundle result, got %d", len(result))
+	}
+	if result[0]["status"] != "Not Running" {
+		t.Errorf("status = %v, want %q", result[0]["status"], "Not Running")
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleInvalidID(t *testing.T) {
+	// bundle id 含非法字符，应被跳过
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="bad@bundle" managed="true" failed="false">
+      <replica id="bad@bundle-0">
+        <resource id="bad:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1"/>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="bad@bundle"><primitive class="ocf" id="bad" provider="heartbeat" type="dummy"/></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 0 {
+		t.Errorf("expected 0 results for invalid bundle id, got %d", len(result))
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleCommandError(t *testing.T) {
+	// crm_resource --query-xml 返回错误，应跳过该 bundle
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="err-bundle" managed="true" failed="false">
+      <replica id="err-bundle-0">
+        <resource id="err:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1"/>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return nil, fmt.Errorf("command failed")
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 0 {
+		t.Errorf("expected 0 results when crm_resource fails, got %d", len(result))
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleNoPrimitive(t *testing.T) {
+	// crm_resource 返回的 XML 不含 /bundle/primitive，priId 为空，应跳过
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="nopri-bundle" managed="true" failed="false">
+      <replica id="nopri-bundle-0">
+        <resource id="nopri:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1"/>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="nopri-bundle"></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 0 {
+		t.Errorf("expected 0 results when primitive not found, got %d", len(result))
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleRunningButFailed(t *testing.T) {
+	// 一个 replica Running，另一个 Failed（含 node） -> 整体 Not Running（Failed 优先）
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="mixed-bundle" managed="true" failed="false">
+      <replica id="mixed-bundle-0">
+        <resource id="mixed:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1">
+          <node name="ha1" id="1" cached="true"/>
+        </resource>
+      </replica>
+      <replica id="mixed-bundle-1">
+        <resource id="mixed:1" resource_agent="ocf::heartbeat:dummy" role="Stopped" managed="true" failed="true" nodes_running_on="1">
+          <node name="ha2" id="2" cached="true"/>
+        </resource>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+	defer mockBundleGetResourceStatus()()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="mixed-bundle"><primitive class="ocf" id="mixed" provider="heartbeat" type="dummy" resource_agent="ocf::heartbeat:dummy"/></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	// 第一个 replica Running -> bundle 升为 Running
+	// 第二个 replica Failed -> bundle 降为 Not Running
+	if result[0]["status"] != "Not Running" {
+		t.Errorf("status = %v, want %q", result[0]["status"], "Not Running")
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleUnmanaged(t *testing.T) {
+	// 一个 replica Running，另一个 managed=false -> Unmanaged 降级
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="unmg-bundle" managed="true" failed="false">
+      <replica id="unmg-bundle-0">
+        <resource id="unmg:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1">
+          <node name="ha1" id="1" cached="true"/>
+        </resource>
+      </replica>
+      <replica id="unmg-bundle-1">
+        <resource id="unmg:1" resource_agent="ocf::heartbeat:dummy" role="Started" managed="false" failed="false" nodes_running_on="1">
+          <node name="ha2" id="2" cached="true"/>
+        </resource>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+	defer mockBundleGetResourceStatus()()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="unmg-bundle"><primitive class="ocf" id="unmg" provider="heartbeat" type="dummy" resource_agent="ocf::heartbeat:dummy"/></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	// 第一个 replica Running -> bundle 升为 Running
+	// 第二个 replica Unmanaged（managed=false） -> bundle 降为 Unmanaged
+	if result[0]["status"] != "Unmanaged" {
+		t.Errorf("status = %v, want %q", result[0]["status"], "Unmanaged")
+	}
+}
+
+func TestGetAllResourceStatusForNew_BundleResourceIDPrefixMismatch(t *testing.T) {
+	// replica 下 resource id 不以 priId 为前缀，应被跳过
+	xml := `<crm_mon version="2.0.3">
+  <resources>
+    <bundle id="prefix-bundle" managed="true" failed="false">
+      <replica id="prefix-bundle-0">
+        <resource id="other:0" resource_agent="ocf::heartbeat:dummy" role="Started" managed="true" failed="false" nodes_running_on="1">
+          <node name="ha1" id="1" cached="true"/>
+        </resource>
+      </replica>
+    </bundle>
+  </resources>
+</crm_mon>`
+
+	origRunCommand := utils.RunCommand
+	origRunCommandWithArgs := utils.RunCommandWithArgs
+	defer func() {
+		utils.RunCommand = origRunCommand
+		utils.RunCommandWithArgs = origRunCommandWithArgs
+	}()
+	defer mockBundleGetResourceStatus()()
+
+	utils.RunCommand = func(cmd string) ([]byte, error) {
+		return []byte(xml), nil
+	}
+	utils.RunCommandWithArgs = func(binary string, args ...string) ([]byte, error) {
+		return []byte(`<bundle id="prefix-bundle"><primitive class="ocf" id="mypri" provider="heartbeat" type="dummy" resource_agent="ocf::heartbeat:dummy"/></bundle>`), nil
+	}
+
+	result := GetAllResourceStatusForNew()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	// resource id "other-0" 不以 "mypri" 为前缀，应被跳过
+	subrscs, ok := result[0]["subrscs"].([]map[string]interface{})
+	if !ok {
+		t.Fatalf("expected subrscs to be []map[string]interface{}, got %T", result[0]["subrscs"])
+	}
+	if len(subrscs) != 0 {
+		t.Errorf("expected 0 sub resources (prefix mismatch), got %d", len(subrscs))
+	}
+	// 状态应保持初始的 Not Running
+	if result[0]["status"] != "Not Running" {
+		t.Errorf("status = %v, want %q", result[0]["status"], "Not Running")
 	}
 }
