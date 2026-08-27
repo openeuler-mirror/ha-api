@@ -10,6 +10,7 @@ package models
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"gitee.com/openeuler/ha-api/utils"
 	"gitee.com/openeuler/ha-api/validations"
@@ -196,5 +197,78 @@ func RuleUpdate(data *validations.RuleS) utils.GeneralResponse {
 	return utils.GeneralResponse{
 		Action: true,
 		Info:   gettext.Gettext("Update rule success"),
+	}
+}
+
+// StaleConstraint 残留约束信息，由 pcs resource move/ban 自动生成的 location 约束
+type StaleConstraint struct {
+	ConstraintID string `json:"constraint_id"`
+	Resource     string `json:"resource"`
+	Node         string `json:"node"`
+	Score        string `json:"score"`
+	Role         string `json:"role,omitempty"`
+	Type         string `json:"type"`
+}
+
+type StaleConstraintsResponse struct {
+	utils.GeneralResponse
+	Data []StaleConstraint `json:"data"`
+}
+
+// StaleConstraintsGet 检测由 pcs resource move/ban 残留的 location 约束。
+// move/ban 自动生成的约束 ID 以 "cli-" 为前缀（如 cli-ban-vip-on-node1），
+// 用户手动创建的约束 ID 为自定义命名，不受影响。
+func StaleConstraintsGet() StaleConstraintsResponse {
+	staleList := []StaleConstraint{}
+
+	out, err := utils.RunCommand(utils.CmdQueryConstraints)
+	if err != nil {
+		return StaleConstraintsResponse{
+			GeneralResponse: utils.GeneralResponse{
+				Action: false,
+				Error:  gettext.Gettext("Get stale constraints failed"),
+			},
+		}
+	}
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(out); err != nil {
+		slog.Error("StaleConstraintsGet: Read xml failed", "error", err)
+		return StaleConstraintsResponse{
+			GeneralResponse: utils.GeneralResponse{
+				Action: false,
+				Error:  gettext.Gettext("Get stale constraints failed"),
+			},
+		}
+	}
+
+	for _, loc := range doc.FindElements("/constraints/rsc_location") {
+		id := loc.SelectAttrValue("id", "")
+		if !strings.HasPrefix(id, "cli-") {
+			continue
+		}
+		// 按前缀区分约束来源：ban 残留 / move 残留
+		cType := "move"
+		switch {
+		case strings.HasPrefix(id, "cli-ban-"):
+			cType = "ban"
+		case strings.HasPrefix(id, "cli-standby-"), strings.HasPrefix(id, "cli-prefer-"):
+			cType = "move"
+		}
+		staleList = append(staleList, StaleConstraint{
+			ConstraintID: id,
+			Resource:     loc.SelectAttrValue("rsc", ""),
+			Node:         loc.SelectAttrValue("node", ""),
+			Score:        loc.SelectAttrValue("score", ""),
+			Role:         loc.SelectAttrValue("role", ""),
+			Type:         cType,
+		})
+	}
+
+	return StaleConstraintsResponse{
+		GeneralResponse: utils.GeneralResponse{
+			Action: true,
+		},
+		Data: staleList,
 	}
 }

@@ -113,6 +113,9 @@ msgstr "更新资源属性成功"
 msgid "Get rule failed"
 msgstr "获取规则失败"
 
+msgid "Get stale constraints failed"
+msgstr "获取残留约束失败"
+
 msgid "Delete rule success"
 msgstr "删除规则成功"
 

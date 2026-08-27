@@ -70,3 +70,13 @@ func (rc *RuleController) Put() {
 	rc.Data["json"] = &res
 	rc.ServeJSON()
 }
+
+type StaleConstraintsController struct {
+	web.Controller
+}
+
+func (sc *StaleConstraintsController) Get() {
+	logs.Debug("handle stale constraints GET request")
+	sc.Data["json"] = models.StaleConstraintsGet()
+	sc.ServeJSON()
+}
