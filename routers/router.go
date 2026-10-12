@@ -72,17 +72,18 @@ func init() {
 		web.NSRouter("/:cluster_name/1/tag/:tag_name", &controllers.TagUpdateController{}),
 		web.NSRouter("/:cluster_name/1/tag/:tag_name/:action", &controllers.TagActionController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
+		web.NSRouter("/:cluster_name/1/constraints/stale", &controllers.StaleConstraintsController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
 		web.NSRouter("/remotescripts", &controllers.ScriptsRemoteController{}),
 
 		//智能迁移
 		web.NSRouter("/:cluster_name/1/health", &controllers.HealthConfig{}),
-		
+
 		// 资源模板
 		web.NSRouter("/:cluster_name/1/resourceModel", &controllers.ResourceModelConfig{}),
 
 		//系统分析
-                web.NSRouter("/:cluster_name/1/:node_name/system_overview", &controllers.SystemInfoController{}),
+		web.NSRouter("/:cluster_name/1/:node_name/system_overview", &controllers.SystemInfoController{}),
 		web.NSRouter("/:cluster_name/1/:node_name/service_status", &controllers.ServiceStatusController{}),
 	)
 
@@ -129,6 +130,7 @@ func init() {
 		web.NSRouter("/:cluster_name/1/tag/:tag_name", &controllers.TagUpdateController{}),
 		web.NSRouter("/:cluster_name/1/tag/:tag_name/:action", &controllers.TagActionController{}),
 		web.NSRouter("/:cluster_name/1/rules", &controllers.RuleController{}),
+		web.NSRouter("/:cluster_name/1/constraints/stale", &controllers.StaleConstraintsController{}),
 		web.NSRouter("/:cluster_name/1/scripts", &controllers.ScriptsController{}),
 
 		//智能迁移

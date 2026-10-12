@@ -479,3 +479,83 @@ func TestRuleUpdate_EmptyConstraints(t *testing.T) {
 
 	assert.False(t, result.Action)
 }
+
+// ==================== StaleConstraintsGet ====================
+
+func TestStaleConstraintsGet_HasStaleConstraints(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		xml := `<constraints>
+  <rsc_location id="cli-ban-vip-on-node1" rsc="vip" node="node1" score="-INFINITY"/>
+  <rsc_location id="cli-standby-web-on-node2" rsc="web" node="node2" score="INFINITY"/>
+  <rsc_location id="my-custom-location" rsc="vip" node="node2" score="200"/>
+</constraints>`
+		return []byte(xml), nil
+	})
+
+	result := StaleConstraintsGet()
+
+	assert.True(t, result.Action)
+	assert.Len(t, result.Data, 2)
+
+	// ban 残留
+	assert.Equal(t, "cli-ban-vip-on-node1", result.Data[0].ConstraintID)
+	assert.Equal(t, "vip", result.Data[0].Resource)
+	assert.Equal(t, "node1", result.Data[0].Node)
+	assert.Equal(t, "-INFINITY", result.Data[0].Score)
+	assert.Equal(t, "ban", result.Data[0].Type)
+
+	// move 残留
+	assert.Equal(t, "cli-standby-web-on-node2", result.Data[1].ConstraintID)
+	assert.Equal(t, "web", result.Data[1].Resource)
+	assert.Equal(t, "node2", result.Data[1].Node)
+	assert.Equal(t, "INFINITY", result.Data[1].Score)
+	assert.Equal(t, "move", result.Data[1].Type)
+}
+
+func TestStaleConstraintsGet_NoStaleConstraints(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		xml := `<constraints>
+  <rsc_location id="my-custom-location" rsc="vip" node="node1" score="200"/>
+  <rsc_location id="loc-2" rsc="web" node="node2" score="100"/>
+</constraints>`
+		return []byte(xml), nil
+	})
+
+	result := StaleConstraintsGet()
+
+	assert.True(t, result.Action)
+	assert.Empty(t, result.Data)
+}
+
+func TestStaleConstraintsGet_EmptyConstraints(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte(`<constraints></constraints>`), nil
+	})
+
+	result := StaleConstraintsGet()
+
+	assert.True(t, result.Action)
+	assert.Empty(t, result.Data)
+}
+
+func TestStaleConstraintsGet_CommandError(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte("Error: cibadmin failed"), errors.New("command failed")
+	})
+
+	result := StaleConstraintsGet()
+
+	assert.False(t, result.Action)
+	assert.NotEmpty(t, result.Error)
+}
+
+func TestStaleConstraintsGet_XMLParseError(t *testing.T) {
+	ruleMockCmd(t, func(cmd string) ([]byte, error) {
+		return []byte(`<invalid xml><<<`), nil
+	})
+
+	result := StaleConstraintsGet()
+
+	assert.False(t, result.Action)
+	assert.NotEmpty(t, result.Error)
+}
