@@ -6,19 +6,28 @@
  * Date: Fri Jul 04 15:54:28 2026 +0800
  */
 
- package controllers
+package controllers
 
- import (
-	 "gitee.com/openeuler/ha-api/models"
-	 "github.com/beego/beego/v2/server/web"
- )
- 
- type ResourceModelConfig struct {
-	 web.Controller
- }
- 
- func (rmc *ResourceModelConfig) Get() {
-	 rmc.Data["json"] = models.ResourceModelDeploy()
-	 rmc.ServeJSON()
- }
- 
+import (
+	"encoding/json"
+
+	"gitee.com/openeuler/ha-api/models"
+	"github.com/beego/beego/v2/server/web"
+)
+
+type ResourceModelConfig struct {
+	web.Controller
+}
+
+func (rmc *ResourceModelConfig) Get() {
+	rmc.Data["json"] = models.ResourceModelDeploy()
+	rmc.ServeJSON()
+}
+
+func (rmc *ResourceModelConfig) Post() {
+	jsonStr := rmc.Ctx.Input.RequestBody
+	var req models.ResourceModelRequest
+	json.Unmarshal(jsonStr, &req)
+	rmc.Data["json"] = models.ResourceCreate(req)
+	rmc.ServeJSON()
+}
